@@ -62,6 +62,8 @@ test
 # Skills
 /skills/
 
-# Keep template in repo
+# Keep templates in repo
+!Plantilla_de_Informes_VIP.docx
+!upload/Plantilla_de_Informes_VIP.docx
 !Plantilla_de_Informes.docx
 !upload/Plantilla_de_Informes.docx
