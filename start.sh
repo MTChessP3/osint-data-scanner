@@ -11,20 +11,12 @@ mkdir -p "$APP_DIR/download/reports"
 mkdir -p "$APP_DIR/upload"
 mkdir -p "$APP_DIR/db"
 
-# Install Python dependencies
-echo "Installing Python dependencies..."
-pip install python-docx openpyxl --break-system-packages 2>/dev/null || true
-
 # Copy template to upload directory if not present
 if [ ! -f "$APP_DIR/upload/Plantilla_de_Informes_VIP.docx" ]; then
     echo "Looking for template..."
     if [ -f "$APP_DIR/Plantilla_de_Informes_VIP.docx" ]; then
         cp "$APP_DIR/Plantilla_de_Informes_VIP.docx" "$APP_DIR/upload/"
         echo "Template copied to upload directory."
-    elif [ -f "$APP_DIR/Plantilla_de_Informes.docx" ]; then
-        # Fallback to old template if VIP not found
-        cp "$APP_DIR/Plantilla_de_Informes.docx" "$APP_DIR/upload/Plantilla_de_Informes_VIP.docx"
-        echo "Legacy template copied as VIP template."
     else
         echo "WARNING: Template not found. Report generation will fail."
     fi

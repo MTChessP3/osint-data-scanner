@@ -1,11 +1,11 @@
 [phases.setup]
-nixPkgs = ["python313", "python313Packages.pip", "bun"]
+nixPkgs = ["python313", "python313Packages.pip", "nodejs_22", "npm"]
 
 [phases.install]
-cmds = ["pip install python-docx openpyxl --break-system-packages", "bun install"]
+cmds = ["pip install python-docx openpyxl --break-system-packages", "npm install"]
 
 [phases.build]
-cmds = ["bun run db:generate", "bun run build"]
+cmds = ["npx prisma generate", "npm run build"]
 
 [phases.setup.variables]
 PYTHONUNBUFFERED = "1"
