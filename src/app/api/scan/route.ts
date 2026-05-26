@@ -1,11 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { runFullScan, OSINTResult } from '@/lib/osint-scanner';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
+
+async function generateDocxReport(scanData: {
+  scan: Record<string, unknown>;
+  results: OSINTResult[];
+}): Promise<{ filePath: string; fileName: string }> {
+  const inputData = JSON.stringify(scanData);
+
+  const { stdout } = await execFileAsync('python3', [
+    '/home/z/my-project/scripts/generate-report.py'
+  ], {
+    input: inputData,
+    timeout: 60000,
+  });
+
+  const result = JSON.parse(stdout.trim());
+  if (!result.success) {
+    throw new Error(result.error || 'Error generating report');
+  }
+  return { filePath: result.filePath, fileName: result.fileName };
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fullName, cedula, email, phone } = body;
+    const { fullName, cedula, email, phone, generateReport = true } = body;
 
     if (!fullName) {
       return NextResponse.json({ error: 'El nombre completo es requerido' }, { status: 400 });
@@ -48,10 +72,42 @@ export async function POST(request: NextRequest) {
       data: { status: 'completed' },
     });
 
+    // Generate DOCX report
+    let reportFileName = null;
+    if (generateReport) {
+      try {
+        const reportInfo = await generateDocxReport({
+          scan: {
+            id: scan.id,
+            fullName,
+            cedula: cedula || null,
+            email: email || null,
+            phone: phone || null,
+            createdAt: scan.createdAt.toISOString(),
+          },
+          results,
+        });
+
+        await db.report.create({
+          data: {
+            scanId: scan.id,
+            filePath: reportInfo.filePath,
+            fileName: reportInfo.fileName,
+            status: 'generated',
+          },
+        });
+
+        reportFileName = reportInfo.fileName;
+      } catch (reportError) {
+        console.error('Report generation error:', reportError);
+      }
+    }
+
     return NextResponse.json({
       scanId: scan.id,
       totalResults: results.length,
       results,
+      reportFileName,
       summary: {
         critical: results.filter(r => r.severity === 'critical').length,
         high: results.filter(r => r.severity === 'high').length,
@@ -77,7 +133,10 @@ export async function GET(request: NextRequest) {
     if (scanId) {
       const scan = await db.scan.findUnique({
         where: { id: scanId },
-        include: { results: true },
+        include: {
+          results: true,
+          reports: true,
+        },
       });
       if (!scan) {
         return NextResponse.json({ error: 'Escaneo no encontrado' }, { status: 404 });
@@ -87,7 +146,10 @@ export async function GET(request: NextRequest) {
 
     const scans = await db.scan.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { results: { select: { id: true, severity: true } } },
+      include: {
+        results: { select: { id: true, severity: true } },
+        reports: { select: { id: true, fileName: true } },
+      },
     });
 
     return NextResponse.json(scans);

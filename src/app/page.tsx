@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, Search, AlertTriangle, Eye, Globe, Database,
   ChevronDown, ChevronUp, ExternalLink, Loader2, Trash2,
   ShieldAlert, ShieldCheck, Info, User, Mail, Phone, FileText,
-  ScanLine, BarChart3, Clock
+  ScanLine, BarChart3, Clock, Upload, Download, FileSpreadsheet,
+  CheckCircle2, XCircle, FileDown, Users, AlertOctagon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ interface ScanResponse {
   totalResults: number;
   results: ScanResult[];
   summary: ScanSummary;
+  reportFileName?: string;
 }
 
 interface PastScan {
@@ -51,6 +53,16 @@ interface PastScan {
   status: string;
   createdAt: string;
   results: { id: string; severity: string }[];
+  reports: { id: string; fileName: string }[];
+}
+
+interface BatchResult {
+  scanId: string;
+  fullName: string;
+  totalResults: number;
+  reportGenerated: boolean;
+  reportFileName: string | null;
+  summary: ScanSummary;
 }
 
 const severityConfig = {
@@ -87,6 +99,16 @@ export default function Home() {
   const [pastScans, setPastScans] = useState<PastScan[]>([]);
   const [activeTab, setActiveTab] = useState('scan');
 
+  // File upload states
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [batchResults, setBatchResults] = useState<BatchResult[] | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Drag & drop states
+  const [isDragging, setIsDragging] = useState(false);
+
   useEffect(() => {
     fetchPastScans();
   }, []);
@@ -116,7 +138,6 @@ export default function Home() {
     setScanData(null);
     setProgress(0);
 
-    // Simulate progress
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 90) { clearInterval(progressInterval); return 90; }
@@ -179,11 +200,99 @@ export default function Home() {
           low: results.filter(r => r.severity === 'low').length,
           info: results.filter(r => r.severity === 'info').length,
         };
-        setScanData({ scanId: scan.id, totalResults: results.length, results, summary });
+        const reportFileName = scan.reports?.[0]?.fileName || undefined;
+        setScanData({ scanId: scan.id, totalResults: results.length, results, summary, reportFileName });
         setActiveTab('results');
       }
     } catch { /* ignore */ }
   }
+
+  async function handleDownloadReport(scanId: string) {
+    try {
+      const res = await fetch(`/api/report?scanId=${scanId}&download=true`);
+      if (!res.ok) throw new Error('Error al descargar informe');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'Informe_OSINT.docx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download error:', err);
+    }
+  }
+
+  // ── File Upload Handler ──
+  const handleFileUpload = useCallback(async () => {
+    if (!uploadFile) return;
+
+    setUploadLoading(true);
+    setUploadError(null);
+    setBatchResults(null);
+    setUploadProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 85) { clearInterval(progressInterval); return 85; }
+        return prev + Math.random() * 3;
+      });
+    }, 800);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al procesar archivo');
+      }
+
+      const data = await res.json();
+      setBatchResults(data.results);
+      fetchPastScans();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setUploadLoading(false);
+      setTimeout(() => setUploadProgress(0), 1000);
+    }
+  }, [uploadFile]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    const validFile = files.find(f =>
+      f.name.endsWith('.csv') || f.name.endsWith('.xlsx') || f.name.endsWith('.xls')
+    );
+    if (validFile) {
+      setUploadFile(validFile);
+      setUploadError(null);
+    } else {
+      setUploadError('Formato no soportado. Use .csv, .xlsx o .xls');
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
 
   const filteredResults = scanData?.results.filter(
     r => filterSeverity === 'all' || r.severity === filterSeverity
@@ -211,7 +320,11 @@ export default function Home() {
           <div className="ml-auto flex items-center gap-2">
             <Badge variant="outline" className="border-gray-700 text-gray-400 text-xs">
               <Globe className="w-3 h-3 mr-1" />
-              7 Motores de Busqueda
+              7 Motores
+            </Badge>
+            <Badge variant="outline" className="border-emerald-800 text-emerald-400 text-xs">
+              <FileDown className="w-3 h-3 mr-1" />
+              Informes DOCX
             </Badge>
           </div>
         </div>
@@ -219,10 +332,14 @@ export default function Home() {
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-gray-900 border border-gray-800">
+          <TabsList className="bg-gray-900 border border-gray-800 flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="scan" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
               <ScanLine className="w-4 h-4 mr-2" />
-              Nuevo Escaneo
+              Escaneo
+            </TabsTrigger>
+            <TabsTrigger value="batch" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              <Upload className="w-4 h-4 mr-2" />
+              Carga por Lotes
             </TabsTrigger>
             <TabsTrigger value="results" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white" disabled={!scanData}>
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -246,7 +363,7 @@ export default function Home() {
                       Datos a Escanear
                     </CardTitle>
                     <CardDescription className="text-gray-500">
-                      Ingresa los datos que deseas verificar en la red
+                      Ingresa los datos que deseas verificar
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -319,18 +436,29 @@ export default function Home() {
                       {loading ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Escaneando la red...
+                          Escaneando + Generando Informe...
                         </>
                       ) : (
                         <>
                           <Search className="w-4 h-4 mr-2" />
-                          Iniciar Escaneo OSINT
+                          Escanear y Generar Informe
                         </>
                       )}
                     </Button>
 
                     {progress > 0 && (
                       <Progress value={progress} className="h-2" />
+                    )}
+
+                    {scanData && scanData.reportFileName && (
+                      <Button
+                        onClick={() => handleDownloadReport(scanData.scanId)}
+                        className="w-full bg-emerald-700 hover:bg-emerald-800 text-white"
+                        size="lg"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar Informe DOCX
+                      </Button>
                     )}
                   </CardContent>
                 </Card>
@@ -370,17 +498,226 @@ export default function Home() {
 
                 <Card className="bg-gray-900 border-gray-800">
                   <CardHeader>
-                    <CardTitle className="text-white text-sm">Como Funciona</CardTitle>
+                    <CardTitle className="text-white flex items-center gap-2 text-sm">
+                      <FileDown className="w-4 h-4 text-emerald-400" />
+                      Informe Automatizado
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="text-sm text-gray-400 space-y-2">
-                    <p>1. Ingresa tus datos personales en el formulario (nombre es obligatorio).</p>
-                    <p>2. El sistema ejecuta busquedas simultaneas en 7 motores OSINT.</p>
-                    <p>3. Los resultados se clasifican por severidad y categoria.</p>
-                    <p>4. Recibes un reporte detallado con enlaces y recomendaciones.</p>
+                    <p>Cada escaneo genera automaticamente un <strong className="text-white">Informe de Inteligencia Digital</strong> en formato DOCX basado en la plantilla profesional OSINT.</p>
+                    <p>El informe incluye: resumen ejecutivo, identidad del sujeto, huella digital, red de relaciones, fuentes abiertas, indicadores de riesgo, conclusiones y cadena de evidencia.</p>
                     <Separator className="my-3 bg-gray-800" />
-                    <p className="text-xs text-gray-600">Solo se buscan datos publicamente accesibles. No se accede a sistemas privados ni se realizan ataques.</p>
+                    <p className="text-xs text-gray-600">Tambien puedes cargar lotes de datos via .xlsx o .csv para procesar multiples personas.</p>
                   </CardContent>
                 </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ── BATCH UPLOAD TAB ── */}
+          <TabsContent value="batch" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Upload Area */}
+              <div className="space-y-4">
+                <Card className="bg-gray-900 border-gray-800">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+                      Carga por Lotes
+                    </CardTitle>
+                    <CardDescription className="text-gray-500">
+                      Sube un archivo .xlsx o .csv con los datos de multiples personas
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Drag & Drop Zone */}
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+                        isDragging
+                          ? 'border-emerald-500 bg-emerald-900/20'
+                          : uploadFile
+                            ? 'border-emerald-700 bg-emerald-900/10'
+                            : 'border-gray-700 bg-gray-800/30 hover:border-gray-600 hover:bg-gray-800/50'
+                      }`}
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.csv,.xlsx,.xls';
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            setUploadFile(file);
+                            setUploadError(null);
+                          }
+                        };
+                        input.click();
+                      }}
+                    >
+                      {uploadFile ? (
+                        <div className="space-y-2">
+                          <FileSpreadsheet className="w-10 h-10 mx-auto text-emerald-400" />
+                          <p className="text-sm font-medium text-white">{uploadFile.name}</p>
+                          <p className="text-xs text-gray-500">{(uploadFile.size / 1024).toFixed(1)} KB</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-400 hover:text-red-300"
+                            onClick={(e) => { e.stopPropagation(); setUploadFile(null); }}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" /> Quitar archivo
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Upload className="w-10 h-10 mx-auto text-gray-600" />
+                          <p className="text-sm text-gray-400">Arrastra tu archivo aqui o haz clic para seleccionar</p>
+                          <p className="text-xs text-gray-600">.csv, .xlsx, .xls — Maximo 50 personas por lote</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Required columns info */}
+                    <div className="p-3 bg-gray-800/50 rounded-lg border border-gray-800">
+                      <p className="text-xs font-medium text-gray-300 mb-2">Columnas requeridas en el archivo:</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Badge className="bg-emerald-700 text-white text-[10px] px-1.5">Requerido</Badge>
+                          <span className="text-gray-400">nombre / name</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="border-gray-600 text-gray-400 text-[10px] px-1.5">Opcional</Badge>
+                          <span className="text-gray-400">cedula / documento</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="border-gray-600 text-gray-400 text-[10px] px-1.5">Opcional</Badge>
+                          <span className="text-gray-400">correo / email</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="border-gray-600 text-gray-400 text-[10px] px-1.5">Opcional</Badge>
+                          <span className="text-gray-400">telefono / phone</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {uploadError && (
+                      <div className="p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-300 text-sm">
+                        {uploadError}
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={handleFileUpload}
+                      disabled={!uploadFile || uploadLoading}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                      size="lg"
+                    >
+                      {uploadLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Procesando lote...
+                        </>
+                      ) : (
+                        <>
+                          <Users className="w-4 h-4 mr-2" />
+                          Procesar Lote y Generar Informes
+                        </>
+                      )}
+                    </Button>
+
+                    {uploadProgress > 0 && (
+                      <Progress value={uploadProgress} className="h-2" />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Batch Results */}
+              <div className="space-y-4">
+                {batchResults ? (
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardHeader>
+                      <CardTitle className="text-white flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-emerald-400" />
+                        Resultados del Lote
+                      </CardTitle>
+                      <CardDescription className="text-gray-500">
+                        {batchResults.length} persona(s) procesada(s)
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="max-h-[500px]">
+                        <div className="space-y-3">
+                          {batchResults.map((result, idx) => {
+                            const totalRisk = Math.min(100, result.summary.critical * 30 + result.summary.high * 15 + result.summary.medium * 5 + result.summary.low * 2);
+                            const rLabel = totalRisk >= 70 ? 'CRITICO' : totalRisk >= 40 ? 'ALTO' : totalRisk >= 15 ? 'MODERADO' : 'BAJO';
+                            const rColor = totalRisk >= 70 ? 'text-red-500' : totalRisk >= 40 ? 'text-orange-500' : totalRisk >= 15 ? 'text-yellow-500' : 'text-green-500';
+
+                            return (
+                              <div key={idx} className="p-4 bg-gray-800/50 rounded-lg border border-gray-800">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium text-white">{result.fullName}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge variant="outline" className="border-gray-700 text-gray-400 text-xs">
+                                        {result.totalResults} hallazgos
+                                      </Badge>
+                                      <span className={`text-xs font-bold ${rColor}`}>{rLabel}</span>
+                                      {result.reportGenerated ? (
+                                        <Badge className="bg-emerald-700 text-white text-xs">
+                                          <CheckCircle2 className="w-3 h-3 mr-1" /> Informe generado
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="border-red-700 text-red-400 text-xs">
+                                          <XCircle className="w-3 h-3 mr-1" /> Sin informe
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {result.summary.critical > 0 && (
+                                      <div className="flex items-center gap-1 mt-2">
+                                        <AlertOctagon className="w-3.5 h-3.5 text-red-500" />
+                                        <span className="text-xs text-red-400">{result.summary.critical} criticos, {result.summary.high} altos, {result.summary.medium} medios</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2 ml-3">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-gray-700 text-gray-400 hover:text-white"
+                                      onClick={() => handleViewPastScan(result.scanId)}
+                                    >
+                                      Ver
+                                    </Button>
+                                    {result.reportGenerated && (
+                                      <Button
+                                        size="sm"
+                                        className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                                        onClick={() => handleDownloadReport(result.scanId)}
+                                      >
+                                        <Download className="w-3.5 h-3.5 mr-1" /> DOCX
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardContent className="py-16 text-center">
+                      <FileSpreadsheet className="w-16 h-16 mx-auto mb-4 text-gray-700" />
+                      <p className="text-gray-500 mb-2">Carga un archivo para procesar multiples personas</p>
+                      <p className="text-xs text-gray-600">Se generara un informe DOCX individual por cada persona analizada</p>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </TabsContent>
@@ -389,6 +726,30 @@ export default function Home() {
           <TabsContent value="results" className="space-y-6">
             {scanData && (
               <>
+                {/* Report Download Banner */}
+                {scanData.reportFileName && (
+                  <Card className="bg-emerald-900/20 border-emerald-800">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-800/50 rounded-lg">
+                          <FileDown className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-emerald-300">Informe de Inteligencia Digital Generado</p>
+                          <p className="text-xs text-emerald-500">{scanData.reportFileName}</p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => handleDownloadReport(scanData.scanId)}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar Informe
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Summary Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   <Card className="bg-gray-900 border-gray-800">
@@ -557,51 +918,84 @@ export default function Home() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {pastScans.map(scan => (
-                  <Card key={scan.id} className="bg-gray-900 border-gray-800">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">{scan.fullName}</p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                          {scan.email && <span>{scan.email}</span>}
-                          {scan.cedula && <span>CC: {scan.cedula}</span>}
-                          {scan.phone && <span>Tel: {scan.phone}</span>}
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className="border-gray-700 text-gray-400 text-xs">
-                            {new Date(scan.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </Badge>
-                          <Badge variant="outline" className="border-gray-700 text-gray-400 text-xs">
-                            {scan.results.length} resultados
-                          </Badge>
-                          {scan.results.filter(r => r.severity === 'critical').length > 0 && (
-                            <Badge className="bg-red-600 text-white text-xs">
-                              {scan.results.filter(r => r.severity === 'critical').length} criticos
+                {pastScans.map(scan => {
+                  const hasReport = scan.reports && scan.reports.length > 0;
+                  const criticals = scan.results.filter(r => r.severity === 'critical').length;
+                  return (
+                    <Card key={scan.id} className="bg-gray-900 border-gray-800">
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white">{scan.fullName}</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                            {scan.email && <span>{scan.email}</span>}
+                            {scan.cedula && <span>CC: {scan.cedula}</span>}
+                            {scan.phone && <span>Tel: {scan.phone}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="border-gray-700 text-gray-400 text-xs">
+                              {new Date(scan.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </Badge>
-                          )}
+                            <Badge variant="outline" className="border-gray-700 text-gray-400 text-xs">
+                              {scan.results.length} resultados
+                            </Badge>
+                            {criticals > 0 && (
+                              <Badge className="bg-red-600 text-white text-xs">
+                                {criticals} criticos
+                              </Badge>
+                            )}
+                            {hasReport && (
+                              <Badge className="bg-emerald-700 text-white text-xs">
+                                <FileDown className="w-3 h-3 mr-1" /> Informe
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-gray-700 text-gray-400 hover:text-white"
-                          onClick={() => handleViewPastScan(scan.id)}
-                        >
-                          Ver
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-gray-700 text-red-400 hover:text-red-300 hover:border-red-800"
-                          onClick={() => handleDeleteScan(scan.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-gray-700 text-gray-400 hover:text-white"
+                            onClick={() => handleViewPastScan(scan.id)}
+                          >
+                            Ver
+                          </Button>
+                          {hasReport && (
+                            <Button
+                              size="sm"
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                              onClick={() => handleDownloadReport(scan.id)}
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          {!hasReport && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-emerald-700 text-emerald-400 hover:text-emerald-300"
+                              onClick={async () => {
+                                try {
+                                  await fetch(`/api/report?scanId=${scan.id}`);
+                                  fetchPastScans();
+                                } catch { /* ignore */ }
+                              }}
+                            >
+                              <FileDown className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-gray-700 text-red-400 hover:text-red-300 hover:border-red-800"
+                            onClick={() => handleDeleteScan(scan.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -612,7 +1006,11 @@ export default function Home() {
       <footer className="border-t border-gray-800 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-gray-600">OSINT Data Scanner — Solo busca datos publicamente accesibles</p>
-          <p className="text-xs text-gray-700">Desplegable en Railway.app</p>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="border-gray-800 text-gray-600 text-[10px]">
+              <FileDown className="w-3 h-3 mr-1" /> Informes basados en plantilla profesional
+            </Badge>
+          </div>
         </div>
       </footer>
     </div>

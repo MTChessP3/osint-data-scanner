@@ -15,6 +15,7 @@ model Scan {
   phone       String?
   status      String   @default("pending")
   results     ScanResult[]
+  reports     Report[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -29,6 +30,16 @@ model ScanResult {
   description String?
   url         String?
   dataFound   String?
+  scan        Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  scanId      String
+  filePath    String
+  fileName    String
+  status      String   @default("generated")
   scan        Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
 }
