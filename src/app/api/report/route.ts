@@ -3,8 +3,10 @@ import { db } from '@/lib/db';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
+import path from 'path';
 
 const execFileAsync = promisify(execFile);
+const APP_ROOT = process.env.APP_ROOT || process.cwd();
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,8 +45,9 @@ export async function GET(request: NextRequest) {
           results: scan.results,
         });
 
+        const scriptPath = path.join(APP_ROOT, 'scripts', 'generate-report.py');
         const { stdout } = await execFileAsync('python3', [
-          '/home/z/my-project/scripts/generate-report.py'
+          scriptPath
         ], {
           input: inputData,
           timeout: 60000,

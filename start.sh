@@ -2,7 +2,7 @@
 # Railway.app Start Script - OSINT Data Scanner
 set -e
 
-APP_DIR="${APP_ROOT:-/home/z/my-project}"
+APP_DIR="${APP_ROOT:-/app}"
 echo "=== OSINT Data Scanner - Starting ==="
 echo "App directory: $APP_DIR"
 
@@ -38,4 +38,5 @@ npx prisma db push
 
 # Start the Next.js server
 echo "=== Starting Next.js Server ==="
+export APP_ROOT="$APP_DIR"
 exec node .next/standalone/server.js

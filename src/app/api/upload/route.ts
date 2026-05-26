@@ -66,9 +66,10 @@ async function generateDocxReport(scanData: {
   results: OSINTResult[];
 }): Promise<{ filePath: string; fileName: string }> {
   const inputData = JSON.stringify(scanData);
+  const scriptPath = path.join(process.env.APP_ROOT || process.cwd(), 'scripts', 'generate-report.py');
 
   const { stdout } = await execFileAsync('python3', [
-    '/home/z/my-project/scripts/generate-report.py'
+    scriptPath
   ], {
     input: inputData,
     timeout: 60000,

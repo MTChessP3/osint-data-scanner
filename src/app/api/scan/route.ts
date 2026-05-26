@@ -3,17 +3,20 @@ import { db } from '@/lib/db';
 import { runFullScan, OSINTResult } from '@/lib/osint-scanner';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
 
 const execFileAsync = promisify(execFile);
+const APP_ROOT = process.env.APP_ROOT || process.cwd();
 
 async function generateDocxReport(scanData: {
   scan: Record<string, unknown>;
   results: OSINTResult[];
 }): Promise<{ filePath: string; fileName: string }> {
   const inputData = JSON.stringify(scanData);
+  const scriptPath = path.join(APP_ROOT, 'scripts', 'generate-report.py');
 
   const { stdout } = await execFileAsync('python3', [
-    '/home/z/my-project/scripts/generate-report.py'
+    scriptPath
   ], {
     input: inputData,
     timeout: 60000,
