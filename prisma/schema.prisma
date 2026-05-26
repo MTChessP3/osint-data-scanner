@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Scan {
+  id          String   @id @default(cuid())
+  fullName    String
+  cedula      String?
+  email       String?
+  phone       String?
+  status      String   @default("pending")
+  results     ScanResult[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ScanResult {
+  id          String   @id @default(cuid())
+  scanId      String
+  source      String
+  category    String
+  severity    String   @default("info")
+  title       String
+  description String?
+  url         String?
+  dataFound   String?
+  scan        Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
