@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.recordedfuture.com/threat-intelligence-101/tools-and-technologies/osint-tools",
+    "name": "Top 15 Free OSINT Tools To Collect Data From Open Sources",
+    "snippet": "This article covers the role of OSINT tools, a brief history, and how to use these popular tools to deliver crucial intelligence insights.",
+    "host_name": "www.recordedfuture.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.talkwalker.com/blog/best-osint-tools",
+    "name": "13 Best OSINT (Open Source Intelligence) Tools for 2025 [UPDATED]",
+    "snippet": "OSINT Industries is a real-time lookup tool that shows which online accounts are tied to an email, phone number, username, or crypto wallet. It ...",
+    "host_name": "www.talkwalker.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@sehgalrudra07/15-free-osint-tools-that-reveal-everything-online-2026-guide-807f7cc22931",
+    "name": "15 Free OSINT Tools That Reveal Everything Online (2026 Guide)",
+    "snippet": "Google Dorking involves using advanced search operators to bypass the surface web and find indexed data that isn't meant for the average user.",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=4nZD6ee2Xo8",
+    "name": "WHY 2025 - Stealth Web Scraping Techniques for OSINT - YouTube",
+    "snippet": "https://media.ccc.de/v/why2025-131-stealth-web-scraping-techniques-for-osint Web scraping continues to be a cornerstone of OSINT operations, ...",
+    "host_name": "www.youtube.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/posts/benheubl_osint-activity-7401149815948054528-7gE1",
+    "name": "Looking for #OSINT leak data? | Ben H. - LinkedIn",
+    "snippet": "The Complete OSINT Guide: How to Find Anyone Online in 2025 https://projectosint.com.",
+    "host_name": "www.linkedin.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.wiz.io/academy/threat-intel/osint-tools",
+    "name": "9 Top OSINT Tools & How to Evaluate Them | Wiz",
+    "snippet": "OSINT tools find what attackers can already see: They help you spot exposed assets, leaked credentials, risky domains, and forgotten public ...",
+    "host_name": "www.wiz.io",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://shadowdragon.io/resources/what-is-osint",
+    "name": "What is OSINT [Open-Source Intelligence]? 2026 Guide",
+    "snippet": "Technical data: Tools like WHOIS can be used to gather information about website ownership, domain registration details, and IP address location, offering ...",
+    "host_name": "shadowdragon.io",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.bitsight.com/learn/cti/osint-framework",
+    "name": "OSINT Framework: What It Is, How It Works, and the Best Tools",
+    "snippet": "Learn how OSINT frameworks work, which tools matter most in 2026, and how Bitsight automates open source intelligence for enterprise SOC and ...",
+    "host_name": "www.bitsight.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.atlassystems.com/blog/open-source-intelligence-osint",
+    "name": "What is Open Source Intelligence (OSINT) in Cybersecurity?",
+    "snippet": "OSINT is the process of collecting and analyzing publicly available data from sources like websites, forums, code repositories, DNS records, metadata, and ...",
+    "host_name": "www.atlassystems.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/cyberbanglaofficial/posts/3219923468298028",
+    "name": "How to get website information through OSINT? - Facebook",
+    "snippet": "Use Shodan to find vulnerable IoT devices. 3. Use Whois to find information about domain names. 4. Use Maltego to visualize relationships ...",
+    "host_name": "www.facebook.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

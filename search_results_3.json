@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.youtube.com/watch?v=AmLL7amN8Tk",
+    "name": "Top 3 Herramientas para Descubrir TODO CORREO en menos de 5",
+    "snippet": "Cómo TheHarvester escanea la web en busca de correos y datos de empresas. · Epieos, la herramienta secreta para rastrear correos en bases de ...",
+    "host_name": "www.youtube.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://intelligencesecurity.io/es/blog/osint-tools-personal-security-digital-footprint",
+    "name": "Herramientas OSINT para Seguridad Personal: Audita Tu Huella",
+    "snippet": "Usa herramientas OSINT para verificar qué información personal está expuesta en línea. Guía gratuita para auditar tu huella digital.",
+    "host_name": "intelligencesecurity.io",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://seon.io/es/recursos/comparaciones/mejores-herramientas-osint",
+    "name": "Las 10 mejores herramientas OSINT (inteligencia de código abierto)",
+    "snippet": "Y Have I Been Pwned? sigue siendo el mejor sitio para buscar rápidamente las direcciones de correo electrónico que aparecen en dichas filtraciones de datos ...",
+    "host_name": "seon.io",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.instagram.com/reel/DUo_3B8jI0l",
+    "name": "No necesitas herramientas complejas para empezar en OSINT.",
+    "snippet": "Hablo de dorks, filtros, operadores y mucho más que te permita saber que la información siempre estuvo ahí. Simplemente nadie sabía buscarla.",
+    "host_name": "www.instagram.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://sites.google.com/view/cibercol/herramientas/an%C3%A1lisis-de-datos-personales-y-digitales/have-i-been-pwned",
+    "name": "Osint - Have I Been Pwned?",
+    "snippet": "Utiliza la sección \"Pwned Passwords\" en HIBP para verificar si una contraseña ha sido expuesta en alguna violación de datos. Ingresar una contraseña en el campo ...",
+    "host_name": "sites.google.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.q2bstudio.com/nuestro-blog/25969/10-herramientas-osint-que-todo-hacker-etico-debe-conocer",
+    "name": "10 herramientas OSINT que todo hacker ético debe conocer",
+    "snippet": "Guía de OSINT para seguridad: conoce 10 herramientas clave (Shodan, ZoomEye, Censys, Maltego, SpiderFoot, Recon-ng, theHarvester, FOCA, ...",
+    "host_name": "www.q2bstudio.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://nimbustech.es/como-detectar-fuga-de-informacion",
+    "name": "Cómo detectar una fuga de información con OSINT - Nimbustech",
+    "snippet": "Detecta fugas de información con OSINT: aprende a identificar filtraciones de datos y proteger tu empresa con herramientas de inteligencia abierta.",
+    "host_name": "nimbustech.es",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://inlab.fib.upc.edu/es/articulos/have-i-been-pwned-protege-tus-datos-de-filtraciones",
+    "name": "Have I Been Pwned? Protege tus datos ante filtraciones - inLab FIB",
+    "snippet": "Have I Been Pwned? (HIBP) es una herramienta gratuita y accesible que nos permite verificar si nuestra dirección de correo electrónico o ...",
+    "host_name": "inlab.fib.upc.edu",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=MZu4v-vCjew",
+    "name": "Descubre INFORMACIÓN de CUALQUIERA en REDES SOCIALES",
+    "snippet": "Comments ; This is What REAL Hacking Looks Like! Hepta Security · 171K views ; OSINT: El Arte de Investigar en Internet. kobasky · 3.3K views ; 3 ...",
+    "host_name": "www.youtube.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.tiktok.com/@overtips/video/7506577665651002646",
+    "name": "¿Cómo saber si tus datos están filtrados? Herramientas para Hackers",
+    "snippet": "Descubre si tu correo electrónico ha estado en un Data Breach con esta herramienta OSINT. Protégete con #ciberseguridad #HaveIBeenPwned # ...",
+    "host_name": "www.tiktok.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

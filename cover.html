@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guia para Verificar tus Datos Personales Expuestos en Internet</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;700;900&family=Source+Serif+4:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --c-accent: #24738e;
+    --c-text: #222426;
+    --c-muted: #848a8f;
+    --c-bg: #ffffff;
+    --c-surface: #dfe3e7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: 794px 1123px; margin: 0; }
+  html, body {
+    width: 794px; height: 1123px;
+    margin: 0; padding: 0;
+    background: var(--c-bg);
+    font-family: 'Libre Franklin', sans-serif;
+  }
+  @media screen {
+    html { height: auto; display: flex; justify-content: center; }
+    body { transform-origin: top center; scale: min(1, calc(100vh / 1123)); margin: 0 auto; }
+  }
+  .cover {
+    position: relative;
+    width: 794px; height: 1123px;
+  }
+  /* Layer 0: Background */
+  .cover-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background: var(--c-bg);
+  }
+  /* Layer 1: Background decoration */
+  .cover-deco {
+    position: absolute; inset: 0; z-index: 1;
+    overflow: hidden;
+  }
+  .grid-pattern {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--c-accent) 1px, transparent 1px),
+      linear-gradient(90deg, var(--c-accent) 1px, transparent 1px);
+    background-size: 50px 50px;
+    opacity: 0.02;
+  }
+  /* Layer 2: Structure - Thick vertical anchor line */
+  .anchor-line {
+    position: absolute;
+    left: 95px; top: 112px; bottom: 112px;
+    width: 6px;
+    background: var(--c-accent);
+    z-index: 2;
+  }
+  .meta-separator {
+    position: absolute;
+    left: 175px;
+    top: 688px;
+    width: 280px;
+    height: 1px;
+    background: var(--c-accent);
+    opacity: 0.4;
+    z-index: 2;
+  }
+  /* Layer 3: Content */
+  .cover-content {
+    position: absolute; inset: 0; z-index: 3;
+  }
+  .kicker {
+    position: absolute;
+    left: 145px; top: 168px;
+    font-family: 'Libre Franklin', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    color: var(--c-muted);
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+  .hero-title {
+    position: absolute;
+    left: 145px; top: 224px;
+    width: 540px;
+    font-family: 'Libre Franklin', sans-serif;
+    font-size: 46px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: var(--c-text);
+  }
+  .summary {
+    position: absolute;
+    left: 145px; top: 460px;
+    width: 476px;
+    font-family: 'Source Serif 4', serif;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--c-text);
+    opacity: 0.85;
+  }
+  .meta {
+    position: absolute;
+    left: 145px; top: 730px;
+    font-family: 'Libre Franklin', sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 2.0;
+    color: var(--c-text);
+  }
+  .footer {
+    position: absolute;
+    left: 145px; bottom: 80px;
+    font-family: 'Libre Franklin', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    color: var(--c-muted);
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-bg"></div>
+  <div class="cover-deco">
+    <div class="grid-pattern"></div>
+  </div>
+  <div class="anchor-line"></div>
+  <div class="meta-separator"></div>
+  <div class="cover-content">
+    <div class="kicker">SEGURIDAD DIGITAL Y OSINT</div>
+    <div class="hero-title">Guia para Verificar<br>tus Datos Personales<br>Expuestos en Internet</div>
+    <div class="summary">Descubre que informacion personal tuya esta disponible en linea, aprende a utilizar herramientas OSINT para auditar tu huella digital y toma medidas efectivas para proteger tu privacidad.</div>
+    <div class="meta">
+      <div>Fecha: Mayo 2026</div>
+      <div>Autor: Z.ai</div>
+      <div>Categoria: Privacidad Digital</div>
+    </div>
+    <div class="footer">Guia de Autoproteccion Digital</div>
+  </div>
+</div>
+</body>
+</html>
