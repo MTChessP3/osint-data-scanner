@@ -13,8 +13,10 @@ from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-TEMPLATE_PATH = "/home/z/my-project/upload/Plantilla_de_Informes.docx"
-OUTPUT_DIR = "/home/z/my-project/download/reports"
+# Dynamic paths - works both locally and on Railway.app
+APP_ROOT = os.environ.get("APP_ROOT", "/home/z/my-project")
+TEMPLATE_PATH = os.path.join(APP_ROOT, "upload", "Plantilla_de_Informes.docx")
+OUTPUT_DIR = os.path.join(APP_ROOT, "download", "reports")
 
 def generate_report(data: dict) -> str:
     """Generate a DOCX report from the template filled with scan data."""

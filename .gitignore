@@ -52,3 +52,7 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Keep template in repo
+!Plantilla_de_Informes.docx
+!upload/Plantilla_de_Informes.docx
