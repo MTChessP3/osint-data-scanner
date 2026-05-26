@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["python313", "python313Packages.pip"]
+nixPkgs = ["python313", "python313Packages.pip", "bun"]
 
 [phases.install]
-cmds = ["pip install python-docx openpyxl --break-system-packages"]
+cmds = ["pip install python-docx openpyxl --break-system-packages", "bun install"]
 
 [phases.build]
 cmds = ["bun run db:generate", "bun run build"]
