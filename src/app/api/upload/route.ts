@@ -229,13 +229,14 @@ async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResp
     console.error('[Upload API] XLSX parse error:', parseError);
 
     const errorMsg = parseError instanceof Error ? parseError.message : 'Error desconocido';
-    const isEncrypted = /encrypt|EncryptionInfo|ECMA-376|protegido con contraseña/i.test(errorMsg);
+    // Only flag as encrypted if ALL parsing methods failed AND message explicitly mentions encryption
+    const isEncrypted = /protegido con contraseña|password.?protected|file is encrypted/i.test(errorMsg);
 
     return NextResponse.json(
       {
         error: isEncrypted
           ? 'El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
-          : `No se pudo leer el archivo Excel: ${errorMsg}`,
+          : `No se pudo leer el archivo Excel: ${errorMsg}. Verifica que el archivo no esté dañado. Si es .xls, intenta guardarlo como .xlsx.`,
         details: errorMsg,
         isEncrypted,
       },

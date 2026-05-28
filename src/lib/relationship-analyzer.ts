@@ -433,21 +433,21 @@ function isEncryptedWorkbook(workbook: XLSX.WorkBook): boolean {
     return false;
   }
   // An encrypted file often has SheetNames but every sheet has no data (just A1 or empty ref)
-  return workbook.SheetNames.every(name => {
+  // IMPORTANT: We check if ALL sheets are empty. If at least one sheet has data, it's NOT encrypted.
+  const allSheetsEmpty = workbook.SheetNames.every(name => {
     const ws = workbook.Sheets[name];
     if (!ws) return true;
     if (!ws['!ref']) return true;
-    // If the only cell is A1 with no value, or ref is just "A1", it's likely encrypted
     const ref = ws['!ref'];
     if (ref === 'A1' || ref === '') return true;
-    // Check if there are any actual cell values
+    // Decode range — if it extends beyond a single cell, there IS data
     const range = XLSX.utils.decode_range(ref);
-    if (range.e.r === 0 && range.e.c === 0) {
-      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: 0 })];
-      return !cell || !cell.v;
-    }
-    return false;
+    if (range.e.r > 0 || range.e.c > 0) return false; // Has data beyond A1
+    // Only A1 cell — check if it has a value
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: 0 })];
+    return !cell || !cell.v;
   });
+  return allSheetsEmpty;
 }
 
 function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {

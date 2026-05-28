@@ -982,14 +982,25 @@ export default function Home() {
 
           const workbook = XLSX.read(uint8, readOptions as { type: 'array' });
 
-          // ── Check for encrypted file: all sheets empty after successful read ──
-          const hasEmptySheets = workbook.SheetNames.length > 0 &&
+          // ── Check for encrypted file: all sheets truly empty (no cell data) ──
+          const isEncrypted = workbook.SheetNames.length > 0 &&
             workbook.SheetNames.every(name => {
               const ws = workbook.Sheets[name];
-              return !ws || !ws['!ref'] || ws['!ref'] === 'A1' || ws['!ref'].startsWith('A1:');
+              if (!ws) return true;
+              if (!ws['!ref']) return true;
+              const ref = ws['!ref'];
+              if (ref === 'A1' || ref === '') return true;
+              // Decode range and check if there are actual cell values
+              const range = XLSX.utils.decode_range(ref);
+              if (range.e.r === 0 && range.e.c === 0) {
+                const cell = ws[XLSX.utils.encode_cell({ r: 0, c: 0 })];
+                return !cell || !cell.v;
+              }
+              // If range extends beyond A1, there IS data — NOT encrypted
+              return false;
             });
 
-          if (hasEmptySheets) {
+          if (isEncrypted) {
             throw new Error('ENCRYPTED_FILE');
           }
 
