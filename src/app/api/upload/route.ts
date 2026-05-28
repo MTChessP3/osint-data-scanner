@@ -293,6 +293,16 @@ async function handleParsedXLSX(body: {
     );
   }
 
+  // Early detection: check if ANY sheet contains restricted file artifacts
+  for (const sheet of nonEmptySheets) {
+    if (isRestrictedFileData(sheet.data)) {
+      return NextResponse.json(
+        { error: 'El archivo Excel está protegido con gestión de derechos (Rights Management) o cifrado. No se pueden extraer datos. Solicite al propietario una copia sin protección o en formato .xlsx estándar.', isEncrypted: true },
+        { status: 400 }
+      );
+    }
+  }
+
   // Initialize ZAI config
   await Promise.race([initZAIConfig(), new Promise<void>(resolve => setTimeout(resolve, 3000))]);
 
@@ -566,6 +576,65 @@ async function handleCSV(buffer: Buffer, fileName: string): Promise<NextResponse
   }
 }
 
+// ── Detect if sheet data contains restricted/encrypted file artifacts ──
+const RESTRICTED_FILE_SIGNALS = [
+  'permiso de acceso',
+  'restringido actualmente',
+  'rights management',
+  'solo se puede abrir utilizando microsoft office',
+  'complemento rights management',
+  'protegido con contrasena',
+  'password protected',
+  'encrypted',
+  'this workbook is password protected',
+];
+
+function isRestrictedFileData(data: Record<string, string>[]): boolean {
+  if (data.length === 0) return false;
+  // Check the first row for restricted file signals in keys or values
+  const firstRow = data[0];
+  const allText = Object.entries(firstRow)
+    .map(([k, v]) => `${k} ${v}`)
+    .join(' ')
+    .toLowerCase();
+  return RESTRICTED_FILE_SIGNALS.some(signal => allText.includes(signal));
+}
+
+// ── Clean row data: filter out undefined values and garbage keys ──
+function cleanRowData(row: Record<string, string>): Record<string, string> {
+  const cleaned: Record<string, string> = {};
+  for (const [key, value] of Object.entries(row)) {
+    // Skip keys or values that are 'undefined', 'null', or empty
+    const cleanKey = key.trim();
+    const cleanValue = (value || '').trim();
+    if (
+      !cleanKey ||
+      cleanKey === 'undefined' ||
+      cleanKey === 'null' ||
+      cleanKey.startsWith('El permiso de acceso') ||
+      cleanKey.startsWith('Columna_') && !cleanValue
+    ) continue;
+    if (
+      !cleanValue ||
+      cleanValue === 'undefined' ||
+      cleanValue === 'null' ||
+      cleanValue === 'NaN'
+    ) continue;
+    // Skip if the key contains the restricted file message
+    if (cleanKey.toLowerCase().includes('permiso de acceso') ||
+        cleanKey.toLowerCase().includes('restringido actualmente') ||
+        cleanKey.toLowerCase().includes('rights management') ||
+        cleanKey.toLowerCase().includes('complemento rights') ||
+        cleanKey.toLowerCase().includes('solo se puede abrir')) continue;
+    // Skip if the value contains the restricted file message
+    if (cleanValue.toLowerCase().includes('permiso de acceso') ||
+        cleanValue.toLowerCase().includes('restringido actualmente') ||
+        cleanValue.toLowerCase().includes('rights management')) continue;
+    cleaned[cleanKey] = cleanValue;
+  }
+  return cleaned;
+}
+
 // ── Fallback: Convert sheet data to OSINTResult format ──
 function createResultsFromSheetData(
   data: Record<string, string>[],
@@ -573,11 +642,39 @@ function createResultsFromSheetData(
 ): Array<{ source: string; category: string; severity: 'critical' | 'high' | 'medium' | 'low' | 'info'; title: string; description: string; url: string; dataFound: string }> {
   const results: Array<{ source: string; category: string; severity: 'critical' | 'high' | 'medium' | 'low' | 'info'; title: string; description: string; url: string; dataFound: string }> = [];
 
+  // Check for restricted/encrypted file artifacts
+  if (isRestrictedFileData(data)) {
+    results.push({
+      source: `Fuente de datos: ${sheetName}`,
+      category: 'document_exposure',
+      severity: 'info',
+      title: `Archivo restringido — Sin datos accesibles`,
+      description: `El archivo Excel está protegido con gestión de derechos (Rights Management) o cifrado. No se pudieron extraer datos de la hoja "${sheetName}". Solicite al propietario una copia sin protección o en formato .xlsx estándar.`,
+      url: '',
+      dataFound: `Archivo restringido | Hoja: ${sheetName} | No se pudieron extraer datos`,
+    });
+    return results;
+  }
+
   for (const row of data) {
-    const entries = Object.entries(row).filter(([, v]) => v && v.trim());
+    // Clean the row data first — remove undefined/garbage entries
+    const cleanedRow = cleanRowData(row);
+    const entries = Object.entries(cleanedRow).filter(([, v]) => v && v.trim() && v.trim() !== 'undefined');
     if (entries.length === 0) continue;
+
+    // Try to find a meaningful person name
     const nameField = entries.find(([k]) => /nombre|name|razon|empresa|company/i.test(k));
-    const personName = nameField ? nameField[1].trim() : entries[0][1].trim();
+    let personName = nameField ? nameField[1].trim() : '';
+    
+    // If no name field found, try the first meaningful value
+    if (!personName || personName === 'undefined') {
+      const firstValidEntry = entries.find(([, v]) => v && v !== 'undefined' && v.length >= 2);
+      personName = firstValidEntry ? firstValidEntry[1].trim() : '';
+    }
+    
+    // If still no name, skip this row entirely
+    if (!personName || personName === 'undefined') continue;
+
     const hasEmail = entries.some(([k]) => /correo|email|mail/i.test(k));
     const hasPhone = entries.some(([k]) => /telefono|phone|celular|mobile/i.test(k));
     const hasId = entries.some(([k]) => /cedula|nit|identifica|rut/i.test(k));
@@ -587,14 +684,20 @@ function createResultsFromSheetData(
     else if (hasEmail && hasPhone) severity = 'medium';
     else if (hasEmail || hasPhone || hasId) severity = 'low';
 
+    // Build clean description
+    const cleanEntries = entries
+      .filter(([k, v]) => v && v !== 'undefined' && k !== 'undefined')
+      .map(([k, v]) => `${k}=${v}`)
+      .join(', ');
+
     results.push({
       source: `Fuente de datos: ${sheetName}`,
       category: hasId ? 'personal_exposure' : hasEmail ? 'credential_breach' : 'document_exposure',
       severity,
       title: `Registro: ${personName}`,
-      description: `Datos encontrados en hoja "${sheetName}": ${entries.map(([k, v]) => `${k}=${v}`).join(', ')}`,
+      description: `Datos encontrados en hoja "${sheetName}": ${cleanEntries}`,
       url: '',
-      dataFound: JSON.stringify(row),
+      dataFound: JSON.stringify(cleanedRow),
     });
   }
   return results;
