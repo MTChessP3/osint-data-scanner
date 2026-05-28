@@ -1232,7 +1232,7 @@ export default function Home() {
 
                     {progress > 0 && <Progress value={progress} className="h-2" />}
 
-                    {scanData && scanData.reportFileName && (
+                    {scanData && (
                       <div className="flex gap-2">
                         <Button onClick={() => handleDownloadReport(scanData.scanId, 'pdf')} className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white">
                           <Download className="w-4 h-4 mr-2" />PDF
@@ -1574,7 +1574,7 @@ export default function Home() {
             {scanData && (
               <>
                 {/* Report download banner */}
-                {scanData.reportFileName && (
+                {scanData && (
                   <Card className="bg-emerald-900/20 border-emerald-800">
                     <CardContent className="p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -2663,16 +2663,14 @@ export default function Home() {
                         </div>
                         <div className="flex items-center gap-2 ml-4">
                           <Button size="sm" variant="outline" className="border-gray-700 text-gray-400 hover:text-white" onClick={() => handleViewPastScan(scan.id)}>Ver</Button>
-                          {hasReport && (
-                            <>
-                              <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={() => handleDownloadReport(scan.id, 'pdf')}>
-                                <FileDown className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button size="sm" variant="outline" className="border-blue-700 text-blue-400 hover:text-blue-300" onClick={() => handleDownloadReport(scan.id, 'docx')}>
-                                <FileText className="w-3.5 h-3.5" />
-                              </Button>
-                            </>
-                          )}
+                          <>
+                            <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={() => handleDownloadReport(scan.id, 'pdf')}>
+                              <FileDown className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="border-blue-700 text-blue-400 hover:text-blue-300" onClick={() => handleDownloadReport(scan.id, 'docx')}>
+                              <FileText className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
                           <Button size="sm" variant="outline" className="border-gray-700 text-red-400 hover:text-red-300 hover:border-red-800" onClick={() => handleDeleteScan(scan.id)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>

@@ -55,6 +55,7 @@ export interface JointAnalysisRecord {
 }
 
 // ── In-memory store ──
+export const MAX_SCANS = 12;
 const scans = new Map<string, ScanRecord>();
 const jointAnalyses = new Map<string, JointAnalysisRecord>();
 
@@ -103,6 +104,16 @@ export function createScan(data: {
     updatedAt: now,
   };
   scans.set(id, record);
+
+  // Enforce max 12 scans (FIFO - delete oldest when exceeded)
+  const allScans = Array.from(scans.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  if (allScans.length > MAX_SCANS) {
+    const toDelete = allScans.slice(MAX_SCANS);
+    for (const scan of toDelete) {
+      scans.delete(scan.id);
+    }
+  }
+
   return record;
 }
 
