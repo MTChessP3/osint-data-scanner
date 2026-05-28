@@ -910,9 +910,10 @@ export default function Home() {
 
   // ── Social media scan handler ──
   async function handleSocialScan() {
-    const effectiveNickname = socialNickname.trim();
-    const effectiveEmail = socialEmail.trim() || email.trim();
-    const effectiveName = socialName.trim() || fullName.trim();
+    // Only use parameters relevant to the current search mode — clean all others
+    const effectiveNickname = socialSearchMode === 'nickname' ? socialNickname.trim() : '';
+    const effectiveEmail = socialSearchMode === 'email' ? (socialEmail.trim() || email.trim()) : '';
+    const effectiveName = socialSearchMode === 'name' ? (socialName.trim() || fullName.trim()) : '';
 
     if (socialSearchMode === 'nickname' && !effectiveNickname) {
       setSocialScanError('Ingresa un NickName o nombre de usuario');
@@ -944,18 +945,33 @@ export default function Home() {
     }, 600);
 
     try {
+      // Build payload with ONLY the parameters relevant to the active search mode
+      const payload: Record<string, unknown> = {
+        searchMode: socialSearchMode,
+        selectedPlatforms: Array.from(selectedSocialPlatforms),
+      };
+
+      if (socialSearchMode === 'nickname') {
+        payload.nickname = effectiveNickname;
+        payload.fullName = '';
+        payload.email = '';
+      } else if (socialSearchMode === 'email') {
+        payload.email = effectiveEmail;
+        payload.fullName = '';
+        payload.nickname = '';
+      } else if (socialSearchMode === 'name') {
+        payload.fullName = effectiveName;
+        payload.email = '';
+        payload.nickname = '';
+      }
+
+      if (phone.trim()) payload.phone = phone.trim();
+      if (cedula.trim()) payload.cedula = cedula.trim();
+
       const res = await fetch('/api/social-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: effectiveName.trim(),
-          email: effectiveEmail.trim() || undefined,
-          phone: phone.trim() || undefined,
-          cedula: cedula.trim() || undefined,
-          nickname: effectiveNickname.trim() || undefined,
-          searchMode: socialSearchMode,
-          selectedPlatforms: Array.from(selectedSocialPlatforms),
-        }),
+        body: JSON.stringify(payload),
       });
 
       clearInterval(progressInterval);
@@ -1395,10 +1411,10 @@ export default function Home() {
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2 text-sm">
                       <Upload className="w-4 h-4 text-blue-400" />
-                      Carga de Archivo / Vinculos
+                      Zona de análisis de archivos
                     </CardTitle>
                     <CardDescription className="text-slate-500 text-xs">
-                      .xlsx / .xls con 2 hojas = analisis de vinculos | .csv = lote
+                      Carga archivos Excel (.xlsx / .xls) para investigación OSINT individual y cruce de vínculos
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -1436,8 +1452,8 @@ export default function Home() {
                       ) : (
                         <div className="space-y-1">
                           <Upload className="w-8 h-8 mx-auto text-slate-600" />
-                          <p className="text-sm text-slate-400">Arrastra tu archivo aqui o haz clic</p>
-                          <p className="text-[10px] text-slate-600">.xlsx / .xls (2 hojas = vinculos) | .csv (lote)</p>
+                          <p className="text-sm text-slate-400">Arrastra tu archivo aquí o haz clic</p>
+                          <p className="text-[10px] text-slate-600">.xlsx / .xls (máx. 30 personas/hoja) | .csv</p>
                         </div>
                       )}
                     </div>
@@ -1966,7 +1982,7 @@ export default function Home() {
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
-                          onClick={() => setSocialSearchMode('nickname')}
+                          onClick={() => { setSocialSearchMode('nickname'); setSocialName(''); setSocialEmail(''); }}
                           className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
                             socialSearchMode === 'nickname'
                               ? 'bg-rose-900/20 border-rose-800/40'
@@ -1978,7 +1994,7 @@ export default function Home() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setSocialSearchMode('email')}
+                          onClick={() => { setSocialSearchMode('email'); setSocialNickname(''); setSocialName(''); }}
                           className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
                             socialSearchMode === 'email'
                               ? 'bg-sky-900/20 border-sky-800/40'
@@ -1990,7 +2006,7 @@ export default function Home() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setSocialSearchMode('name')}
+                          onClick={() => { setSocialSearchMode('name'); setSocialNickname(''); setSocialEmail(''); }}
                           className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
                             socialSearchMode === 'name'
                               ? 'bg-blue-900/20 border-blue-800/40'

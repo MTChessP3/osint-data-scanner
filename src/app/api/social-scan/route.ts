@@ -70,17 +70,44 @@ export async function POST(request: NextRequest) {
     // Prefer server-side DEEPSEEK_API_KEY env var over client-provided key
     const effectiveDeepseekKey = process.env.DEEPSEEK_API_KEY || deepseekKey;
 
-    // Run scan with overall timeout protection
-    const scanPromise = runSocialMediaScan({
-      fullName: fullName?.trim() || undefined,
-      email: email?.trim() || undefined,
-      phone: phone?.trim() || undefined,
-      cedula: cedula?.trim() || undefined,
-      nickname: nickname?.trim() || undefined,
+    // Clean parameters: only pass data relevant to the active search mode
+    // This prevents nickname/email traces from leaking into name-mode searches
+    const scanParams: {
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      cedula?: string;
+      nickname?: string;
+      searchMode: 'nickname' | 'email' | 'name';
+      selectedPlatforms: string[];
+      deepseekKey?: string;
+    } = {
       searchMode,
       selectedPlatforms,
       deepseekKey: effectiveDeepseekKey,
-    });
+    };
+
+    // Only include parameters relevant to the current search mode
+    if (searchMode === 'nickname') {
+      scanParams.nickname = nickname?.trim() || undefined;
+      scanParams.fullName = undefined;
+      scanParams.email = undefined;
+    } else if (searchMode === 'email') {
+      scanParams.email = email?.trim() || undefined;
+      scanParams.fullName = undefined;
+      scanParams.nickname = undefined;
+    } else if (searchMode === 'name') {
+      scanParams.fullName = fullName?.trim() || undefined;
+      scanParams.email = undefined;
+      scanParams.nickname = undefined;
+    }
+
+    // Always include phone and cedula if available (supporting identifiers)
+    if (phone?.trim()) scanParams.phone = phone.trim();
+    if (cedula?.trim()) scanParams.cedula = cedula.trim();
+
+    // Run scan with overall timeout protection
+    const scanPromise = runSocialMediaScan(scanParams);
 
     // 55-second overall timeout
     const result: SocialScanResponse = await Promise.race([

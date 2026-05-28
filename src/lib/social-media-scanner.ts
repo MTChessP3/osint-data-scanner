@@ -602,7 +602,7 @@ async function scrapePlatform(
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
-  // Get platform-specific dorking queries
+  // Get platform-specific dorking queries based on search mode
   let dorkQueries: string[] = [];
   switch (ctx.searchMode) {
     case 'nickname':
@@ -616,9 +616,29 @@ async function scrapePlatform(
       break;
   }
 
+  // ── MULTI-ENGINE PARALLEL SEARCH for name mode ──
+  // When searching by full name, execute simultaneously on Google, Bing, Yandex, DuckDuckGo
+  // for maximum coverage and trace identification
+  const allDorkQueries: string[] = [...dorkQueries];
+
+  if (ctx.searchMode === 'name') {
+    // Add broad name search queries that don't target specific platforms
+    // These will be searched across all engines via web_search
+    allDorkQueries.push(
+      `"${firstName} ${lastName}" ${platform.name} profile OR account OR perfil`,
+      `"${firstName} ${lastName}" site:${platform.domain}`,
+      `${firstName} ${lastName} "${platform.name}" OR "${platform.domain}"`
+    );
+
+    // Add Colombian-specific context for better local results
+    if (ctx.cedula) {
+      allDorkQueries.push(`"${firstName} ${lastName}" cedula ${ctx.cedula} ${platform.name}`);
+    }
+  }
+
   // Execute all dork queries in parallel for speed
-  const searchPromises = dorkQueries.map(q =>
-    performWebSearch(q, 8).catch(() => [] as WebSearchResult[])
+  const searchPromises = allDorkQueries.map(q =>
+    performWebSearch(q, 10).catch(() => [] as WebSearchResult[])
   );
   const searchResults = await Promise.all(searchPromises);
 
@@ -711,6 +731,7 @@ function buildScanContext(params: {
 
   switch (searchMode) {
     case 'nickname': {
+      // Nickname mode: use nickname + email-derived usernames only
       const cleanNick = (nickname || '').toLowerCase().replace(/^@/, '');
       allUsernames.push(cleanNick);
       if (email) {
@@ -720,6 +741,7 @@ function buildScanContext(params: {
       break;
     }
     case 'email': {
+      // Email mode: use email-derived + name-derived usernames only (no nickname)
       const emailUser = extractUsername(email);
       if (emailUser) allUsernames.push(emailUser);
       if (fullName) {
@@ -729,7 +751,9 @@ function buildScanContext(params: {
       break;
     }
     case 'name': {
-      const namePerms = generateUsernamePermutations(fullName || '', email, nickname);
+      // Name mode: use ONLY name-derived usernames — NEVER include nickname from previous searches
+      // This is critical to prevent nickname traces from leaking into name searches
+      const namePerms = generateUsernamePermutations(fullName || '', email, undefined);
       allUsernames.push(...namePerms);
       break;
     }
@@ -738,10 +762,10 @@ function buildScanContext(params: {
   const unique = Array.from(new Set(allUsernames));
   return {
     fullName,
-    email,
+    email: searchMode === 'nickname' ? undefined : email,
     phone,
     cedula,
-    nickname,
+    nickname: searchMode === 'nickname' ? nickname : undefined, // Only include nickname in nickname mode
     searchMode,
     primaryUsername: unique[0] || '',
     allUsernames: unique,
@@ -770,31 +794,97 @@ async function scanPlatformFast(
   let profileStatusCode: number | undefined;
   let detectedUsername: string | undefined;
 
-  // ── STEP 1: Direct profile URL verification (for verifiable platforms) ──
-  if (platform.verifiableByHead && primaryUsername) {
-    const usernamesToCheck = ctx.allUsernames.slice(0, 3);
-    const verificationPromises = usernamesToCheck.map(async (username) => {
-      const url = platform.profileUrlTemplates.nickname(username);
-      if (!url) return null;
-      const verification = await verifyProfileFast(url, 5000);
-      return { username, url, verification };
-    });
+  // ── STEP 1: Direct profile URL verification ──
+  // In nickname mode: verify by username directly
+  // In name mode: verify by name-based profile URL templates
+  // In email mode: verify by email-derived username
+  if (platform.verifiableByHead) {
+    if (ctx.searchMode === 'nickname' && primaryUsername) {
+      // Nickname mode: check direct username URLs
+      const usernamesToCheck = ctx.allUsernames.slice(0, 3);
+      const verificationPromises = usernamesToCheck.map(async (username) => {
+        const url = platform.profileUrlTemplates.nickname(username);
+        if (!url) return null;
+        const verification = await verifyProfileFast(url, 5000);
+        return { username, url, verification };
+      });
 
-    const verificationResults = await Promise.allSettled(verificationPromises);
+      const verificationResults = await Promise.allSettled(verificationPromises);
 
-    for (const result of verificationResults) {
-      if (result.status !== 'fulfilled' || !result.value) continue;
-      const { username, url, verification } = result.value;
+      for (const result of verificationResults) {
+        if (result.status !== 'fulfilled' || !result.value) continue;
+        const { username, url, verification } = result.value;
 
-      if (verification.exists) {
-        profileFound = true;
-        profileVerified = true;
-        profileUrl = url;
-        profileStatusCode = verification.statusCode;
-        detectedUsername = username;
-        break;
-      } else if (verification.statusCode === 404) {
-        profileStatusCode = verification.statusCode;
+        if (verification.exists) {
+          profileFound = true;
+          profileVerified = true;
+          profileUrl = url;
+          profileStatusCode = verification.statusCode;
+          detectedUsername = username;
+          break;
+        } else if (verification.statusCode === 404) {
+          profileStatusCode = verification.statusCode;
+        }
+      }
+    } else if (ctx.searchMode === 'name' && firstName && lastName) {
+      // Name mode: verify by name-based profile URLs (NOT username-based)
+      const nameUrl = platform.profileUrlTemplates.name(firstName, lastName);
+      if (nameUrl && nameUrl.startsWith('http')) {
+        const verification = await verifyProfileFast(nameUrl, 5000);
+        if (verification.exists) {
+          profileFound = true;
+          profileVerified = true;
+          profileUrl = nameUrl;
+          profileStatusCode = verification.statusCode;
+        }
+      }
+
+      // Also check derived username permutations from name only (not from old nicknames)
+      if (!profileFound) {
+        const nameBasedUsernames = ctx.allUsernames.slice(0, 3);
+        const verificationPromises = nameBasedUsernames.map(async (username) => {
+          const url = platform.profileUrlTemplates.nickname(username);
+          if (!url) return null;
+          const verification = await verifyProfileFast(url, 4000);
+          return { username, url, verification };
+        });
+
+        const verificationResults = await Promise.allSettled(verificationPromises);
+        for (const result of verificationResults) {
+          if (result.status !== 'fulfilled' || !result.value) continue;
+          const { username, url, verification } = result.value;
+          if (verification.exists) {
+            profileFound = true;
+            profileVerified = true;
+            profileUrl = url;
+            profileStatusCode = verification.statusCode;
+            detectedUsername = username;
+            break;
+          }
+        }
+      }
+    } else if (ctx.searchMode === 'email' && primaryUsername) {
+      // Email mode: check email-derived username URLs
+      const usernamesToCheck = ctx.allUsernames.slice(0, 3);
+      const verificationPromises = usernamesToCheck.map(async (username) => {
+        const url = platform.profileUrlTemplates.nickname(username);
+        if (!url) return null;
+        const verification = await verifyProfileFast(url, 5000);
+        return { username, url, verification };
+      });
+
+      const verificationResults = await Promise.allSettled(verificationPromises);
+      for (const result of verificationResults) {
+        if (result.status !== 'fulfilled' || !result.value) continue;
+        const { username, url, verification } = result.value;
+        if (verification.exists) {
+          profileFound = true;
+          profileVerified = true;
+          profileUrl = url;
+          profileStatusCode = verification.statusCode;
+          detectedUsername = username;
+          break;
+        }
       }
     }
   }
@@ -913,23 +1003,31 @@ async function scanPlatformFast(
         category: 'social_media',
         severity: 'info',
         title: `Perfil NO encontrado en ${platform.name}`,
-        description: `Se verifico directamente y el perfil con el nombre de usuario @${primaryUsername} NO existe en ${platform.name} (HTTP 404). El usuario podria usar un nombre diferente o no tener cuenta en esta plataforma. Prueba buscando con variaciones del nombre.`,
+        description: ctx.searchMode === 'name'
+          ? `Se realizo una busqueda por nombre completo para "${searchQuery}" en ${platform.name} y no se encontraron coincidencias directas (HTTP 404). La persona podria usar un nombre diferente o no tener cuenta en esta plataforma. Prueba con variaciones del nombre o busqueda manual.`
+          : `Se verifico directamente y el perfil con el nombre de usuario @${primaryUsername} NO existe en ${platform.name} (HTTP 404). El usuario podria usar un nombre diferente o no tener cuenta en esta plataforma.`,
         url: directUrl || undefined,
-        dataFound: `Verificacion directa: HTTP 404 | Usuario verificado: @${primaryUsername} | URL: ${directUrl}`,
+        dataFound: ctx.searchMode === 'name'
+          ? `Busqueda por nombre: "${searchQuery}" | Verificacion directa: HTTP 404 | URL: ${directUrl}`
+          : `Verificacion directa: HTTP 404 | Usuario verificado: @${primaryUsername} | URL: ${directUrl}`,
       });
     } else {
-      // Build search engine links for manual verification
+      // Build search engine links for manual verification across all 4 engines
       const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(`"${searchQuery}" site:${platform.domain}`)}`;
       const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(`"${searchQuery}" ${platform.name}`)}`;
+      const yandexUrl = `https://yandex.com/search/?text=${encodeURIComponent(`"${searchQuery}" ${platform.name}`)}`;
+      const ddgUrl = `https://duckduckgo.com/?q=${encodeURIComponent(`"${searchQuery}" site:${platform.domain}`)}`;
 
       findings.push({
         source: `${platform.name} Scanner`,
         category: 'social_media',
         severity: 'info',
         title: `Sin resultados en ${platform.name} — Verificar manualmente`,
-        description: `No se encontraron resultados automaticos para "${searchQuery}" en ${platform.name}. Esto no descarta la existencia de un perfil. Se recomienda buscar directamente en la plataforma${primaryUsername ? ` usando el posible nombre de usuario @${primaryUsername}` : ''}. Usa los enlaces de busqueda para verificar manualmente.`,
+        description: ctx.searchMode === 'name'
+          ? `No se encontraron resultados automaticos para "${searchQuery}" en ${platform.name} mediante busqueda por nombre completo. Esto no descarta la existencia de un perfil. Se recomienda buscar directamente en la plataforma y en los 4 motores de busqueda (Google, Bing, Yandex, DuckDuckGo) usando los enlaces proporcionados.`
+          : `No se encontraron resultados automaticos para "${searchQuery}" en ${platform.name}. Esto no descarta la existencia de un perfil. Se recomienda buscar directamente en la plataforma${primaryUsername ? ` usando el posible nombre de usuario @${primaryUsername}` : ''}. Usa los enlaces de busqueda para verificar manualmente.`,
         url: directUrl || googleUrl,
-        dataFound: `Sin resultados automaticos | Posible usuario: @${primaryUsername}${directUrl ? ` | URL sugerida: ${directUrl}` : ''} | Google: ${googleUrl} | Bing: ${bingUrl}`,
+        dataFound: `Sin resultados automaticos | Búsqueda: "${searchQuery}"${directUrl ? ` | URL sugerida: ${directUrl}` : ''} | Google: ${googleUrl} | Bing: ${bingUrl} | Yandex: ${yandexUrl} | DuckDuckGo: ${ddgUrl}`,
       });
     }
   }
@@ -1009,8 +1107,10 @@ export async function runSocialMediaScan(params: {
 
   const results: SocialScanResult[] = [];
 
-  // Scan platforms in parallel batches (3 at a time)
-  const BATCH_SIZE = 3;
+  // Scan platforms in parallel batches
+  // Name mode uses larger batches (5 at a time) for faster multi-engine search
+  // Nickname/email modes use smaller batches (3) as they're more targeted
+  const BATCH_SIZE = searchMode === 'name' ? 5 : 3;
   for (let i = 0; i < platforms.length; i += BATCH_SIZE) {
     if (Date.now() - startTime > MAX_SCAN_TIME) {
       console.warn(`[SocialScanner] Time limit reached, skipping remaining platforms`);
@@ -1038,6 +1138,9 @@ export async function runSocialMediaScan(params: {
 
     const batch = platforms.slice(i, i + BATCH_SIZE);
 
+    // Name mode gets more time per platform due to multi-engine queries
+    const platformTimeout = searchMode === 'name' ? 20000 : 15000;
+
     const batchPromises = batch.map(platform =>
       Promise.race([
         scanPlatformFast(platform, ctx),
@@ -1058,7 +1161,7 @@ export async function runSocialMediaScan(params: {
             }],
             searchResultsCount: 0,
             rawResults: [],
-          }), 15000)
+          }), platformTimeout)
         ),
       ])
     );

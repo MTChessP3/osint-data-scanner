@@ -344,7 +344,7 @@ async function handleParsedXLSX(body: {
 
     for (const investigation of sheetInvestigations) {
       const primaryPerson = investigation.persons[0];
-      const scanFullName = primaryPerson ? primaryPerson.name : `Hoja: ${investigation.sheetName}`;
+      const scanFullName = primaryPerson ? primaryPerson.name : `Fuente de datos: ${investigation.sheetName}`;
       const scan = createScan({
         fullName: scanFullName,
         cedula: primaryPerson?.identifiers.cedula || null,
@@ -463,7 +463,7 @@ async function handleParsedXLSX(body: {
   const investigation = await investigateSheet(sheet.data, sheet.name, deepseekKey);
 
   const primaryPerson = investigation.persons[0];
-  const scanFullName = primaryPerson ? primaryPerson.name : `Hoja: ${sheet.name}`;
+  const scanFullName = primaryPerson ? primaryPerson.name : `Fuente de datos: ${sheet.name}`;
   const scan = createScan({
     fullName: scanFullName,
     cedula: primaryPerson?.identifiers.cedula || null,
@@ -588,7 +588,7 @@ function createResultsFromSheetData(
     else if (hasEmail || hasPhone || hasId) severity = 'low';
 
     results.push({
-      source: `Hoja: ${sheetName}`,
+      source: `Fuente de datos: ${sheetName}`,
       category: hasId ? 'personal_exposure' : hasEmail ? 'credential_breach' : 'document_exposure',
       severity,
       title: `Registro: ${personName}`,
