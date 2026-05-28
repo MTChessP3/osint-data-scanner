@@ -45,3 +45,24 @@ Stage Summary:
 - Application crash fix: Added error.tsx + removed client-side xlsx import
 - Excel upload fix: Removed isEncryptedWorkbook false positive, added proper .xls support
 - Deployed to Vercel successfully
+---
+Task ID: 1
+Agent: Main
+Task: Fix two Excel upload errors: .xlsx crash and .xls false encrypted error
+
+Work Log:
+- Analyzed user screenshots: Error 1 = "Cannot read properties of undefined (reading 'critical')", Error 2 = "El archivo está protegido con contraseña" (false positive)
+- Root cause Error 1: Upload API returned `{ sheetName, rowCount, scanId }` but client expected `BatchResult` with `summary.critical` — missing field caused crash
+- Root cause Error 2: parseXLSXWithSheets generic error included "protegido con contrasena", which matched the isEncrypted regex in handleRawXLSX — false positive
+- Fixed upload API: Added `summary`, `fullName`, `totalResults`, `reportGenerated`, `reportFileName` to all response objects (multi-sheet, single-sheet, CSV)
+- Fixed client: Added defensive null checks `result.summary || { critical: 0, ... }` and fallback display text
+- Fixed .xls detection: Replaced `isLegacyXLS()` with `detectFileFormat()` supporting OLE2, ZIP, XML Spreadsheet
+- Fixed encryption detection: Changed from regex matching "protegido con contrasena" to checking for `[ENCRYPTED]` prefix only — eliminates false positives
+- Improved buildSheetsFromWorkbook: Added 5 extraction methods including raw:false, raw:true, dense mode for .xls compatibility
+- Tested both .xlsx and .xls parsing locally — both work correctly
+- Build passes successfully
+
+Stage Summary:
+- 3 files modified: upload/route.ts, page.tsx, relationship-analyzer.ts
+- Commit created but push failed due to expired GitHub token
+- Need new GitHub token from user to push
