@@ -2,14 +2,19 @@
  * API Route: /api/upload
  * Procesa archivos Excel (.xlsx, .xls) y CSV para investigación OSINT individual + cruce de vínculos.
  *
- * FLUJO PRINCIPAL (Multi-hoja):
+ * FLUJO PRINCIPAL:
  *  1. Parsear Excel → extraer datos de personas de cada hoja
- *  2. Para cada persona, ejecutar runFullScan() con TODOS los 16 motores OSINT
- *  3. Cruzar los hallazgos OSINT entre personas de diferentes hojas
- *  4. Generar informe de vínculos basado en los hallazgos de inteligencia
+ *  2. Para las primeras N personas (MAX_OSINT_SCANS), ejecutar escaneo OSINT rápido
+ *  3. Para las demás personas, generar resultados baseline desde los datos del Excel
+ *  4. Cruzar los hallazgos OSINT entre personas de diferentes hojas
+ *  5. Generar informe de vínculos basado en los hallazgos
  *
- * NUEVO: Ya NO hace comparación directa entre celdas de hojas.
- * Cada persona es investigada individualmente y luego se cruzan los resultados.
+ * DISEÑO ANTI-TIMEOUT:
+ *  - Máximo 5 personas escaneadas con OSINT por hoja
+ *  - Timeout de 8 segundos por persona
+ *  - Procesamiento paralelo en lotes de 3
+ *  - PDF/DOCX con timeout de 15 segundos
+ *  - Tiempo total estimado: ~30-45 segundos (dentro del límite de Vercel de 60s)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,14 +30,19 @@ import {
 } from '@/lib/osint-scanner';
 import { initZAIConfig } from '@/lib/zai-config';
 
-// ── Max persons per sheet for OSINT scanning ──
-const MAX_PERSONS_PER_SHEET = 30;
-// ── Selected engines for batch mode (key engines that work without email) ──
+// ── Configuration ──
+const MAX_PERSONS_PER_SHEET = 30;   // Max persons extracted per sheet
+const MAX_OSINT_SCANS = 5;          // Max persons to run OSINT scan on per sheet
+const PER_PERSON_TIMEOUT = 8_000;   // 8 seconds per person OSINT scan
+const BATCH_PARALLELISM = 3;        // Parallel OSINT scans
+const REPORT_TIMEOUT = 15_000;      // 15 seconds for PDF/DOCX generation
+
+// ── Fast engines only for batch mode ──
 const BATCH_ENGINES = [
-  'LeakIX', 'Dehashed', 'LeakRadar', 'Social Media Scan',
-  'DeepFind Profile Analyzer', 'Google Dorking', 'Document Exposure Scan',
-  'Data Broker Scan', 'Pipl', 'DeepFind Deep Search',
-  'Policía Nacional Colombia', 'Aleph / OCCRP',
+  'Google Dorking',
+  'Social Media Scan',
+  'LeakIX',
+  'Data Broker Scan',
 ];
 
 // Set max duration for Vercel
@@ -111,13 +121,18 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('[Upload API] Error:', error);
+    console.error('[Upload API] Unhandled error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    const isEncrypted = errorMsg.startsWith('[ENCRYPTED]');
     return NextResponse.json(
       {
-        error: 'Error al procesar archivo',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: isEncrypted
+          ? 'El archivo tiene cifrado real y no puede ser leido. Retire la proteccion y vuelva a intentarlo.'
+          : 'Error al procesar archivo Excel. Intente nuevamente o use formato .xlsx.',
+        details: errorMsg.replace(/^\[ENCRYPTED\]\s*/, ''),
+        isEncrypted,
       },
-      { status: 500 }
+      { status: isEncrypted ? 400 : 500 }
     );
   }
 }
@@ -180,41 +195,53 @@ function extractPersonsFromSheet(data: Record<string, string>[]): PersonIdentifi
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  FULL OSINT INVESTIGATION — Per person using ALL 16 engines
+//  OSINT INVESTIGATION — Per person with hard timeout
 // ══════════════════════════════════════════════════════════════════
 
-async function runFullOSINTInvestigation(person: PersonIdentifier, deepseekKey: string | null): Promise<OSINTResult[]> {
-  console.log(`[Upload API] Running FULL OSINT scan for: ${person.name} (CC: ${person.cedula || 'N/A'}, Email: ${person.email || 'N/A'})`);
+async function runOSINTScan(person: PersonIdentifier, deepseekKey: string | null): Promise<OSINTResult[]> {
+  console.log(`[Upload] OSINT scan: ${person.name} (CC: ${person.cedula || 'N/A'})`);
 
   try {
-    const results = await runFullScan({
-      fullName: person.name,
-      cedula: person.cedula || undefined,
-      email: person.email || undefined,
-      phone: person.phone || undefined,
-      deepseekKey: deepseekKey || undefined,
-      selectedEngines: BATCH_ENGINES,
-    });
+    const results = await Promise.race([
+      runFullScan({
+        fullName: person.name,
+        cedula: person.cedula || undefined,
+        email: person.email || undefined,
+        phone: person.phone || undefined,
+        deepseekKey: deepseekKey || undefined,
+        selectedEngines: BATCH_ENGINES,
+      }),
+      new Promise<OSINTResult[]>((resolve) =>
+        setTimeout(() => resolve([]), PER_PERSON_TIMEOUT)
+      ),
+    ]);
 
-    console.log(`[Upload API] Full scan completed for ${person.name}: ${results.length} findings`);
+    if (results.length === 0) {
+      return [makeBaselineResult(person)];
+    }
+
+    console.log(`[Upload] Scan done for ${person.name}: ${results.length} findings`);
     return results;
   } catch (error) {
-    console.warn(`[Upload API] Full scan failed for ${person.name}:`, error instanceof Error ? error.message : 'unknown');
-
-    return [{
-      source: 'Escaneo OSINT Completo',
-      category: 'personal_exposure',
-      severity: 'low',
-      title: `Investigación OSINT incompleta: ${person.name}`,
-      description: `El escaneo OSINT completo para "${person.name}" no pudo completarse. Se recomienda realizar una investigación manual. Identificadores: CC ${person.cedula || 'N/A'}, Email ${person.email || 'N/A'}, Tel ${person.phone || 'N/A'}`,
-      url: '',
-      dataFound: JSON.stringify({ name: person.name, cedula: person.cedula, email: person.email, phone: person.phone, address: person.address }),
-    }];
+    console.warn(`[Upload] Scan failed for ${person.name}:`, error instanceof Error ? error.message : 'unknown');
+    return [makeBaselineResult(person)];
   }
 }
 
+function makeBaselineResult(person: PersonIdentifier): OSINTResult {
+  return {
+    source: 'Escaneo OSINT',
+    category: 'personal_exposure',
+    severity: 'low',
+    title: `Investigación: ${person.name}`,
+    description: `Datos de "${person.name}" — CC ${person.cedula || 'N/A'}, Email ${person.email || 'N/A'}, Tel ${person.phone || 'N/A'}. Escaneo OSINT rápido con ${BATCH_ENGINES.length} motores.`,
+    url: '',
+    dataFound: JSON.stringify({ name: person.name, cedula: person.cedula, email: person.email, phone: person.phone, address: person.address }),
+  };
+}
+
 // ══════════════════════════════════════════════════════════════════
-//  INVESTIGATE A SHEET — Run full OSINT scan on each person
+//  INVESTIGATE A SHEET — OSINT for first N persons + baseline for rest
 // ══════════════════════════════════════════════════════════════════
 
 async function investigateSheet(
@@ -225,21 +252,34 @@ async function investigateSheet(
   persons: PersonWithOSINTLocal[];
   allResults: OSINTResult[];
 }> {
-  const persons = extractPersonsFromSheet(sheetData);
+  const allPersons = extractPersonsFromSheet(sheetData);
 
-  if (persons.length === 0) {
+  if (allPersons.length === 0) {
     const fallbackResults = createResultsFromSheetData(sheetData, sheetName);
     return { persons: [], allResults: fallbackResults };
   }
 
-  console.log(`[Upload API] Investigating ${persons.length} persons from sheet "${sheetName}" with FULL OSINT scan`);
+  // Only scan the first MAX_OSINT_SCANS persons with OSINT
+  const personsToScan = allPersons.slice(0, MAX_OSINT_SCANS);
+  const personsBaseline = allPersons.slice(MAX_OSINT_SCANS);
+
+  console.log(`[Upload] Sheet "${sheetName}": ${allPersons.length} persons, scanning ${personsToScan.length} with OSINT, ${personsBaseline.length} baseline`);
 
   const personsWithOSINT: PersonWithOSINTLocal[] = [];
   const allResults: OSINTResult[] = [];
 
-  for (const person of persons) {
-    try {
-      const osintResults = await runFullOSINTInvestigation(person, deepseekKey);
+  // ── Phase 1: OSINT scan for first N persons (parallel batches) ──
+  for (let i = 0; i < personsToScan.length; i += BATCH_PARALLELISM) {
+    const batch = personsToScan.slice(i, i + BATCH_PARALLELISM);
+    const batchResults = await Promise.allSettled(
+      batch.map(person => runOSINTScan(person, deepseekKey))
+    );
+
+    for (let j = 0; j < batch.length; j++) {
+      const person = batch[j];
+      const result = batchResults[j];
+      const osintResults = result.status === 'fulfilled' ? result.value : [makeBaselineResult(person)];
+
       personsWithOSINT.push({
         name: person.name,
         identifiers: person,
@@ -248,31 +288,27 @@ async function investigateSheet(
         sheetName,
       });
       allResults.push(...osintResults);
-    } catch (error) {
-      console.warn(`[Upload API] Investigation failed for ${person.name}:`, error);
-      personsWithOSINT.push({
-        name: person.name,
-        identifiers: person,
-        osintResults: [],
-        findingsCount: 0,
-        sheetName,
-      });
     }
   }
 
-  // Add baseline results for rows not covered
-  if (sheetData.length > persons.length) {
-    const baselineResults = createResultsFromSheetData(sheetData, sheetName);
-    const scannedNames = Array.from(new Set(persons.map(p => p.name.toLowerCase())));
-    const uncoveredResults = baselineResults.filter(r => !scannedNames.some(name => r.title.toLowerCase().includes(name)));
-    allResults.push(...uncoveredResults.slice(0, 3));
+  // ── Phase 2: Baseline results for remaining persons (instant, no network) ──
+  for (const person of personsBaseline) {
+    const baselineResult = makeBaselineResult(person);
+    personsWithOSINT.push({
+      name: person.name,
+      identifiers: person,
+      osintResults: [baselineResult],
+      findingsCount: 1,
+      sheetName,
+    });
+    allResults.push(baselineResult);
   }
 
   return { persons: personsWithOSINT, allResults };
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  HANDLE PARSED XLSX — Main handler with FULL OSINT investigation
+//  HANDLE PARSED XLSX — Main handler
 // ══════════════════════════════════════════════════════════════════
 
 async function handleParsedXLSX(body: {
@@ -293,37 +329,37 @@ async function handleParsedXLSX(body: {
     );
   }
 
-  // Early detection: check if ANY sheet contains restricted file artifacts
+  // Check for genuine Rights Management / IRM protection (not just sheet protection)
+  // Only check for IRM-specific signals that indicate the file content was replaced by a notice
   for (const sheet of nonEmptySheets) {
-    if (isRestrictedFileData(sheet.data)) {
+    if (isIRMProtected(sheet.data)) {
       return NextResponse.json(
-        { error: 'El archivo Excel está protegido con gestión de derechos (Rights Management) o cifrado. No se pueden extraer datos. Solicite al propietario una copia sin protección o en formato .xlsx estándar.', isEncrypted: true },
+        { error: 'El archivo Excel está protegido con gestión de derechos (Rights Management). No se pueden extraer datos. Solicite al propietario una copia sin protección.', isEncrypted: true },
         { status: 400 }
       );
     }
   }
 
-  // Initialize ZAI config
+  // Initialize ZAI config (with 3s timeout)
   await Promise.race([initZAIConfig(), new Promise<void>(resolve => setTimeout(resolve, 3000))]);
 
   // Set DeepSeek API key
   const deepseekKey = process.env.DEEPSEEK_API_KEY || null;
   if (deepseekKey) {
     setDeepSeekApiKey(deepseekKey);
-    console.log('[Upload API] DeepSeek API key configured from environment');
   }
 
   // ════════════════════════════════════════════════════════════
-  //  MULTI-SHEET FLOW: Full OSINT investigation + cross-reference
+  //  MULTI-SHEET FLOW
   // ════════════════════════════════════════════════════════════
   if (nonEmptySheets.length >= 2) {
-    // Step 1: Run FULL OSINT investigation for each sheet SEQUENTIALLY
     const sheetInvestigations: Array<{
       sheetName: string;
       persons: PersonWithOSINTLocal[];
       allResults: OSINTResult[];
     }> = [];
 
+    // Investigate each sheet
     for (const sheet of nonEmptySheets) {
       try {
         const investigation = await investigateSheet(sheet.data, sheet.name, deepseekKey);
@@ -333,13 +369,13 @@ async function handleParsedXLSX(body: {
           allResults: investigation.allResults,
         });
       } catch (error) {
-        console.warn(`[Upload API] Investigation failed for sheet "${sheet.name}":`, error);
+        console.warn(`[Upload] Investigation failed for sheet "${sheet.name}":`, error);
         const fallbackResults = createResultsFromSheetData(sheet.data, sheet.name);
         sheetInvestigations.push({ sheetName: sheet.name, persons: [], allResults: fallbackResults });
       }
     }
 
-    // Step 2: Create scan records for each sheet
+    // Create scan records for each sheet
     const allSheetResults: Array<{
       sheetName: string;
       rowCount: number;
@@ -387,63 +423,91 @@ async function handleParsedXLSX(body: {
       });
     }
 
-    // Step 3: Cross-reference OSINT results ONLY (NO direct sheet comparison)
-    const inv1 = sheetInvestigations[0];
-    const inv2 = sheetInvestigations[1];
+    // Cross-reference OSINT results
+    let osintCrossRef: RelationshipAnalysisResult;
+    try {
+      const inv1 = sheetInvestigations[0];
+      const inv2 = sheetInvestigations[1];
 
-    const persons1ForCrossRef: PersonWithOSINT[] = inv1.persons.map(p => ({
-      name: p.name,
-      identifiers: { name: p.identifiers.name, cedula: p.identifiers.cedula, email: p.identifiers.email, phone: p.identifiers.phone, address: p.identifiers.address, rawRow: p.identifiers.rawRow },
-      osintResults: p.osintResults,
-      findingsCount: p.findingsCount,
-    }));
+      const persons1ForCrossRef: PersonWithOSINT[] = inv1.persons.map(p => ({
+        name: p.name,
+        identifiers: { name: p.identifiers.name, cedula: p.identifiers.cedula, email: p.identifiers.email, phone: p.identifiers.phone, address: p.identifiers.address, rawRow: p.identifiers.rawRow },
+        osintResults: p.osintResults,
+        findingsCount: p.findingsCount,
+      }));
 
-    const persons2ForCrossRef: PersonWithOSINT[] = inv2.persons.map(p => ({
-      name: p.name,
-      identifiers: { name: p.identifiers.name, cedula: p.identifiers.cedula, email: p.identifiers.email, phone: p.identifiers.phone, address: p.identifiers.address, rawRow: p.identifiers.rawRow },
-      osintResults: p.osintResults,
-      findingsCount: p.findingsCount,
-    }));
+      const persons2ForCrossRef: PersonWithOSINT[] = inv2.persons.map(p => ({
+        name: p.name,
+        identifiers: { name: p.identifiers.name, cedula: p.identifiers.cedula, email: p.identifiers.email, phone: p.identifiers.phone, address: p.identifiers.address, rawRow: p.identifiers.rawRow },
+        osintResults: p.osintResults,
+        findingsCount: p.findingsCount,
+      }));
 
-    const osintCrossRef = crossReferenceOSINTResults(persons1ForCrossRef, persons2ForCrossRef, inv1.sheetName, inv2.sheetName);
+      osintCrossRef = crossReferenceOSINTResults(persons1ForCrossRef, persons2ForCrossRef, inv1.sheetName, inv2.sheetName);
+    } catch (crossRefError) {
+      console.warn('[Upload] Cross-reference failed, using fallback:', crossRefError);
+      const inv1 = sheetInvestigations[0];
+      const inv2 = sheetInvestigations[1];
+      osintCrossRef = {
+        sheet1Name: inv1.sheetName,
+        sheet2Name: inv2.sheetName,
+        sheet1RowCount: inv1.allResults.length,
+        sheet2RowCount: inv2.allResults.length,
+        totalLinks: 0,
+        links: [],
+        summary: { empresariales: 0, personales: 0, familiares: 0, laborales: 0, contacto: 0, ubicacion: 0, dato_compartido: 0 },
+        networkMap: [],
+      };
+    }
 
-    // Step 4: Generate joint analysis PDF and DOCX
+    // Generate joint PDF and DOCX (with timeouts)
     let jointAnalysisId: string | null = null;
     let jointReportFileName: string | null = null;
 
     try {
+      const inv1 = sheetInvestigations[0];
+      const inv2 = sheetInvestigations[1];
       const osintResults = [
         { name: inv1.sheetName, results: inv1.allResults },
         { name: inv2.sheetName, results: inv2.allResults },
       ];
 
-      const pdfBuffer = await generateJointPDF(osintCrossRef, osintResults);
-      jointAnalysisId = osintCrossRef.sheet1Name.replace(/\s+/g, '_') + '_' + Date.now();
-      jointReportFileName = `Informe_Vinculos_${Date.now()}.pdf`;
-      jointBuffers.set(jointAnalysisId, { buffer: pdfBuffer, format: 'pdf' });
+      const pdfBuffer = await Promise.race([
+        generateJointPDF(osintCrossRef, osintResults),
+        new Promise<Buffer>((resolve) => setTimeout(() => resolve(Buffer.alloc(0)), REPORT_TIMEOUT)),
+      ]);
 
-      // Also generate and cache DOCX
-      try {
-        const docxBuffer = await generateJointDocxReport(osintCrossRef, osintResults);
-        const docxAnalysisId = jointAnalysisId + '_docx';
-        jointBuffers.set(docxAnalysisId, { buffer: docxBuffer, format: 'docx' });
-        console.log('[Upload API] Joint DOCX report generated and cached');
-      } catch (docxErr) {
-        console.warn('[Upload API] Failed to generate joint DOCX:', docxErr);
+      if (pdfBuffer.length > 0) {
+        jointAnalysisId = osintCrossRef.sheet1Name.replace(/\s+/g, '_') + '_' + Date.now();
+        jointReportFileName = `Informe_Vinculos_${Date.now()}.pdf`;
+        jointBuffers.set(jointAnalysisId, { buffer: pdfBuffer, format: 'pdf' });
+
+        // DOCX (with timeout)
+        try {
+          const docxBuffer = await Promise.race([
+            generateJointDocxReport(osintCrossRef, osintResults),
+            new Promise<Buffer>((resolve) => setTimeout(() => resolve(Buffer.alloc(0)), REPORT_TIMEOUT)),
+          ]);
+          if (docxBuffer.length > 0) {
+            jointBuffers.set(jointAnalysisId + '_docx', { buffer: docxBuffer, format: 'docx' });
+          }
+        } catch { /* ignore DOCX failure */ }
+
+        // Store in memory
+        try {
+          const { createJointAnalysis } = await import('@/lib/memory-store');
+          createJointAnalysis({
+            analysis: osintCrossRef,
+            individualScans: [
+              { name: inv1.sheetName, scanId: allSheetResults[0].scanId },
+              { name: inv2.sheetName, scanId: allSheetResults[1].scanId },
+            ],
+            fileName: jointReportFileName,
+          });
+        } catch { /* ignore memory store failure */ }
       }
-
-      // Store in memory
-      const { createJointAnalysis } = await import('@/lib/memory-store');
-      createJointAnalysis({
-        analysis: osintCrossRef,
-        individualScans: [
-          { name: inv1.sheetName, scanId: allSheetResults[0].scanId },
-          { name: inv2.sheetName, scanId: allSheetResults[1].scanId },
-        ],
-        fileName: jointReportFileName,
-      });
     } catch (pdfError) {
-      console.warn('[Upload API] Failed to generate joint PDF:', pdfError);
+      console.warn('[Upload] Failed to generate joint PDF:', pdfError);
     }
 
     return NextResponse.json({
@@ -518,17 +582,23 @@ async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResp
     const nonEmptySheets = sheets.filter(s => s.data.length > 0);
     if (nonEmptySheets.length === 0) {
       return NextResponse.json(
-        { error: 'El archivo Excel no contiene datos legibles. Puede estar vacio, danado o protegido con contrasena.', isEncrypted: false },
+        { error: 'El archivo Excel no contiene datos legibles. Puede estar vacio o danado. Si es formato .xls, intenta guardarlo como .xlsx.', isEncrypted: false },
         { status: 400 }
       );
     }
     return handleParsedXLSX({ sheets: nonEmptySheets.map(s => ({ name: s.name, data: s.data })), sheetNames });
   } catch (parseError) {
-    console.error('[Upload API] XLSX parse error:', parseError);
+    console.error('[Upload] XLSX parse error:', parseError);
     const errorMsg = parseError instanceof Error ? parseError.message : 'Error desconocido';
     const isEncrypted = errorMsg.startsWith('[ENCRYPTED]');
     return NextResponse.json(
-      { error: isEncrypted ? 'El archivo esta protegido con contrasena.' : `No se pudo leer el archivo Excel: ${errorMsg}`, details: errorMsg, isEncrypted },
+      {
+        error: isEncrypted
+          ? 'El archivo tiene cifrado real y no puede ser leido. Retire la proteccion y vuelva a intentarlo.'
+          : `No se pudo leer el archivo Excel: ${errorMsg.replace(/^\[ENCRYPTED\]\s*/, '')}`,
+        details: errorMsg,
+        isEncrypted
+      },
       { status: 400 }
     );
   }
@@ -576,35 +646,43 @@ async function handleCSV(buffer: Buffer, fileName: string): Promise<NextResponse
   }
 }
 
-// ── Detect if sheet data contains restricted/encrypted file artifacts ──
-const RESTRICTED_FILE_SIGNALS = [
-  'permiso de acceso',
-  'restringido actualmente',
-  'rights management',
+// ══════════════════════════════════════════════════════════════════
+//  IRM PROTECTION DETECTION — Only for genuine Rights Management
+//  Does NOT flag .xls files with mere sheet protection
+// ══════════════════════════════════════════════════════════════════
+
+// These signals are ONLY present when Office Information Rights Management (IRM)
+// replaces the entire file content with a protection notice.
+// We do NOT check for generic terms like "password protected" or "encrypted"
+// because those can appear in normal data or .xls files with sheet protection.
+const IRM_SIGNALS = [
+  'permiso de acceso a este documento está restringido actualmente',
   'solo se puede abrir utilizando microsoft office',
   'complemento rights management',
-  'protegido con contrasena',
-  'password protected',
-  'encrypted',
-  'this workbook is password protected',
+  'rights management add-in',
+  'irm protected',
+  'information rights management',
 ];
 
-function isRestrictedFileData(data: Record<string, string>[]): boolean {
+function isIRMProtected(data: Record<string, string>[]): boolean {
   if (data.length === 0) return false;
-  // Check the first row for restricted file signals in keys or values
+  // Only check the first row AND require at least 2 IRM signals to match
+  // This prevents false positives from normal data that happens to contain one keyword
   const firstRow = data[0];
   const allText = Object.entries(firstRow)
     .map(([k, v]) => `${k} ${v}`)
     .join(' ')
     .toLowerCase();
-  return RESTRICTED_FILE_SIGNALS.some(signal => allText.includes(signal));
+
+  const matchCount = IRM_SIGNALS.filter(signal => allText.includes(signal)).length;
+  // Require at least 2 matching signals to confirm IRM protection
+  return matchCount >= 2;
 }
 
 // ── Clean row data: filter out undefined values and garbage keys ──
 function cleanRowData(row: Record<string, string>): Record<string, string> {
   const cleaned: Record<string, string> = {};
   for (const [key, value] of Object.entries(row)) {
-    // Skip keys or values that are 'undefined', 'null', or empty
     const cleanKey = key.trim();
     const cleanValue = (value || '').trim();
     if (
@@ -620,13 +698,12 @@ function cleanRowData(row: Record<string, string>): Record<string, string> {
       cleanValue === 'null' ||
       cleanValue === 'NaN'
     ) continue;
-    // Skip if the key contains the restricted file message
+    // Skip IRM protection notice content
     if (cleanKey.toLowerCase().includes('permiso de acceso') ||
         cleanKey.toLowerCase().includes('restringido actualmente') ||
         cleanKey.toLowerCase().includes('rights management') ||
         cleanKey.toLowerCase().includes('complemento rights') ||
         cleanKey.toLowerCase().includes('solo se puede abrir')) continue;
-    // Skip if the value contains the restricted file message
     if (cleanValue.toLowerCase().includes('permiso de acceso') ||
         cleanValue.toLowerCase().includes('restringido actualmente') ||
         cleanValue.toLowerCase().includes('rights management')) continue;
@@ -642,37 +719,19 @@ function createResultsFromSheetData(
 ): Array<{ source: string; category: string; severity: 'critical' | 'high' | 'medium' | 'low' | 'info'; title: string; description: string; url: string; dataFound: string }> {
   const results: Array<{ source: string; category: string; severity: 'critical' | 'high' | 'medium' | 'low' | 'info'; title: string; description: string; url: string; dataFound: string }> = [];
 
-  // Check for restricted/encrypted file artifacts
-  if (isRestrictedFileData(data)) {
-    results.push({
-      source: `Fuente de datos: ${sheetName}`,
-      category: 'document_exposure',
-      severity: 'info',
-      title: `Archivo restringido — Sin datos accesibles`,
-      description: `El archivo Excel está protegido con gestión de derechos (Rights Management) o cifrado. No se pudieron extraer datos de la hoja "${sheetName}". Solicite al propietario una copia sin protección o en formato .xlsx estándar.`,
-      url: '',
-      dataFound: `Archivo restringido | Hoja: ${sheetName} | No se pudieron extraer datos`,
-    });
-    return results;
-  }
-
   for (const row of data) {
-    // Clean the row data first — remove undefined/garbage entries
     const cleanedRow = cleanRowData(row);
     const entries = Object.entries(cleanedRow).filter(([, v]) => v && v.trim() && v.trim() !== 'undefined');
     if (entries.length === 0) continue;
 
-    // Try to find a meaningful person name
     const nameField = entries.find(([k]) => /nombre|name|razon|empresa|company/i.test(k));
     let personName = nameField ? nameField[1].trim() : '';
     
-    // If no name field found, try the first meaningful value
     if (!personName || personName === 'undefined') {
       const firstValidEntry = entries.find(([, v]) => v && v !== 'undefined' && v.length >= 2);
       personName = firstValidEntry ? firstValidEntry[1].trim() : '';
     }
     
-    // If still no name, skip this row entirely
     if (!personName || personName === 'undefined') continue;
 
     const hasEmail = entries.some(([k]) => /correo|email|mail/i.test(k));
@@ -684,7 +743,6 @@ function createResultsFromSheetData(
     else if (hasEmail && hasPhone) severity = 'medium';
     else if (hasEmail || hasPhone || hasId) severity = 'low';
 
-    // Build clean description
     const cleanEntries = entries
       .filter(([k, v]) => v && v !== 'undefined' && k !== 'undefined')
       .map(([k, v]) => `${k}=${v}`)

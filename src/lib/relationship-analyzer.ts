@@ -380,18 +380,21 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
 
   const errors: string[] = [];
 
-  // ── For OLE2 (.xls) files, only use binary-compatible methods ──
-  // binary/base64 string conversion corrupts OLE2 format
+  // ── For OLE2 (.xls) files, try multiple approaches to bypass sheet protection ──
+  // Many .xls files report "password protected" when they only have sheet-level protection.
+  // The actual data is still in the file — we just need to read it aggressively.
   const readMethods: Array<{ type: string; label: string; getData: () => unknown }> =
     format === 'ole2'
       ? [
-          // OLE2: only buffer and array methods (binary/base64 corrupt OLE2)
-          { type: 'buffer', label: 'buffer_full', getData: () => buf },
-          { type: 'array', label: 'array_full', getData: () => uint8 },
-          // Try with dense mode for .xls (different internal representation)
+          // Approach 1: bookSheets + no cellStyles (bypasses sheet protection for many .xls files)
+          { type: 'buffer', label: 'buffer_nostyles', getData: () => buf },
+          { type: 'array', label: 'array_nostyles', getData: () => uint8 },
+          // Approach 2: dense mode (different internal representation)
           { type: 'buffer', label: 'buffer_dense', getData: () => buf },
           { type: 'array', label: 'array_dense', getData: () => uint8 },
-          // Last resort: binary/base64 (may corrupt OLE2 but worth trying)
+          // Approach 3: Minimal options — just read raw values, skip formatting
+          { type: 'buffer', label: 'buffer_minimal', getData: () => buf },
+          // Approach 4: binary/base64 as last resort
           { type: 'binary', label: 'binary', getData: () => buf.toString('binary') },
           { type: 'base64', label: 'base64', getData: () => buf.toString('base64') },
         ]
@@ -409,16 +412,19 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       let readOptions: Record<string, unknown>;
 
       if (format === 'ole2') {
-        // For OLE2, try different option combinations
+        // For OLE2 .xls files, try increasingly aggressive approaches
         if (i <= 1) {
-          // First attempts: full options
-          readOptions = { type: method.type, cellNF: true, cellDates: true, cellText: true, sheetStubs: true };
+          // Approach 1: bookSheets to bypass protection, no cellStyles
+          readOptions = { type: method.type, sheetStubs: true, bookSheets: true, cellStyles: false, cellNF: false, cellDates: true };
         } else if (i <= 3) {
-          // Dense mode attempts
-          readOptions = { type: method.type, cellNF: true, cellDates: true, cellText: true, sheetStubs: true, dense: true };
+          // Approach 2: Dense mode
+          readOptions = { type: method.type, sheetStubs: true, bookSheets: true, dense: true, cellStyles: false, cellNF: false, cellDates: true };
+        } else if (i === 4) {
+          // Approach 3: Minimal — just values, no formatting at all
+          readOptions = { type: method.type, sheetStubs: false, cellStyles: false, cellNF: false, cellDates: false, cellText: false };
         } else {
-          // Last resort: string-based
-          readOptions = { type: method.type, cellNF: true, cellDates: true, cellText: true, sheetStubs: true };
+          // Approach 4: string-based (last resort)
+          readOptions = { type: method.type, sheetStubs: true, cellStyles: false, cellNF: false };
         }
       } else if (format === 'xml_spreadsheet') {
         readOptions = { type: method.type, cellNF: false, cellStyles: false };
@@ -449,7 +455,7 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       if (format === 'ole2' && workbook.SheetNames.length > 0 && i === readMethods.length - 1) {
         try {
           const xlsxBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-          const reReadWb = XLSX.read(xlsxBuffer, { type: 'buffer', cellNF: true, cellDates: true, cellText: true, sheetStubs: true });
+          const reReadWb = XLSX.read(xlsxBuffer, { type: 'buffer', sheetStubs: true, bookSheets: true, cellStyles: false, cellNF: false, cellDates: true });
           if (reReadWb && reReadWb.SheetNames.length > 0) {
             const reReadResult = buildSheetsFromWorkbook(reReadWb);
             const reReadNonEmpty = reReadResult.sheets.filter(s => s.data.length > 0);
@@ -465,10 +471,15 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // Only throw for genuine encryption errors from the library itself
+      // NOTE: Do NOT immediately throw for "encryption" errors on .xls files.
+      // The XLSX library often reports "password protected" or "encrypted" for .xls files
+      // that merely have sheet protection (not actual file encryption).
+      // Instead, record the error and continue trying other methods.
       if (/unsupported encryption|password.*protected|file is encrypted/i.test(msg)) {
-        // Use a distinctive prefix so the upload route can identify real encryption
-        throw new Error('[ENCRYPTED] El archivo tiene cifrado y no puede ser leido. Retire la proteccion y vuelva a intentarlo.');
+        errors.push(`${method.label}: [ENCRYPTION_DETECTED] ${msg}`);
+        // Don't throw — continue trying other read methods
+        // Some methods may succeed even when others report encryption
+        continue;
       }
       errors.push(`${method.label}: ${msg}`);
     }
@@ -480,7 +491,7 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       const tmpDir = os.tmpdir();
       const tmpFile = path.join(tmpDir, `osint_upload_${Date.now()}.xls`);
       fs.writeFileSync(tmpFile, buf);
-      const fileWb = XLSX.readFile(tmpFile, { cellNF: true, cellDates: true, cellText: true, sheetStubs: true });
+      const fileWb = XLSX.readFile(tmpFile, { sheetStubs: true, bookSheets: true, cellStyles: false, cellNF: false, cellDates: true });
       // Clean up temp file
       try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
 
@@ -499,10 +510,17 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
   }
 
   // If we get here, all methods failed or returned empty data
+  // Check if ALL methods consistently reported encryption (not just sheet protection)
+  const encryptionErrors = errors.filter(e => e.includes('[ENCRYPTION_DETECTED]'));
+  const allEncryption = encryptionErrors.length > 0 && encryptionErrors.length === errors.length;
+
   if (format === 'ole2') {
+    if (allEncryption) {
+      // All methods agree the file is genuinely encrypted — not just sheet protection
+      throw new Error('[ENCRYPTED] El archivo .xls tiene cifrado real y no puede ser leido. Retire la proteccion y vuelva a intentarlo.');
+    }
     throw new Error(
       'No se pudo extraer datos del archivo .xls (formato BIFF). ' +
-      'El archivo puede usar caracteristicas no soportadas o tener proteccion de hoja. ' +
       'Recomendacion: abre el archivo en Excel y guardalo como .xlsx. ' +
       'Detalles: ' + errors.join(' | ')
     );

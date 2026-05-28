@@ -1045,10 +1045,10 @@ export default function Home() {
 
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            // Check if server detected encryption
-            if (errData.isEncrypted) {
+            // Check if server detected genuine file encryption (not just sheet protection)
+            if (errData.isEncrypted === true) {
               throw new Error(
-                'El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
+                'El archivo tiene cifrado real y no puede ser leido. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
               );
             }
             throw new Error(errData.error || 'Error al procesar archivo Excel en el servidor');
@@ -1069,9 +1069,10 @@ export default function Home() {
           fetchPastScans();
         } catch (serverError) {
           const msg = serverError instanceof Error ? serverError.message : 'Error desconocido';
-          // Only re-throw as "encrypted" if the server explicitly flagged it with [ENCRYPTED]
-          if (msg.includes('[ENCRYPTED]') || msg.includes('protegido con contraseña')) {
-            throw new Error('El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.');
+          // Only re-throw as "encrypted" if the server explicitly flagged it with isEncrypted=true
+          // This prevents false positives from .xls files that merely have sheet protection
+          if (msg.includes('[ENCRYPTED]')) {
+            throw new Error('El archivo tiene cifrado real y no puede ser leido. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.');
           }
           throw new Error(msg || 'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado.');
         }
