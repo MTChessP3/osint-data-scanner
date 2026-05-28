@@ -112,9 +112,9 @@ export async function POST(request: NextRequest) {
           category: f.category || 'social_media',
           severity: f.severity,
           title: f.title,
-          description: f.description || null,
-          url: f.url || r.profileUrl || null,
-          dataFound: f.dataFound || null,
+          description: f.description || undefined,
+          url: f.url || r.profileUrl || undefined,
+          dataFound: f.dataFound || undefined,
         }))
       );
 
@@ -127,8 +127,8 @@ export async function POST(request: NextRequest) {
             severity: 'info',
             title: `Perfil encontrado en ${r.platform}`,
             description: r.username ? `Username: @${r.username}${r.profileVerified ? ' (Verificado)' : ''}` : 'Perfil público detectado',
-            url: r.profileUrl || null,
-            dataFound: null,
+            url: r.profileUrl || undefined,
+            dataFound: undefined,
           });
         }
       }

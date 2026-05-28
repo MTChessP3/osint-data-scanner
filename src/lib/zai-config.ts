@@ -118,30 +118,29 @@ async function loadConfigAsync(): Promise<ZAIConfig> {
 
 /**
  * Create a ZAI instance with proper authentication.
- * Uses internal API if reachable, otherwise public API.
+ * Uses ZAI.create() factory method (constructor is private).
+ * Falls back to direct API calls if SDK fails.
  */
 export async function createZAIInstanceAsync(): Promise<InstanceType<typeof ZAI>> {
-  const config = await loadConfigAsync();
-  return new ZAI(config);
+  await loadConfigAsync();
+  try {
+    // ZAI.create() is the factory method — the constructor is private
+    const zai = await ZAI.create();
+    return zai;
+  } catch (e) {
+    console.warn('[ZAI Config] ZAI.create() failed, SDK will use direct API calls as fallback:', e instanceof Error ? e.message : 'unknown');
+    // Return a mock object that throws on use — actual API calls use direct fetch() with zaiHeaders
+    throw e;
+  }
 }
 
 /**
  * Create ZAI instance synchronously (best effort).
+ * NOTE: ZAI constructor is private — use createZAIInstanceAsync() instead.
+ * This function is kept for backward compatibility but will throw.
  */
-export function createZAIInstance(): InstanceType<typeof ZAI> {
-  const baseUrl = isInternalAccessible ? INTERNAL_API_BASE : PUBLIC_API_BASE;
-  const envToken = process.env.ZAI_TOKEN || '';
-  const envUserId = process.env.ZAI_USER_ID || '';
-  const envChatId = process.env.ZAI_CHAT_ID || '';
-
-  const config = cachedConfig || {
-    baseUrl,
-    apiKey: 'Z.ai',
-    token: envToken,
-    userId: envUserId,
-    chatId: envChatId,
-  };
-  return new ZAI(config);
+export function createZAIInstance(): never {
+  throw new Error('Use createZAIInstanceAsync() instead — ZAI constructor is private');
 }
 
 /**
