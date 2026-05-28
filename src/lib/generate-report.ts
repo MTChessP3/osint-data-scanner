@@ -159,17 +159,17 @@ function subHeader(text: string): Paragraph {
 /** Body paragraph with justified alignment */
 function bodyPara(
   text: string,
-  opts?: { bold?: boolean; color?: string; size?: number; indent?: number; italic?: boolean }
+  opts?: { bold?: boolean; color?: string; size?: number; indent?: number; italics?: boolean }
 ): Paragraph {
   const fs = opts?.size || 18;
   const color = opts?.color || C.text;
   const bold = opts?.bold || false;
-  const italic = opts?.italic || false;
+  const italics = opts?.italics || false;
   return new Paragraph({
     spacing: { after: 80 },
     indent: opts?.indent ? { left: opts.indent } : undefined,
     alignment: AlignmentType.JUSTIFIED,
-    children: [new TextRun({ text, size: fs, font: 'Arial', color, bold, italic })],
+    children: [new TextRun({ text, size: fs, font: 'Arial', color, bold, italics })],
   });
 }
 
@@ -271,10 +271,10 @@ function findingParagraphs(
       indent: { left: 720 },
       children: [
         new TextRun({ text: 'Fuente: ', bold: true, size: 14, font: 'Arial', color: C.gray }),
-        new TextRun({ text: source, size: 14, font: 'Arial', color: C.textLight, italic: true }),
+        new TextRun({ text: source, size: 14, font: 'Arial', color: C.textLight, italics: true }),
         new TextRun({ text: '  |  ', size: 14, font: 'Arial', color: C.lightGray }),
         new TextRun({ text: 'Categoria: ', bold: true, size: 14, font: 'Arial', color: C.gray }),
-        new TextRun({ text: category, size: 14, font: 'Arial', color: C.textLight, italic: true }),
+        new TextRun({ text: category, size: 14, font: 'Arial', color: C.textLight, italics: true }),
       ],
     })
   );
@@ -680,7 +680,7 @@ export async function generateDocxReport(data: {
               size: 14,
               font: 'Arial',
               color: C.gray,
-              italic: true,
+              italics: true,
             }),
           ],
         })
@@ -873,14 +873,535 @@ export async function generateDocxReport(data: {
   children.push(
     bodyPara(
       'Este informe ha sido generado de forma automatizada mediante tecnicas OSINT (Open Source Intelligence). La informacion contenida proviene exclusivamente de fuentes publicas y abiertas. Este documento no constituye una investigacion oficial ni debe ser utilizado como prueba judicial sin la debida validacion por parte de las autoridades competentes.',
-      { indent: 200, italic: true, size: 16, color: C.textLight }
+      { indent: 200, italics: true, size: 16, color: C.textLight }
     )
   );
 
   children.push(
     bodyPara(
       'El uso de esta informacion debe cumplir con la Ley 1581 de 2012 (Proteccion de Datos Personales), la Ley 1273 de 2009 (Delitos Informaticos), y la Constitucion Politica de Colombia. El tratamiento de datos personales se realiza bajo los principios de finalidad, libertad y legalidad.',
-      { indent: 200, italic: true, size: 16, color: C.textLight }
+      { indent: 200, italics: true, size: 16, color: C.textLight }
+    )
+  );
+
+  // Signature block
+  children.push(emptyPara({ before: 600 }));
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 40 },
+      border: { top: { style: BorderStyle.SINGLE, size: 1, color: C.navy } },
+      children: [],
+    })
+  );
+
+  children.push(keyValuePara('Elaborado por', 'OSINT Data Scanner v5.0'));
+  children.push(keyValuePara('Codigo del informe', reportId));
+  children.push(keyValuePara('Fecha de elaboracion', today));
+  children.push(keyValuePara('Revisado por', '_______________________________'));
+  children.push(keyValuePara('Aprobado por', '_______________________________'));
+
+  // ════════════════════════════════════════
+  //  BUILD DOCUMENT
+  // ════════════════════════════════════════
+
+  const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: 'Arial',
+            size: 18,
+          },
+        },
+      },
+    },
+    sections: [
+      {
+        properties: {
+          page: {
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+          },
+        },
+        children,
+      },
+    ],
+  });
+
+  return await Packer.toBuffer(doc);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SOCIAL MEDIA DOCX REPORT
+// ════════════════════════════════════════════════════════════════
+
+interface SocialScanResultItemDocx {
+  platform: string;
+  platformId: string;
+  profileFound: boolean;
+  profileUrl?: string;
+  username?: string;
+  profileVerified?: boolean;
+  profileStatusCode?: number;
+  findings: Array<{
+    source: string;
+    category: string;
+    severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+    title: string;
+    description?: string;
+    url?: string;
+    dataFound?: string;
+  }>;
+  searchResultsCount: number;
+}
+
+interface SocialSummaryDocx {
+  profilesFound: number;
+  totalFindings: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+}
+
+export async function generateSocialDocxReport(data: {
+  searchMode: string;
+  searchQuery: string;
+  results: SocialScanResultItemDocx[];
+  summary: SocialSummaryDocx;
+  scanId?: string;
+}): Promise<Buffer> {
+  resetDocxSourceMap();
+
+  const { searchMode, searchQuery, results: scanResults, summary, scanId } = data;
+  const today = formatDate();
+  const reportId = scanId ? `SOCIAL-${scanId.substring(0, 8).toUpperCase()}` : `SOCIAL-${Date.now().toString(36).toUpperCase()}`;
+
+  const critCount = summary.critical;
+  const highCount = summary.high;
+  const medCount = summary.medium;
+  const lowCount = summary.low;
+  const infoCount = summary.info;
+
+  const riskScore = Math.min(100, summary.profilesFound * 12 + critCount * 25 + highCount * 12 + medCount * 5 + lowCount * 2);
+  const riskLevel = riskScore >= 70 ? 'CRITICO' : riskScore >= 40 ? 'ALTO' : riskScore >= 15 ? 'MODERADO' : 'BAJO';
+  const riskColor = riskScore >= 70 ? C.red : riskScore >= 40 ? C.orange : riskScore >= 15 ? C.yellow : C.green;
+
+  const modeLabel = searchMode === 'nickname' ? 'NickName' : searchMode === 'email' ? 'Correo' : 'Nombre';
+
+  const children: Paragraph[] = [];
+
+  // ════════════════════════════════════════
+  //  PÁGINA 1: PORTADA
+  // ════════════════════════════════════════
+
+  children.push(
+    new Paragraph({
+      spacing: { before: 0, after: 0 },
+      shading: { type: ShadingType.SOLID, color: C.navyDark },
+      children: [
+        new TextRun({
+          text: '  INFORME DE REDES SOCIALES',
+          bold: true,
+          size: 52,
+          font: 'Arial',
+          color: C.white,
+        }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      spacing: { before: 0, after: 100 },
+      shading: { type: ShadingType.SOLID, color: C.navy },
+      children: [
+        new TextRun({
+          text: '  ANALISIS DE PRESENCIA DIGITAL',
+          bold: true,
+          size: 24,
+          font: 'Arial',
+          color: C.teal,
+        }),
+      ],
+    })
+  );
+
+  children.push(emptyPara({ before: 1200 }));
+
+  // Risk score bar
+  const riskBar = '█'.repeat(Math.ceil(riskScore / 10)) + '░'.repeat(10 - Math.ceil(riskScore / 10));
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [
+        new TextRun({ text: 'PUNTAJE DE RIESGO', bold: true, size: 20, font: 'Arial', color: C.navy }),
+      ],
+    })
+  );
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 40 },
+      children: [
+        new TextRun({ text: riskBar, size: 28, font: 'Courier New', color: riskColor }),
+      ],
+    })
+  );
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [
+        new TextRun({ text: `${riskScore}/100`, bold: true, size: 36, font: 'Arial', color: riskColor }),
+        new TextRun({ text: `  —  `, size: 24, font: 'Arial', color: C.textLight }),
+        new TextRun({ text: riskLevel, bold: true, size: 28, font: 'Arial', color: riskColor }),
+      ],
+    })
+  );
+
+  // Subject identification
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 40 },
+      children: [
+        new TextRun({ text: 'CONSULTA DE INVESTIGACION', bold: true, size: 18, font: 'Arial', color: C.navy }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
+      children: [
+        new TextRun({ text: 'Consulta: ', bold: true, size: 20, font: 'Arial', color: C.textLight }),
+        new TextRun({ text: searchQuery, bold: true, size: 22, font: 'Arial', color: C.navy }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
+      children: [
+        new TextRun({ text: 'Modo: ', bold: true, size: 18, font: 'Arial', color: C.textLight }),
+        new TextRun({ text: modeLabel, size: 18, font: 'Arial', color: C.text }),
+      ],
+    })
+  );
+
+  children.push(emptyPara({ before: 400 }));
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
+      children: [
+        new TextRun({ text: 'ID del Informe: ', bold: true, size: 18, font: 'Arial', color: C.textLight }),
+        new TextRun({ text: reportId, bold: true, size: 18, font: 'Arial', color: C.redBright }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
+      children: [
+        new TextRun({ text: `Fecha: ${today}`, size: 18, font: 'Arial', color: C.textLight }),
+      ],
+    })
+  );
+
+  children.push(emptyPara({ before: 600 }));
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 40 },
+      children: [
+        new TextRun({
+          text: 'CLASIFICACION: CONFIDENCIAL',
+          bold: true,
+          size: 20,
+          font: 'Arial',
+          color: C.redBright,
+        }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({ text: 'OSINT Data Scanner v5.0', size: 14, font: 'Arial', color: C.gray }),
+      ],
+    })
+  );
+
+  // Page break to page 2
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // ════════════════════════════════════════
+  //  PÁGINA 2: RESUMEN EJECUTIVO
+  // ════════════════════════════════════════
+
+  children.push(sectionHeader('Resumen Ejecutivo — Redes Sociales'));
+
+  const execNarrative =
+    critCount > 0
+      ? `La investigacion en redes sociales identifico ${critCount} hallazgo(s) critico(s) y ${summary.profilesFound} perfil(es) asociados al sujeto de investigacion. La exposicion en plataformas sociales representa un riesgo significativo para la seguridad digital. Se recomienda revisar y restringir la configuracion de privacidad en todas las cuentas detectadas. El nivel de riesgo calculado es ${riskLevel} con un puntaje de ${riskScore}/100.`
+      : highCount > 0
+        ? `La investigacion identifico ${highCount} hallazgo(s) de severidad alta en redes sociales. Se detectaron ${summary.profilesFound} perfil(es) que requieren atencion. El nivel de riesgo calculado es ${riskLevel} con un puntaje de ${riskScore}/100.`
+        : summary.profilesFound > 0
+          ? `La investigacion detecto ${summary.profilesFound} perfil(es) en redes sociales. Los hallazgos indican cierta exposicion digital que requiere medidas preventivas. El nivel de riesgo calculado es ${riskLevel} con un puntaje de ${riskScore}/100.`
+          : `No se identificaron perfiles o hallazgos significativos en las plataformas consultadas. El nivel de riesgo calculado es ${riskLevel} con un puntaje de ${riskScore}/100.`;
+
+  children.push(bodyPara(execNarrative, { indent: 200 }));
+
+  children.push(subHeader('Evaluacion de Riesgo'));
+
+  children.push(
+    bulletPara([
+      new TextRun({ text: 'Puntaje de Riesgo: ', bold: true, size: 18, font: 'Arial', color: C.navy }),
+      new TextRun({ text: `${riskScore}/100`, bold: true, size: 20, font: 'Arial', color: riskColor }),
+      new TextRun({ text: ` — Nivel ${riskLevel}`, size: 18, font: 'Arial', color: riskColor }),
+    ])
+  );
+
+  children.push(
+    bulletPara([
+      new TextRun({ text: 'Plataformas escaneadas: ', bold: true, size: 18, font: 'Arial', color: C.navy }),
+      new TextRun({ text: `${scanResults.length} plataformas con ${summary.profilesFound} perfiles encontrados`, size: 18, font: 'Arial', color: C.text }),
+    ])
+  );
+
+  children.push(subHeader('Resumen de Hallazgos por Severidad'));
+
+  if (critCount > 0) {
+    children.push(
+      bulletPara([
+        new TextRun({ text: `${critCount} Critico(s)`, bold: true, size: 18, font: 'Arial', color: C.red }),
+        new TextRun({ text: ' — Requiere accion inmediata', size: 16, font: 'Arial', color: C.textLight }),
+      ])
+    );
+  }
+  if (highCount > 0) {
+    children.push(
+      bulletPara([
+        new TextRun({ text: `${highCount} Alto(s)`, bold: true, size: 18, font: 'Arial', color: C.orange }),
+        new TextRun({ text: ' — Atencion prioritaria', size: 16, font: 'Arial', color: C.textLight }),
+      ])
+    );
+  }
+  if (medCount > 0) {
+    children.push(
+      bulletPara([
+        new TextRun({ text: `${medCount} Medio(s)`, bold: true, size: 18, font: 'Arial', color: C.yellow }),
+        new TextRun({ text: ' — Seguimiento recomendado', size: 16, font: 'Arial', color: C.textLight }),
+      ])
+    );
+  }
+  if (lowCount > 0) {
+    children.push(
+      bulletPara([
+        new TextRun({ text: `${lowCount} Bajo(s)`, bold: true, size: 18, font: 'Arial', color: C.blue }),
+        new TextRun({ text: ' — Monitoreo periodico', size: 16, font: 'Arial', color: C.textLight }),
+      ])
+    );
+  }
+  if (infoCount > 0) {
+    children.push(
+      bulletPara([
+        new TextRun({ text: `${infoCount} Informativo(s)`, size: 18, font: 'Arial', color: C.gray }),
+      ])
+    );
+  }
+
+  // Page break to page 3
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // ════════════════════════════════════════
+  //  RESULTADOS POR PLATAFORMA
+  // ════════════════════════════════════════
+
+  children.push(sectionHeader('Resultados por Plataforma'));
+
+  for (const result of scanResults) {
+    const statusLabel = result.profileFound
+      ? result.profileVerified ? 'Perfil Verificado' : 'Perfil Encontrado'
+      : result.findings.length > 0 ? 'Menciones' : 'Sin resultados';
+    const statusColor = result.profileFound
+      ? result.profileVerified ? C.green : C.navy
+      : result.findings.length > 0 ? C.orange : C.gray;
+
+    children.push(
+      bulletPara([
+        new TextRun({ text: `${result.platform}`, bold: true, size: 18, font: 'Arial', color: statusColor }),
+        new TextRun({ text: ` — ${statusLabel}`, size: 16, font: 'Arial', color: C.textLight }),
+      ])
+    );
+
+    if (result.profileFound && result.username) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 20 },
+          indent: { left: 720 },
+          children: [
+            new TextRun({ text: `Usuario: @${result.username}${result.profileVerified ? ' (Verificado)' : ''}`, size: 16, font: 'Arial', color: C.text }),
+          ],
+        })
+      );
+    }
+
+    if (result.profileUrl) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 20 },
+          indent: { left: 720 },
+          children: [
+            new TextRun({ text: 'URL: ', bold: true, size: 14, font: 'Arial', color: C.blue }),
+            new TextRun({ text: result.profileUrl.substring(0, 120), size: 14, font: 'Arial', color: C.blue }),
+          ],
+        })
+      );
+    }
+
+    for (const finding of result.findings) {
+      const sev = SEV[finding.severity] || SEV.info;
+      children.push(
+        new Paragraph({
+          spacing: { after: 10 },
+          indent: { left: 720 },
+          children: [
+            new TextRun({ text: `[${sev.label}] `, bold: true, size: 14, font: 'Arial', color: sev.color }),
+            new TextRun({ text: finding.title, bold: true, size: 16, font: 'Arial', color: C.navy }),
+          ],
+        })
+      );
+
+      if (finding.description) {
+        children.push(
+          new Paragraph({
+            spacing: { after: 10 },
+            indent: { left: 720 },
+            alignment: AlignmentType.JUSTIFIED,
+            children: [
+              new TextRun({ text: finding.description.substring(0, 250), size: 14, font: 'Arial', color: C.textLight }),
+            ],
+          })
+        );
+      }
+
+      children.push(
+        new Paragraph({
+          spacing: { after: 20 },
+          indent: { left: 720 },
+          children: [
+            new TextRun({ text: 'Fuente: ', bold: true, size: 12, font: 'Arial', color: C.gray }),
+            new TextRun({ text: anonymizeSource(finding.source), size: 12, font: 'Arial', color: C.textLight, italics: true }),
+            new TextRun({ text: '  |  ', size: 12, font: 'Arial', color: C.lightGray }),
+            new TextRun({ text: 'Categoria: ', bold: true, size: 12, font: 'Arial', color: C.gray }),
+            new TextRun({ text: catES(finding.category), size: 12, font: 'Arial', color: C.textLight, italics: true }),
+          ],
+        })
+      );
+    }
+
+    if (result.findings.length === 0 && !result.profileFound) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 20 },
+          indent: { left: 720 },
+          children: [
+            new TextRun({ text: 'Sin hallazgos para esta plataforma.', size: 14, font: 'Arial', color: C.gray, italics: true }),
+          ],
+        })
+      );
+    }
+
+    // Separator
+    children.push(
+      new Paragraph({
+        spacing: { after: 40 },
+        indent: { left: 720 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: C.lightGray } },
+        children: [],
+      })
+    );
+  }
+
+  // Page break to recommendations
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // ════════════════════════════════════════
+  //  RECOMENDACIONES
+  // ════════════════════════════════════════
+
+  children.push(sectionHeader('Recomendaciones'));
+
+  children.push(subHeader('Recomendaciones Generales'));
+
+  const socialRecs = [
+    'Revisar y restringir la configuracion de privacidad en todas las plataformas detectadas.',
+    'Eliminar informacion personal innecesaria de perfiles publicos (telefono, direccion, fecha de nacimiento).',
+    'Habilitar autenticacion de dos factores (2FA) en todas las cuentas detectadas.',
+    'Monitorear periodicamente la huella digital en redes sociales.',
+    'Considerar la desactivacion de perfiles no utilizados.',
+    'Utilizar seudonimos o nombres alternativos en nuevas cuentas para dificultar la correlacion.',
+  ];
+
+  for (const rec of socialRecs) {
+    children.push(bulletPara([new TextRun({ text: rec, size: 17, font: 'Arial', color: C.text })]));
+  }
+
+  // Per-platform recommendations
+  const platformsWithResults = scanResults.filter(r => r.profileFound || r.findings.length > 0);
+  if (platformsWithResults.length > 0) {
+    children.push(subHeader('Recomendaciones por Plataforma'));
+
+    for (const result of platformsWithResults) {
+      const platformRec = result.profileVerified
+        ? 'Perfil verificado detectado. Se recomienda revisar la informacion visible publicamente y limitar la exposicion de datos personales.'
+        : result.profileFound
+          ? 'Perfil encontrado. Restringir la visibilidad del perfil, revisar configuracion de privacidad y evaluar si la cuenta es necesaria.'
+          : 'Se detectaron menciones sin perfil confirmado. Monitorear futuras apariciones y evaluar si es necesario crear alertas.';
+
+      children.push(
+        bulletPara([
+          new TextRun({ text: `${result.platform}: `, bold: true, size: 17, font: 'Arial', color: C.navy }),
+          new TextRun({ text: platformRec, size: 16, font: 'Arial', color: C.text }),
+        ])
+      );
+    }
+  }
+
+  // Page break to legal
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // ════════════════════════════════════════
+  //  AVISO LEGAL
+  // ════════════════════════════════════════
+
+  children.push(sectionHeader('Aviso Legal'));
+
+  children.push(
+    bodyPara(
+      'Este informe ha sido generado de forma automatizada mediante tecnicas OSINT (Open Source Intelligence). La informacion contenida proviene exclusivamente de fuentes publicas y abiertas. Este documento no constituye una investigacion oficial ni debe ser utilizado como prueba judicial sin la debida validacion por parte de las autoridades competentes.',
+      { indent: 200, italics: true, size: 16, color: C.textLight }
+    )
+  );
+
+  children.push(
+    bodyPara(
+      'El uso de esta informacion debe cumplir con la Ley 1581 de 2012 (Proteccion de Datos Personales), la Ley 1273 de 2009 (Delitos Informaticos), y la Constitucion Politica de Colombia. El tratamiento de datos personales se realiza bajo los principios de finalidad, libertad y legalidad.',
+      { indent: 200, italics: true, size: 16, color: C.textLight }
     )
   );
 

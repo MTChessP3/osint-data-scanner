@@ -96,7 +96,7 @@ interface PastScan {
   status: string;
   scanType: 'data_intelligence' | 'social_media';
   createdAt: string;
-  results: { id: string; severity: string }[];
+  results: { id: string; severity: string; source?: string; category?: string; title?: string; description?: string; url?: string; dataFound?: string }[];
   reports: { id: string; fileName: string; format?: string }[];
 }
 
@@ -382,6 +382,13 @@ export default function Home() {
   // ── Social report download state ──
   const [socialReportLoading, setSocialReportLoading] = useState(false);
 
+  // ── Detail modal state ──
+  const [detailModal, setDetailModal] = useState<{
+    open: boolean;
+    title: string;
+    items: Array<{ title: string; description: string; source?: string; platform?: string }>;
+  }>({ open: false, title: '', items: [] });
+
   // ── Chat states ──
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
@@ -581,10 +588,10 @@ export default function Home() {
           phoneToSend = pastScan.phone || '';
           cedulaToSend = pastScan.cedula || '';
           resultsToSend = pastScan.results.map(r => ({
-            source: r.source,
-            category: r.category,
+            source: r.source || '',
+            category: r.category || '',
             severity: r.severity as ScanResult['severity'],
-            title: r.title,
+            title: r.title || '',
             description: r.description ?? undefined,
             url: r.url ?? undefined,
             dataFound: r.dataFound ?? undefined,
@@ -671,6 +678,114 @@ export default function Home() {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, hubo un error al procesar tu mensaje. Intenta de nuevo.' }]);
     } finally {
       setChatLoading(false);
+    }
+  }
+
+  // ── Download social media DOCX report ──
+  async function handleDownloadSocialDocxReport() {
+    if (!socialScanData) return;
+    setSocialReportLoading(true);
+    try {
+      const res = await fetch('/api/social-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchMode: socialScanData.searchMode,
+          searchQuery: socialScanData.searchQuery,
+          results: socialScanData.results,
+          summary: socialScanData.summary,
+          scanId: socialScanData.scanId,
+          format: 'docx',
+        }),
+      });
+      if (!res.ok) throw new Error('Error al descargar informe DOCX');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Informe_Redes_Sociales_${Date.now()}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download social DOCX report error:', err);
+      alert('Error al descargar el informe DOCX de redes sociales.');
+    } finally {
+      setSocialReportLoading(false);
+    }
+  }
+
+  // ── Download social media history report (from past scans) ──
+  async function handleDownloadSocialHistoryReport(scanId: string, format: 'pdf' | 'docx') {
+    try {
+      // Get past scan data
+      const pastScan = pastScans.find(s => s.id === scanId);
+      if (!pastScan) return;
+
+      // Reconstruct social scan results from stored data
+      const platformMap = new Map<string, Array<{ source: string; category: string; severity: 'critical' | 'high' | 'medium' | 'low' | 'info'; title: string; description?: string; url?: string; dataFound?: string }>>();
+      for (const r of pastScan.results) {
+        const platform = r.source || 'Desconocido';
+        if (!platformMap.has(platform)) platformMap.set(platform, []);
+        platformMap.get(platform)!.push({
+          source: r.source || '',
+          category: r.category || 'social_media',
+          severity: (r.severity as 'critical' | 'high' | 'medium' | 'low' | 'info') || 'info',
+          title: r.title || '',
+          description: r.description ?? undefined,
+          url: r.url ?? undefined,
+          dataFound: r.dataFound ?? undefined,
+        });
+      }
+
+      const socialResults = Array.from(platformMap.entries()).map(([platform, findings]) => ({
+        platform,
+        platformId: platform.toLowerCase(),
+        profileFound: findings.some(f => f.severity === 'info' && f.title.includes('Perfil encontrado')),
+        username: undefined,
+        profileVerified: false,
+        findings,
+        searchResultsCount: findings.length,
+      }));
+
+      const summary = {
+        profilesFound: socialResults.filter(r => r.profileFound).length,
+        totalFindings: pastScan.results.length,
+        critical: pastScan.results.filter(r => r.severity === 'critical').length,
+        high: pastScan.results.filter(r => r.severity === 'high').length,
+        medium: pastScan.results.filter(r => r.severity === 'medium').length,
+        low: pastScan.results.filter(r => r.severity === 'low').length,
+        info: pastScan.results.filter(r => r.severity === 'info').length,
+      };
+
+      const res = await fetch('/api/social-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchMode: 'name',
+          searchQuery: pastScan.fullName,
+          results: socialResults,
+          summary,
+          scanId,
+          format,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Error al descargar informe de redes sociales');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ext = format === 'docx' ? 'docx' : 'pdf';
+      a.download = `Informe_Redes_Sociales_${pastScan.fullName.replace(/\s+/g, '_')}_${Date.now()}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download social history report error:', err);
+      alert('Error al descargar el informe de redes sociales.');
     }
   }
 
@@ -1633,27 +1748,27 @@ export default function Home() {
 
                       {/* Summary Cards */}
                       <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3 w-full">
-                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center">
+                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Todos los Hallazgos', items: scanData.results.map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
                           <p className="text-2xl font-bold text-white">{scanData.totalResults}</p>
                           <p className="text-xs text-slate-500">Total</p>
                         </div>
-                        <div className="p-3 bg-red-900/20 rounded-lg border border-red-800/30 text-center">
+                        <div className="p-3 bg-red-900/20 rounded-lg border border-red-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Críticos', items: scanData.results.filter(r => r.severity === 'critical').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
                           <p className="text-2xl font-bold text-red-400">{scanData.summary.critical}</p>
                           <p className="text-xs text-slate-500">Criticos</p>
                         </div>
-                        <div className="p-3 bg-orange-900/20 rounded-lg border border-orange-800/30 text-center">
+                        <div className="p-3 bg-orange-900/20 rounded-lg border border-orange-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Altos', items: scanData.results.filter(r => r.severity === 'high').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
                           <p className="text-2xl font-bold text-orange-400">{scanData.summary.high}</p>
                           <p className="text-xs text-slate-500">Altos</p>
                         </div>
-                        <div className="p-3 bg-amber-900/20 rounded-lg border border-amber-800/30 text-center">
+                        <div className="p-3 bg-amber-900/20 rounded-lg border border-amber-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Medios', items: scanData.results.filter(r => r.severity === 'medium').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
                           <p className="text-2xl font-bold text-amber-400">{scanData.summary.medium}</p>
                           <p className="text-xs text-slate-500">Medios</p>
                         </div>
-                        <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-800/30 text-center">
+                        <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Bajos', items: scanData.results.filter(r => r.severity === 'low').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
                           <p className="text-2xl font-bold text-blue-400">{scanData.summary.low}</p>
                           <p className="text-xs text-slate-500">Bajos</p>
                         </div>
-                        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30 text-center">
+                        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Informativos', items: scanData.results.filter(r => r.severity === 'info').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
                           <p className="text-2xl font-bold text-slate-400">{scanData.summary.info}</p>
                           <p className="text-xs text-slate-500">Info</p>
                         </div>
@@ -1814,19 +1929,19 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center">
+                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Perfiles Encontrados', items: socialScanData.results.filter(r => r.profileFound).map(r => ({ title: r.platform, description: r.profileFound ? `Perfil detectado${r.username ? ': @' + r.username : ''}${r.profileVerified ? ' (Verificado)' : ''}` : 'Sin perfil', platform: r.platform })) })}>
                           <p className="text-2xl font-bold text-blue-400">{socialScanData.summary.profilesFound}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Perfiles Encontrados</p>
                         </div>
-                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center">
+                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Totales', items: socialScanData.results.flatMap(r => r.findings.map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
                           <p className="text-2xl font-bold text-white">{socialScanData.summary.totalFindings}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Hallazgos Totales</p>
                         </div>
-                        <div className="p-3 bg-red-900/15 rounded-lg border border-red-800/30 text-center">
+                        <div className="p-3 bg-red-900/15 rounded-lg border border-red-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Críticos y Altos', items: socialScanData.results.flatMap(r => r.findings.filter(f => f.severity === 'critical' || f.severity === 'high').map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
                           <p className="text-2xl font-bold text-red-400">{socialScanData.summary.critical + socialScanData.summary.high}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Críticos</p>
                         </div>
-                        <div className="p-3 bg-amber-900/15 rounded-lg border border-amber-800/30 text-center">
+                        <div className="p-3 bg-amber-900/15 rounded-lg border border-amber-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Medios', items: socialScanData.results.flatMap(r => r.findings.filter(f => f.severity === 'medium').map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
                           <p className="text-2xl font-bold text-amber-400">{socialScanData.summary.medium}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Medios</p>
                         </div>
@@ -1842,7 +1957,18 @@ export default function Home() {
                           {socialReportLoading ? (
                             <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generando...</>
                           ) : (
-                            <><Download className="w-3.5 h-3.5 mr-1.5" />Informe PDF Redes Sociales</>
+                            <><Download className="w-3.5 h-3.5 mr-1.5" />PDF</>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={handleDownloadSocialDocxReport}
+                          disabled={socialReportLoading}
+                          className="bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b] text-xs h-8"
+                        >
+                          {socialReportLoading ? (
+                            <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generando...</>
+                          ) : (
+                            <><FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />DOCX</>
                           )}
                         </Button>
                       </div>
@@ -2448,11 +2574,16 @@ export default function Home() {
               <div className="space-y-3">
                 {pastScans.map(scan => {
                   const criticals = scan.results.filter(r => r.severity === 'critical').length;
+                  const isSocial = scan.scanType === 'social_media';
+                  const TypeIcon = isSocial ? Users : Shield;
                   return (
                     <Card key={scan.id} className="bg-[#111827] border-[#1e293b] hover:border-slate-600 transition-colors">
                       <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white">{scan.fullName}</p>
+                          <div className="flex items-center gap-2">
+                            <TypeIcon className={`w-4 h-4 shrink-0 ${isSocial ? 'text-violet-400' : 'text-blue-400'}`} />
+                            <p className="text-sm font-medium text-white">{scan.fullName}</p>
+                          </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                             {scan.email && <span>{scan.email}</span>}
                             {scan.cedula && <span>CC: {scan.cedula}</span>}
@@ -2460,11 +2591,11 @@ export default function Home() {
                           </div>
                           <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <Badge className={
-                              scan.scanType === 'social_media'
+                              isSocial
                                 ? 'bg-violet-900/40 text-violet-400 border border-violet-800/30 text-xs'
                                 : 'bg-blue-900/40 text-blue-400 border border-blue-800/30 text-xs'
                             }>
-                              {scan.scanType === 'social_media' ? 'Social Media' : 'Data Intelligence'}
+                              {isSocial ? 'Social Media' : 'Data Intelligence'}
                             </Badge>
                             <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-xs">
                               {new Date(scan.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -2476,15 +2607,30 @@ export default function Home() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
-                          <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleViewPastScan(scan.id)}>
-                            <Eye className="w-3.5 h-3.5 mr-1" />Ver
-                          </Button>
-                          <Button size="sm" className="bg-blue-700 hover:bg-blue-800 text-white" onClick={() => handleDownloadReport(scan.id, 'pdf')}>
-                            <Download className="w-3.5 h-3.5 mr-1" />PDF
-                          </Button>
-                          <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleDownloadReport(scan.id, 'docx')}>
-                            <Download className="w-3.5 h-3.5 mr-1" />DOCX
-                          </Button>
+                          {!isSocial && (
+                            <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleViewPastScan(scan.id)}>
+                              <Eye className="w-3.5 h-3.5 mr-1" />Ver
+                            </Button>
+                          )}
+                          {isSocial ? (
+                            <>
+                              <Button size="sm" className="bg-blue-700 hover:bg-blue-800 text-white" onClick={() => handleDownloadSocialHistoryReport(scan.id, 'pdf')}>
+                                <Download className="w-3.5 h-3.5 mr-1" />PDF
+                              </Button>
+                              <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleDownloadSocialHistoryReport(scan.id, 'docx')}>
+                                <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />DOCX
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" className="bg-blue-700 hover:bg-blue-800 text-white" onClick={() => handleDownloadReport(scan.id, 'pdf')}>
+                                <Download className="w-3.5 h-3.5 mr-1" />PDF
+                              </Button>
+                              <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleDownloadReport(scan.id, 'docx')}>
+                                <Download className="w-3.5 h-3.5 mr-1" />DOCX
+                              </Button>
+                            </>
+                          )}
                           <Button size="sm" variant="outline" className="border-[#1e293b] text-red-400 hover:text-red-300 hover:bg-[#1a2235]" onClick={() => handleDeleteScan(scan.id)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -2581,6 +2727,36 @@ export default function Home() {
       >
         {chatOpen ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
       </Button>
+
+      {/* ── DETAIL MODAL ── */}
+      <Dialog open={detailModal.open} onOpenChange={(open) => setDetailModal(prev => ({ ...prev, open }))}>
+        <DialogContent className="bg-[#111827] border-[#1e293b] text-white max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="text-white">{detailModal.title}</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {detailModal.items.length} elemento{detailModal.items.length !== 1 ? 's' : ''} encontrado{detailModal.items.length !== 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[50vh]">
+            <div className="space-y-2 pr-2">
+              {detailModal.items.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-4">Sin hallazgos en esta categoría</p>
+              ) : (
+                detailModal.items.map((item, i) => (
+                  <div key={i} className="p-2.5 bg-[#0b0f19] rounded-lg border border-[#1e293b]">
+                    <div className="flex items-start gap-2">
+                      {item.platform && <Badge className="bg-violet-900/40 text-violet-400 text-[9px] shrink-0">{item.platform}</Badge>}
+                      <p className="text-sm font-medium text-white">{item.title}</p>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">{item.description}</p>
+                    {item.source && <p className="text-[10px] text-slate-600 mt-1">Fuente: {item.source}</p>}
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       {/* ── FOOTER ── */}
       <footer className="border-t border-[#1e293b] mt-auto">
