@@ -1,25 +1,23 @@
 ---
 Task ID: 1
-Agent: Main Agent
-Task: Fix client-side exception crash on osint-data-scanner.vercel.app + Major report improvements + Excel upload fix + Social media layout fix
+Agent: Main
+Task: Fix Excel false encryption detection, social media layout, DOCX cover page
 
 Work Log:
-- Diagnosed 6 critical runtime bugs causing the app crash
-- Fixed zai-config.ts: Replaced `new ZAI(config)` with `ZAI.create()` factory method (constructor is private, was crashing on Vercel)
-- Fixed Buffer to Uint8Array conversion in report/route.ts (2 locations) and joint-analysis/route.ts
-- Fixed null vs undefined type mismatches in social-scan/route.ts for OSINTResult compatibility
-- Deleted dead db.ts file that imported non-existent @prisma/client
-- Completely rewrote PDF report generator with intelligence-grade content
-- Completely rewrote DOCX report generator with professional cover page and rich analysis
-- Fixed Excel file upload: encrypted file detection, .xls legacy support, all-sheets processing
-- Fixed social media section layout proportions and mobile responsiveness
-- Built and pushed all changes to GitHub (2 commits)
-- Verified deployment: site returns HTTP 200, all API routes functional
+- Cloned repo from GitHub (MTChessP3/osint-data-scanner)
+- Analyzed uploaded screenshot showing "archivo protegido con contraseña" error
+- Identified root cause: client-side encryption check used `ws['!ref'].startsWith('A1:')` which matches EVERY valid Excel sheet (since all ranges start at A1, e.g. 'A1:Z100')
+- Fixed client-side detection in page.tsx to use proper range decoding like server-side
+- Fixed server-side isEncryptedWorkbook() in relationship-analyzer.ts to properly check data beyond A1
+- Made upload route less aggressive with encryption error detection
+- Added .xls format support labels to file upload UI
+- Fixed social media layout: balanced columns (5/7 split), compact platform selector (3 cols), footprint map always 5 cols
+- Redesigned DOCX cover page: removed unreliable Unicode block chars (█ ░ ▄ ▀ ═), replaced with clean professional design using standard text, borders, and shading
+- Applied same cover redesign to social DOCX report
+- All changes pushed to GitHub, Vercel auto-deploys
 
 Stage Summary:
-- App crash FIXED - was caused by ZAI private constructor + Buffer/BodyInit type errors
-- PDF report: completely rewritten with rich analytical content, professional cover, no blank pages
-- DOCX report: professional cover page with risk visualization, expanded analysis sections
-- Excel upload: early encrypted detection, .xls support, all-sheets processing, comparative reports
-- Social media layout: better grid proportions, mobile-friendly, larger elements
-- Site deployed and functional at osint-data-scanner.vercel.app
+- Excel files (.xlsx/.xls) no longer falsely detected as encrypted
+- Social media layout balanced and more compact
+- DOCX cover pages use reliable formatting that renders correctly in Word
+- Build passes cleanly
