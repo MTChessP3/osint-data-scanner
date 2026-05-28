@@ -2,19 +2,16 @@
  * ZAI SDK Configuration Helper
  *
  * Provides authentication for the Z.ai API.
- * IMPORTANT: internal-api.z.ai is a PRIVATE network address (172.25.x.x)
- * that is NOT accessible from Vercel's public servers.
- *
- * Solution: Use a public relay proxy deployed on a platform that CAN reach
- * internal-api.z.ai, or use the public api.z.ai endpoint.
+ * Credentials are loaded at runtime — no hardcoded tokens.
  *
  * Priority:
  * 1. /etc/.z-ai-config (local/development) — direct access to internal API
- * 2. Public relay proxy (Vercel/serverless) — via api.z.ai or relay
- * 3. Hardcoded credentials as fallback
+ * 2. ZAI.create() auto-configuration (SDK handles auth)
+ * 3. Environment variables (ZAI_TOKEN, ZAI_USER_ID, ZAI_CHAT_ID)
  */
 
 import ZAI from 'z-ai-web-dev-sdk';
+import { setZAIHeaders } from './osint-scanner';
 
 export interface ZAIConfig {
   baseUrl: string;
@@ -30,18 +27,11 @@ const PUBLIC_API_BASE = 'https://api.z.ai/api/v1';
 // Internal API base URL (only accessible from within Z.ai network)
 const INTERNAL_API_BASE = 'https://internal-api.z.ai/v1';
 
-// Hardcoded credentials
-const CREDENTIALS = {
-  apiKey: 'Z.ai',
-  token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWU5M2ViOWYtMDMzYS00MjMwLWE1ZTMtNDFiNDRhYjIyOTUwIiwiY2hhdF9pZCI6ImNoYXQtYTE2NDgwODgtY2FjNi00NWYyLTk2NDEtZmUyYzk2ODdkNjgwIiwicGxhdGZvcm0iOiJ6YWkifQ.YdDhkH93qw_CF0-kXCuL-Rz5c-EbM1j-nqwuA2YP8b0',
-  userId: 'ee93eb9f-033a-4230-a5e3-41b44ab22950',
-  chatId: 'chat-a1648088-cac6-45f2-9641-fe2c9687d680',
-};
-
 let cachedConfig: ZAIConfig | null = null;
 let isInternalAccessible = false;
 
 async function checkInternalAccess(): Promise<boolean> {
+  // Try reading local config file first
   try {
     const fs = await import('fs');
     const configPaths = ['/etc/.z-ai-config'];
@@ -65,17 +55,20 @@ async function checkInternalAccess(): Promise<boolean> {
   } catch { /* fs not available */ }
 
   // Try to reach internal API directly (quick test)
+  const envToken = process.env.ZAI_TOKEN || '';
+  const envUserId = process.env.ZAI_USER_ID || '';
+  const envChatId = process.env.ZAI_CHAT_ID || '';
+
   try {
     const response = await fetch(INTERNAL_API_BASE + '/models', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${CREDENTIALS.apiKey}`,
-        'X-Token': CREDENTIALS.token || '',
+        'Authorization': 'Bearer Z.ai',
+        'X-Token': envToken,
       },
       signal: AbortSignal.timeout(3000),
     });
     if (response.ok || response.status === 401) {
-      // If we get any response (even 401), the host is reachable
       isInternalAccessible = true;
       return true;
     }
@@ -95,14 +88,30 @@ async function loadConfigAsync(): Promise<ZAIConfig> {
     return cachedConfig;
   }
 
+  // Use environment variables for credentials
+  const envToken = process.env.ZAI_TOKEN || '';
+  const envUserId = process.env.ZAI_USER_ID || '';
+  const envChatId = process.env.ZAI_CHAT_ID || '';
+
   // Use public API endpoint for Vercel/serverless environments
   cachedConfig = {
     baseUrl: PUBLIC_API_BASE,
-    apiKey: CREDENTIALS.apiKey,
-    token: CREDENTIALS.token,
-    userId: CREDENTIALS.userId,
-    chatId: CREDENTIALS.chatId,
+    apiKey: 'Z.ai',
+    token: envToken,
+    userId: envUserId,
+    chatId: envChatId,
   };
+
+  // Set headers on osint-scanner for direct API calls
+  if (envToken) {
+    setZAIHeaders({
+      'Authorization': 'Bearer Z.ai',
+      'X-Z-AI-From': 'Z',
+      'X-Chat-Id': envChatId,
+      'X-User-Id': envUserId,
+      'X-Token': envToken,
+    });
+  }
 
   return cachedConfig;
 }
@@ -121,9 +130,16 @@ export async function createZAIInstanceAsync(): Promise<InstanceType<typeof ZAI>
  */
 export function createZAIInstance(): InstanceType<typeof ZAI> {
   const baseUrl = isInternalAccessible ? INTERNAL_API_BASE : PUBLIC_API_BASE;
+  const envToken = process.env.ZAI_TOKEN || '';
+  const envUserId = process.env.ZAI_USER_ID || '';
+  const envChatId = process.env.ZAI_CHAT_ID || '';
+
   const config = cachedConfig || {
     baseUrl,
-    ...CREDENTIALS,
+    apiKey: 'Z.ai',
+    token: envToken,
+    userId: envUserId,
+    chatId: envChatId,
   };
   return new ZAI(config);
 }
@@ -133,16 +149,22 @@ export function createZAIInstance(): InstanceType<typeof ZAI> {
  */
 export function getZAIConfig(): ZAIConfig {
   if (cachedConfig) return cachedConfig;
-  // Default to internal API (for local dev), will be overridden by initZAIConfig()
+  const envToken = process.env.ZAI_TOKEN || '';
+  const envUserId = process.env.ZAI_USER_ID || '';
+  const envChatId = process.env.ZAI_CHAT_ID || '';
+
   return {
-    baseUrl: INTERNAL_API_BASE,
-    ...CREDENTIALS,
+    baseUrl: isInternalAccessible ? INTERNAL_API_BASE : PUBLIC_API_BASE,
+    apiKey: 'Z.ai',
+    token: envToken,
+    userId: envUserId,
+    chatId: envChatId,
   };
 }
 
 /**
  * Initialize config — call this at the start of API route handlers.
- * Determines which API endpoint is reachable.
+ * Determines which API endpoint is reachable and sets up auth headers.
  */
 export async function initZAIConfig(): Promise<void> {
   await loadConfigAsync();

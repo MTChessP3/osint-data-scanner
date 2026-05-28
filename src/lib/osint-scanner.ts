@@ -18,19 +18,12 @@ export function getDeepSeekApiKey(): string | null {
   return deepseekApiKey;
 }
 
-// ── Z.ai Credentials ──
-const ZAI_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWU5M2ViOWYtMDMzYS00MjMwLWE1ZTMtNDFiNDRhYjIyOTUwIiwiY2hhdF9pZCI6ImNoYXQtYTE2NDgwODgtY2FjNi00NWYyLTk2NDEtZmUyYzk2ODdkNjgwIiwicGxhdGZvcm0iOiJ6YWkifQ.YdDhkH93qw_CF0-kXCuL-Rz5c-EbM1j-nqwuA2YP8b0';
-const ZAI_USER_ID = 'ee93eb9f-033a-4230-a5e3-41b44ab22950';
-const ZAI_CHAT_ID = 'chat-a1648088-cac6-45f2-9641-fe2c9687d680';
+// ── Z.ai Credentials (loaded at runtime from zai-config) ──
+let zaiHeaders: Record<string, string> = {};
 
-const COMMON_HEADERS: Record<string, string> = {
-  'Content-Type': 'application/json',
-  'Authorization': 'Bearer Z.ai',
-  'X-Z-AI-From': 'Z',
-  'X-Chat-Id': ZAI_CHAT_ID,
-  'X-User-Id': ZAI_USER_ID,
-  'X-Token': ZAI_TOKEN,
-};
+export function setZAIHeaders(headers: Record<string, string>) {
+  zaiHeaders = headers;
+}
 
 // ── Result Interface ──
 export interface OSINTResult {
@@ -96,7 +89,10 @@ export async function performWebSearch(query: string, num: number = 10): Promise
   try {
     const response = await fetch('https://api.z.ai/api/v1/functions/invoke', {
       method: 'POST',
-      headers: COMMON_HEADERS,
+      headers: {
+        'Content-Type': 'application/json',
+        ...zaiHeaders,
+      },
       body: JSON.stringify({ function_name: 'web_search', arguments: { query, num } }),
       signal: AbortSignal.timeout(8000),
     });
