@@ -26,7 +26,7 @@ import {
 import { initZAIConfig } from '@/lib/zai-config';
 
 // ── Max persons per sheet for OSINT scanning ──
-const MAX_PERSONS_PER_SHEET = 8;
+const MAX_PERSONS_PER_SHEET = 30;
 // ── Selected engines for batch mode (key engines that work without email) ──
 const BATCH_ENGINES = [
   'LeakIX', 'Dehashed', 'LeakRadar', 'Social Media Scan',
