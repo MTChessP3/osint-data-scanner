@@ -19,3 +19,27 @@ Stage Summary:
 - No more direct sheet-to-sheet cell comparison
 - Joint PDF and DOCX reports are generated and cached
 - Deployed to Vercel via auto-deploy on push
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Improve PDF report quality using DOCX→PDF strategy and increase MAX_PERSONS_PER_SHEET to 30
+
+Work Log:
+- Analyzed current generate-pdf-report.ts (1600+ lines of complex pdfkit code producing bad results)
+- Analyzed generate-report.ts (DOCX generator producing good results)
+- Verified LibreOffice is installed on the server for DOCX→PDF conversion
+- Completely rewrote generate-pdf-report.ts with new strategy:
+  - Primary: Generate DOCX first using existing DOCX generators, then convert to PDF via LibreOffice headless
+  - Fallback: Clean simplified pdfkit generation when LibreOffice unavailable (e.g. Vercel)
+- Updated all 4 exported PDF functions: generatePDFReport, generateIndividualPDF, generateSocialPDFReport, generateJointPDF
+- Increased MAX_PERSONS_PER_SHEET from 8 to 30 in upload route
+- Verified TypeScript compilation passes for our changes
+- Committed and pushed to GitHub (auto-deploys to Vercel)
+
+Stage Summary:
+- File: src/lib/generate-pdf-report.ts completely rewritten (581 lines vs 1600+ previously)
+- File: src/app/api/upload/route.ts - MAX_PERSONS_PER_SHEET changed from 8 to 30
+- PDF quality should now match DOCX quality when LibreOffice is available
+- Fallback pdfkit ensures PDFs still work on Vercel (serverless)
+- Commit: aa9ac39 pushed to main branch
