@@ -1,21 +1,18 @@
-FROM oven/bun:1 AS base
+FROM node:22-slim AS base
 WORKDIR /app
 
 # Install dependencies
-COPY package.json bun.lockb ./
-RUN bun install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy source
 COPY . .
 
-# Generate Prisma client
-RUN bun run db:generate
-
-# Build
-RUN bun run build
+# Build (skip prisma generate - not used in this project)
+RUN npm run build
 
 # Expose port
 EXPOSE 3000
 
 # Start
-CMD ["bun", "run", "start"]
+CMD ["npm", "run", "start"]

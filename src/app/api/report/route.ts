@@ -1,123 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import fs from 'fs/promises';
-import path from 'path';
-
-const execFileAsync = promisify(execFile);
-const APP_ROOT = process.env.APP_ROOT || process.cwd();
+import { getScan, getReportByScanId } from '@/lib/memory-store';
+import { generateOSINTReport, generateReportFileName } from '@/lib/generate-report';
+import { generateIndividualPDF, generatePDFFileName } from '@/lib/generate-pdf-report';
+import { addReport } from '@/lib/memory-store';
+import { reportBuffers, reportFormats } from '../scan/route';
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const scanId = url.searchParams.get('scanId');
     const download = url.searchParams.get('download') === 'true';
+    const format = url.searchParams.get('format') as 'docx' | 'pdf' || null;
 
-    if (scanId) {
-      // Get report for specific scan
-      const report = await db.report.findFirst({
-        where: { scanId },
-        orderBy: { createdAt: 'desc' },
-      });
+    if (!scanId) {
+      return NextResponse.json({ error: 'scanId es requerido' }, { status: 400 });
+    }
 
-      if (!report) {
-        // Generate report on the fly if not yet generated
-        const scan = await db.scan.findUnique({
-          where: { id: scanId },
-          include: { results: true },
-        });
+    const scan = getScan(scanId);
+    if (!scan) {
+      return NextResponse.json({ error: 'Escaneo no encontrado' }, { status: 404 });
+    }
 
-        if (!scan) {
-          return NextResponse.json({ error: 'Escaneo no encontrado' }, { status: 404 });
+    const desiredFormat = format || reportFormats.get(scanId) || 'docx';
+
+    // Check if we have the buffer in memory for the desired format
+    let buffer = reportBuffers.get(scanId);
+    const currentFormat = reportFormats.get(scanId);
+
+    // If we need a different format, regenerate
+    if (buffer && currentFormat === desiredFormat) {
+      // Use existing buffer
+    } else {
+      // Generate report on the fly
+      const scanData = {
+        id: scan.id,
+        fullName: scan.fullName,
+        cedula: scan.cedula,
+        email: scan.email,
+        phone: scan.phone,
+        createdAt: scan.createdAt.toISOString(),
+      };
+      const results = scan.results.map(r => ({
+        source: r.source,
+        category: r.category,
+        severity: r.severity as 'critical' | 'high' | 'medium' | 'low' | 'info',
+        title: r.title,
+        description: r.description || undefined,
+        url: r.url || undefined,
+        dataFound: r.dataFound || undefined,
+      }));
+
+      try {
+        if (desiredFormat === 'pdf') {
+          buffer = await generateIndividualPDF(scanData, results);
+          const fileName = generatePDFFileName(scan.fullName);
+          addReport(scan.id, fileName, 'pdf');
+        } else {
+          buffer = await generateOSINTReport(scanData, results);
+          const fileName = generateReportFileName(scan.fullName);
+          addReport(scan.id, fileName, 'docx');
         }
-
-        // Generate report
-        const inputData = JSON.stringify({
-          scan: {
-            id: scan.id,
-            fullName: scan.fullName,
-            cedula: scan.cedula,
-            email: scan.email,
-            phone: scan.phone,
-            createdAt: scan.createdAt.toISOString(),
-          },
-          results: scan.results,
-        });
-
-        const scriptPath = path.join(APP_ROOT, 'scripts', 'generate-report.py');
-        const { stdout } = await execFileAsync('python3', [
-          scriptPath
-        ], {
-          input: inputData,
-          timeout: 60000,
-        });
-
-        const result = JSON.parse(stdout.trim());
-        if (!result.success) {
-          return NextResponse.json({ error: 'Error generando informe', details: result.error }, { status: 500 });
-        }
-
-        // Save report record
-        const newReport = await db.report.create({
-          data: {
-            scanId: scan.id,
-            filePath: result.filePath,
-            fileName: result.fileName,
-            status: 'generated',
-          },
-        });
-
-        if (download) {
-          const fileBuffer = await fs.readFile(result.filePath);
-          return new NextResponse(fileBuffer, {
-            headers: {
-              'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              'Content-Disposition': `attachment; filename="${result.fileName}"`,
-            },
-          });
-        }
-
-        return NextResponse.json({
-          reportId: newReport.id,
-          fileName: result.fileName,
-          filePath: result.filePath,
-          generatedAt: newReport.createdAt,
-        });
+        reportBuffers.set(scanId, buffer);
+        reportFormats.set(scanId, desiredFormat);
+      } catch (genError) {
+        console.error('Report generation error:', genError);
+        return NextResponse.json({ error: 'Error generando informe' }, { status: 500 });
       }
+    }
 
-      if (download) {
-        try {
-          const fileBuffer = await fs.readFile(report.filePath);
-          return new NextResponse(fileBuffer, {
-            headers: {
-              'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              'Content-Disposition': `attachment; filename="${report.fileName}"`,
-            },
-          });
-        } catch {
-          return NextResponse.json({ error: 'Archivo de informe no encontrado' }, { status: 404 });
-        }
-      }
+    if (download && buffer) {
+      const report = getReportByScanId(scanId);
+      const fileName = report?.fileName || (desiredFormat === 'pdf' ? 'Informe_OSINT.pdf' : 'Informe_OSINT.docx');
 
-      return NextResponse.json({
-        reportId: report.id,
-        fileName: report.fileName,
-        generatedAt: report.createdAt,
+      const contentType = desiredFormat === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+      return new NextResponse(buffer, {
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+        },
       });
     }
 
-    // List all reports
-    const reports = await db.report.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { scan: { select: { fullName: true, cedula: true, email: true } } },
+    const report = getReportByScanId(scanId);
+    return NextResponse.json({
+      reportId: report?.id || null,
+      fileName: report?.fileName || null,
+      format: desiredFormat,
+      generatedAt: report?.createdAt || null,
     });
-
-    return NextResponse.json(reports);
   } catch (error) {
     console.error('Report API Error:', error);
     return NextResponse.json(
-      { error: 'Error al obtener informes', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: 'Error al obtener informe', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }
     );
   }
