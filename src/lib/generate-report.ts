@@ -25,6 +25,24 @@ import {
 } from 'docx';
 import { OSINTResult } from './osint-scanner';
 
+// ── Source Anonymization ──
+const DOCX_SOURCE_MAP = new Map<string, number>();
+let docxSourceCounter = 0;
+
+function anonymizeSource(source: string): string {
+  if (!source) return 'Fuente de Inteligencia #0';
+  if (!DOCX_SOURCE_MAP.has(source)) {
+    docxSourceCounter++;
+    DOCX_SOURCE_MAP.set(source, docxSourceCounter);
+  }
+  return `Fuente de Inteligencia #${DOCX_SOURCE_MAP.get(source)}`;
+}
+
+function resetDocxSourceMap(): void {
+  DOCX_SOURCE_MAP.clear();
+  docxSourceCounter = 0;
+}
+
 // ── Color Palette ──
 const C = {
   navy: '1a365d',
@@ -310,6 +328,9 @@ export async function generateDocxReport(data: {
   riskScore?: number;
   scanId?: string;
 }): Promise<Buffer> {
+  // Reset source map for each report
+  resetDocxSourceMap();
+
   const { results, fullName, cedula, email, phone, riskScore: providedScore, scanId } = data;
   const today = formatDate();
   const reportId = scanId ? `OSINT-${scanId.substring(0, 8).toUpperCase()}` : `OSINT-${Date.now().toString(36).toUpperCase()}`;
@@ -334,7 +355,12 @@ export async function generateDocxReport(data: {
     riskScore >= 70 ? 'CRITICO' : riskScore >= 40 ? 'ALTO' : riskScore >= 15 ? 'MODERADO' : 'BAJO';
   const riskColor =
     riskScore >= 70 ? C.red : riskScore >= 40 ? C.orange : riskScore >= 15 ? C.yellow : C.green;
-  const uniqueSources = [...new Set(realResults.map(r => r.source))];
+  // Anonymize all sources
+  const anonymizedResults = realResults.map(r => ({
+    ...r,
+    source: anonymizeSource(r.source),
+  }));
+  const uniqueSources = [...new Set(anonymizedResults.map(r => r.source))];
 
   const children: Paragraph[] = [];
 
@@ -633,7 +659,7 @@ export async function generateDocxReport(data: {
       const paras = findingParagraphs(
         findingNum,
         r.title,
-        r.source,
+        anonymizeSource(r.source),
         catES(r.category),
         r.description || 'Sin descripcion disponible',
         r.severity,
@@ -818,35 +844,20 @@ export async function generateDocxReport(data: {
 
   children.push(sectionHeader('Fuentes Consultadas'));
 
-  const allSources: string[] = [
-    'Have I Been Pwned',
-    'Pwned Passwords',
-    'Google Dorking',
-    'Social Media Scan',
-    'Data Broker Scan',
-    'Dark Web / Leak Scan',
-    'Document Exposure',
-    'LeakRadar',
-    'Policia Nacional',
-    'HIBP Deep Check',
-    'DeepFind Profile',
-    'Pipl',
-    'LeakIX',
-    'Aleph / OCCRP',
-    'DeepFind Deep Search',
-    'Dehashed',
-  ];
+  // Generic statement instead of listing specific tools
+  children.push(
+    bodyPara(
+      'Se consultaron múltiples fuentes de inteligencia de fuentes abiertas (OSINT) durante esta investigación. Los resultados fueron obtenidos a través de sistemas automatizados de recolección y análisis de datos públicos.',
+      { indent: 200 }
+    )
+  );
 
-  for (const source of allSources) {
-    children.push(bulletPara([new TextRun({ text: source, size: 16, font: 'Arial', color: C.text })]));
-  }
-
-  // Active sources with results
+  // Anonymized sources summary
   if (uniqueSources.length > 0) {
-    children.push(subHeader('Fuentes con Resultados'));
+    children.push(subHeader('Resumen de Fuentes'));
 
     for (const src of uniqueSources) {
-      const count = realResults.filter(r => r.source === src).length;
+      const count = anonymizedResults.filter(r => r.source === src).length;
       children.push(
         bulletPara([
           new TextRun({ text: `${src}`, bold: true, size: 16, font: 'Arial', color: C.navy }),

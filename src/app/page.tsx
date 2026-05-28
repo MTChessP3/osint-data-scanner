@@ -169,13 +169,13 @@ const categoryLabels: Record<string, string> = {
 };
 
 const linkTypeConfig: Record<string, { icon: typeof Building2; label: string; color: string; bgColor: string }> = {
-  empresarial: { icon: Building2, label: 'Empresarial', color: 'text-blue-400', bgColor: 'bg-blue-900/30 border border-blue-800/30' },
-  personal: { icon: User, label: 'Personal', color: 'text-cyan-400', bgColor: 'bg-cyan-900/30 border border-cyan-800/30' },
-  familiar: { icon: Heart, label: 'Familiar', color: 'text-violet-400', bgColor: 'bg-violet-900/30 border border-violet-800/30' },
-  laboral: { icon: Briefcase, label: 'Laboral', color: 'text-green-400', bgColor: 'bg-green-900/30 border border-green-800/30' },
-  contacto: { icon: Phone, label: 'Contacto', color: 'text-amber-400', bgColor: 'bg-amber-900/30 border border-amber-800/30' },
-  ubicacion: { icon: MapPin, label: 'Ubicacion', color: 'text-orange-400', bgColor: 'bg-orange-900/30 border border-orange-800/30' },
-  dato_compartido: { icon: Database, label: 'Dato Compartido', color: 'text-slate-400', bgColor: 'bg-slate-800/30 border border-slate-700/30' },
+  empresarial: { icon: Building2, label: 'Empresarial', color: 'text-blue-300/70', bgColor: 'bg-blue-950/20 border border-blue-900/30' },
+  personal: { icon: User, label: 'Personal', color: 'text-cyan-300/70', bgColor: 'bg-cyan-950/20 border border-cyan-900/30' },
+  familiar: { icon: Heart, label: 'Familiar', color: 'text-violet-300/70', bgColor: 'bg-violet-950/20 border border-violet-900/30' },
+  laboral: { icon: Briefcase, label: 'Laboral', color: 'text-emerald-300/70', bgColor: 'bg-emerald-950/20 border border-emerald-900/30' },
+  contacto: { icon: Phone, label: 'Contacto', color: 'text-amber-300/70', bgColor: 'bg-amber-950/20 border border-amber-900/30' },
+  ubicacion: { icon: MapPin, label: 'Ubicacion', color: 'text-orange-300/70', bgColor: 'bg-orange-950/20 border border-orange-900/30' },
+  dato_compartido: { icon: Database, label: 'Dato Compartido', color: 'text-slate-300/70', bgColor: 'bg-slate-800/20 border border-slate-700/30' },
 };
 
 const engineCategories = [
@@ -245,16 +245,16 @@ const TOTAL_ENGINES = allEngineNames.length;
 
 // ── Social Media Platforms Config (MUTED colors) ──
 const socialPlatforms = [
-  { id: 'tiktok', name: 'TikTok', domain: 'tiktok.com', color: 'text-rose-400', bgColor: 'bg-rose-900/15', borderColor: 'border-rose-800/30', icon: Music2, desc: 'Perfiles y contenido viral', accentHex: '#fb7185', verifyUrl: 'https://www.tiktok.com/search?q=', searchUrl: 'https://www.tiktok.com/search?q=' },
-  { id: 'instagram', name: 'Instagram', domain: 'instagram.com', color: 'text-violet-400', bgColor: 'bg-violet-900/15', borderColor: 'border-violet-800/30', icon: Camera, desc: 'Perfiles, fotos y stories', accentHex: '#a78bfa', verifyUrl: 'https://www.instagram.com/', searchUrl: 'https://www.instagram.com/' },
-  { id: 'youtube', name: 'YouTube', domain: 'youtube.com', color: 'text-red-400', bgColor: 'bg-red-900/15', borderColor: 'border-red-800/30', icon: Play, desc: 'Canales y videos', accentHex: '#f87171', verifyUrl: 'https://www.youtube.com/results?search_query=', searchUrl: 'https://www.youtube.com/results?search_query=' },
-  { id: 'whatsapp', name: 'WhatsApp', domain: 'whatsapp.com', color: 'text-green-400', bgColor: 'bg-green-900/15', borderColor: 'border-green-800/30', icon: MessageCircle, desc: 'Numeros y grupos publicos', accentHex: '#4ade80', verifyUrl: 'https://wa.me/', searchUrl: 'https://web.whatsapp.com/' },
-  { id: 'facebook', name: 'Facebook', domain: 'facebook.com', color: 'text-blue-400', bgColor: 'bg-blue-900/15', borderColor: 'border-blue-800/30', icon: Users, desc: 'Perfiles, paginas y grupos', accentHex: '#60a5fa', verifyUrl: 'https://www.facebook.com/search/top?q=', searchUrl: 'https://www.facebook.com/search/top?q=' },
-  { id: 'twitter', name: 'X (Twitter)', domain: 'x.com', color: 'text-slate-300', bgColor: 'bg-slate-800/15', borderColor: 'border-slate-700/30', icon: AtSign, desc: 'Perfiles y tweets', accentHex: '#cbd5e1', verifyUrl: 'https://twitter.com/search?q=', searchUrl: 'https://twitter.com/search?q=' },
-  { id: 'linkedin', name: 'LinkedIn', domain: 'linkedin.com', color: 'text-sky-400', bgColor: 'bg-sky-900/15', borderColor: 'border-sky-800/30', icon: Briefcase, desc: 'Perfiles profesionales', accentHex: '#38bdf8', verifyUrl: 'https://www.linkedin.com/search/results/people/?keywords=', searchUrl: 'https://www.linkedin.com/search/results/people/?keywords=' },
-  { id: 'telegram', name: 'Telegram', domain: 't.me', color: 'text-cyan-400', bgColor: 'bg-cyan-900/15', borderColor: 'border-cyan-800/30', icon: Send, desc: 'Canales y grupos', accentHex: '#22d3ee', verifyUrl: 'https://t.me/', searchUrl: 'https://t.me/' },
-  { id: 'snapchat', name: 'Snapchat', domain: 'snapchat.com', color: 'text-yellow-400', bgColor: 'bg-yellow-900/15', borderColor: 'border-yellow-800/30', icon: Camera, desc: 'Perfiles y snaps', accentHex: '#facc15', verifyUrl: 'https://story.snapchat.com/s/', searchUrl: 'https://www.snapchat.com/add/' },
-  { id: 'pinterest', name: 'Pinterest', domain: 'pinterest.com', color: 'text-rose-300', bgColor: 'bg-rose-900/15', borderColor: 'border-rose-800/30', icon: Pin, desc: 'Tableros y pines', accentHex: '#fda4af', verifyUrl: 'https://www.pinterest.com/search/pins/?q=', searchUrl: 'https://www.pinterest.com/search/pins/?q=' },
+  { id: 'tiktok', name: 'TikTok', domain: 'tiktok.com', color: 'text-rose-300/70', bgColor: 'bg-rose-950/20', borderColor: 'border-rose-900/30', icon: Music2, desc: 'Perfiles y contenido viral', accentHex: '#9f1239', verifyUrl: 'https://www.tiktok.com/search?q=', searchUrl: 'https://www.tiktok.com/search?q=' },
+  { id: 'instagram', name: 'Instagram', domain: 'instagram.com', color: 'text-violet-300/70', bgColor: 'bg-violet-950/20', borderColor: 'border-violet-900/30', icon: Camera, desc: 'Perfiles, fotos y stories', accentHex: '#6d28d9', verifyUrl: 'https://www.instagram.com/', searchUrl: 'https://www.instagram.com/' },
+  { id: 'youtube', name: 'YouTube', domain: 'youtube.com', color: 'text-red-300/70', bgColor: 'bg-red-950/20', borderColor: 'border-red-900/30', icon: Play, desc: 'Canales y videos', accentHex: '#991b1b', verifyUrl: 'https://www.youtube.com/results?search_query=', searchUrl: 'https://www.youtube.com/results?search_query=' },
+  { id: 'whatsapp', name: 'WhatsApp', domain: 'whatsapp.com', color: 'text-emerald-300/70', bgColor: 'bg-emerald-950/20', borderColor: 'border-emerald-900/30', icon: MessageCircle, desc: 'Numeros y grupos publicos', accentHex: '#065f46', verifyUrl: 'https://wa.me/', searchUrl: 'https://web.whatsapp.com/' },
+  { id: 'facebook', name: 'Facebook', domain: 'facebook.com', color: 'text-blue-300/70', bgColor: 'bg-blue-950/20', borderColor: 'border-blue-900/30', icon: Users, desc: 'Perfiles, paginas y grupos', accentHex: '#1e40af', verifyUrl: 'https://www.facebook.com/search/top?q=', searchUrl: 'https://www.facebook.com/search/top?q=' },
+  { id: 'twitter', name: 'X (Twitter)', domain: 'x.com', color: 'text-slate-300/70', bgColor: 'bg-slate-800/20', borderColor: 'border-slate-700/30', icon: AtSign, desc: 'Perfiles y tweets', accentHex: '#475569', verifyUrl: 'https://twitter.com/search?q=', searchUrl: 'https://twitter.com/search?q=' },
+  { id: 'linkedin', name: 'LinkedIn', domain: 'linkedin.com', color: 'text-sky-300/70', bgColor: 'bg-sky-950/20', borderColor: 'border-sky-900/30', icon: Briefcase, desc: 'Perfiles profesionales', accentHex: '#0c4a6e', verifyUrl: 'https://www.linkedin.com/search/results/people/?keywords=', searchUrl: 'https://www.linkedin.com/search/results/people/?keywords=' },
+  { id: 'telegram', name: 'Telegram', domain: 't.me', color: 'text-cyan-300/70', bgColor: 'bg-cyan-950/20', borderColor: 'border-cyan-900/30', icon: Send, desc: 'Canales y grupos', accentHex: '#164e63', verifyUrl: 'https://t.me/', searchUrl: 'https://t.me/' },
+  { id: 'snapchat', name: 'Snapchat', domain: 'snapchat.com', color: 'text-amber-300/70', bgColor: 'bg-amber-950/20', borderColor: 'border-amber-900/30', icon: Camera, desc: 'Perfiles y snaps', accentHex: '#92400e', verifyUrl: 'https://story.snapchat.com/s/', searchUrl: 'https://www.snapchat.com/add/' },
+  { id: 'pinterest', name: 'Pinterest', domain: 'pinterest.com', color: 'text-pink-300/70', bgColor: 'bg-pink-950/20', borderColor: 'border-pink-900/30', icon: Pin, desc: 'Tableros y pines', accentHex: '#9d174d', verifyUrl: 'https://www.pinterest.com/search/pins/?q=', searchUrl: 'https://www.pinterest.com/search/pins/?q=' },
 ];
 
 // ── Helper: category color classes ──
@@ -377,6 +377,9 @@ export default function Home() {
   const [socialScanData, setSocialScanData] = useState<SocialScanResponse | null>(null);
   const [socialScanError, setSocialScanError] = useState<string | null>(null);
   const [expandedSocialPlatform, setExpandedSocialPlatform] = useState<string | null>(null);
+
+  // ── Social report download state ──
+  const [socialReportLoading, setSocialReportLoading] = useState(false);
 
   // ── Chat states ──
   const [chatOpen, setChatOpen] = useState(false);
@@ -667,6 +670,40 @@ export default function Home() {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, hubo un error al procesar tu mensaje. Intenta de nuevo.' }]);
     } finally {
       setChatLoading(false);
+    }
+  }
+
+  // ── Download social media report ──
+  async function handleDownloadSocialReport() {
+    if (!socialScanData) return;
+    setSocialReportLoading(true);
+    try {
+      const res = await fetch('/api/social-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchMode: socialScanData.searchMode,
+          searchQuery: socialScanData.searchQuery,
+          results: socialScanData.results,
+          summary: socialScanData.summary,
+          scanId: socialScanData.scanId,
+        }),
+      });
+      if (!res.ok) throw new Error('Error al descargar informe');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Informe_Redes_Sociales_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download social report error:', err);
+      alert('Error al descargar el informe de redes sociales.');
+    } finally {
+      setSocialReportLoading(false);
     }
   }
 
@@ -1059,17 +1096,20 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-[#0b0f19] text-slate-200">
 
       {/* ── HEADER ── */}
-      <header className="border-b border-[#1e293b] bg-[#0b0f19] sticky top-0 z-50">
+      <header className="border-b border-[#1e293b] bg-[#0a0e17] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           <div className="p-2 bg-[#111827] rounded-lg border border-[#1e293b]">
-            <Shield className="w-5 h-5 text-blue-400" />
+            <Shield className="w-5 h-5 text-blue-500" />
           </div>
-          <h1 className="text-base font-semibold text-white tracking-tight">OSINT Scanner</h1>
+          <div>
+            <h1 className="text-base font-semibold text-white tracking-tight">OSINT Data Scanner</h1>
+            <p className="text-[10px] text-slate-500 -mt-0.5">Inteligencia de Fuentes Abiertas</p>
+          </div>
 
           <div className="ml-auto flex items-center gap-3">
             {/* Connection status dot */}
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${testKeyStatus === 'success' ? 'bg-green-500' : testKeyStatus === 'error' ? 'bg-red-500' : 'bg-slate-600'}`} />
+              <span className={`w-2 h-2 rounded-full ${testKeyStatus === 'success' ? 'bg-emerald-500' : testKeyStatus === 'error' ? 'bg-red-500' : 'bg-slate-600'}`} />
               <span className="text-[10px] text-slate-500 hidden sm:inline">
                 {testKeyStatus === 'success' ? 'Conectado' : testKeyStatus === 'error' ? 'Desconectado' : 'Sin verificar'}
               </span>
@@ -1090,6 +1130,8 @@ export default function Home() {
             </Button>
           </div>
         </div>
+        {/* Subtle accent line */}
+        <div className="h-[1px] bg-gradient-to-r from-transparent via-blue-700/40 to-transparent" />
       </header>
 
       {/* ── SETTINGS DIALOG ── */}
@@ -1183,19 +1225,19 @@ export default function Home() {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="bg-[#111827] border border-[#1e293b] flex-wrap h-auto gap-1 p-1">
-            <TabsTrigger value="scan" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400">
+            <TabsTrigger value="scan" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400">
               <ScanLine className="w-4 h-4 mr-2" />
               Escaneo
             </TabsTrigger>
-            <TabsTrigger value="results" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400" disabled={!scanData}>
+            <TabsTrigger value="results" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400" disabled={!scanData}>
               <BarChart3 className="w-4 h-4 mr-2" />
               Resultados
             </TabsTrigger>
-            <TabsTrigger value="social" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400">
+            <TabsTrigger value="social" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400">
               <Globe className="w-4 h-4 mr-2" />
               Redes Sociales
             </TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400">
+            <TabsTrigger value="history" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400">
               <Clock className="w-4 h-4 mr-2" />
               Historial ({pastScans.length})
             </TabsTrigger>
@@ -1258,7 +1300,7 @@ export default function Home() {
                           type="button" size="sm"
                           variant={reportFormat === 'pdf' ? 'default' : 'outline'}
                           onClick={() => setReportFormat('pdf')}
-                          className={reportFormat === 'pdf' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-[#1e293b] text-slate-400 hover:text-white'}
+                          className={reportFormat === 'pdf' ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'border-[#1e293b] text-slate-400 hover:text-white'}
                         >
                           <FileDown className="w-4 h-4 mr-1" /> PDF
                         </Button>
@@ -1266,7 +1308,7 @@ export default function Home() {
                           type="button" size="sm"
                           variant={reportFormat === 'docx' ? 'default' : 'outline'}
                           onClick={() => setReportFormat('docx')}
-                          className={reportFormat === 'docx' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-[#1e293b] text-slate-400 hover:text-white'}
+                          className={reportFormat === 'docx' ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'border-[#1e293b] text-slate-400 hover:text-white'}
                         >
                           <FileText className="w-4 h-4 mr-1" /> DOCX
                         </Button>
@@ -1279,7 +1321,7 @@ export default function Home() {
                       </div>
                     )}
 
-                    <Button onClick={handleScan} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold" size="lg">
+                    <Button onClick={handleScan} disabled={loading} className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold" size="lg">
                       {loading ? (
                         <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Escaneando {selectedEngines.size} motores...</>
                       ) : (
@@ -1360,7 +1402,7 @@ export default function Home() {
                       </div>
                     )}
 
-                    <Button onClick={handleFileUpload} disabled={!uploadFile || uploadLoading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold" size="sm">
+                    <Button onClick={handleFileUpload} disabled={!uploadFile || uploadLoading} className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold" size="sm">
                       {uploadLoading ? (
                         <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Procesando...</>
                       ) : (
@@ -1618,7 +1660,7 @@ export default function Home() {
                     {/* Download Buttons */}
                     <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-[#1e293b]">
                       <span className="text-sm text-slate-400">Descargar Informe:</span>
-                      <Button onClick={() => handleDownloadReport(scanData.scanId, 'pdf')} className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <Button onClick={() => handleDownloadReport(scanData.scanId, 'pdf')} className="bg-blue-700 hover:bg-blue-800 text-white">
                         <Download className="w-4 h-4 mr-2" />PDF
                       </Button>
                       <Button onClick={() => handleDownloadReport(scanData.scanId, 'docx')} className="bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b]">
@@ -1785,6 +1827,21 @@ export default function Home() {
                           <p className="text-2xl font-bold text-amber-400">{socialScanData.summary.medium}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Medios</p>
                         </div>
+                      </div>
+
+                      {/* Social Report Download Buttons */}
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          onClick={handleDownloadSocialReport}
+                          disabled={socialReportLoading}
+                          className="bg-blue-700 hover:bg-blue-800 text-white text-xs h-8"
+                        >
+                          {socialReportLoading ? (
+                            <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generando...</>
+                          ) : (
+                            <><Download className="w-3.5 h-3.5 mr-1.5" />Informe PDF Redes Sociales</>
+                          )}
+                        </Button>
                       </div>
                     </div>
 
@@ -1964,7 +2021,7 @@ export default function Home() {
                     <Button
                       onClick={handleSocialScan}
                       disabled={socialScanLoading || selectedSocialPlatforms.size === 0 || !getSocialSearchValue()}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                      className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold"
                       size="lg"
                     >
                       {socialScanLoading ? (
@@ -2495,7 +2552,7 @@ export default function Home() {
               <Button
                 onClick={handleChatSend}
                 disabled={!chatInput.trim() || chatLoading}
-                className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                className="bg-blue-700 hover:bg-blue-800 text-white shrink-0"
                 size="icon"
               >
                 <Send className="w-4 h-4" />
@@ -2509,7 +2566,7 @@ export default function Home() {
       <Button
         onClick={() => setChatOpen(!chatOpen)}
         className={`fixed bottom-4 right-4 sm:right-6 z-50 rounded-full w-12 h-12 transition-all ${
-          chatOpen ? 'bg-slate-700 hover:bg-slate-600' : 'bg-blue-600 hover:bg-blue-700'
+          chatOpen ? 'bg-slate-700 hover:bg-slate-600' : 'bg-blue-700 hover:bg-blue-800'
         } text-white`}
       >
         {chatOpen ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
@@ -2518,13 +2575,10 @@ export default function Home() {
       {/* ── FOOTER ── */}
       <footer className="border-t border-[#1e293b] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-slate-600">OSINT Data Scanner v2.0 — {selectedEngines.size} motores | Redes Sociales | Analisis de vinculos | PDF + DOCX</p>
+          <p className="text-xs text-slate-600">OSINT Data Scanner — Inteligencia de Fuentes Abiertas | Informes PDF + DOCX</p>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[10px]">
-              <Globe className="w-3 h-3 mr-1" /> 10 Redes
-            </Badge>
-            <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[10px]">
-              <GitBranch className="w-3 h-3 mr-1" /> Vinculos
+              <Shield className="w-3 h-3 mr-1" /> CONFIDENCIAL
             </Badge>
             <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[10px]">
               <FileDown className="w-3 h-3 mr-1" /> PDF + DOCX
