@@ -963,167 +963,10 @@ export default function Home() {
     try {
       const fileName = uploadFile.name.toLowerCase();
       const isXLSX = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-      const isLegacyXLS = fileName.endsWith('.xls');
 
       if (isXLSX) {
-        // ── ATTEMPT 1: Client-side parsing ──
-        try {
-          const XLSX = await import('xlsx');
-          const arrayBuffer = await uploadFile.arrayBuffer();
-          const uint8 = new Uint8Array(arrayBuffer);
-
-          // Build read options: add extra options for .xls legacy format compatibility
-          const readOptions: Record<string, unknown> = { type: 'array' };
-          if (isLegacyXLS) {
-            readOptions.cellStyles = true;
-            readOptions.cellDates = true;
-            readOptions.cellNF = true;
-          }
-
-          const workbook = XLSX.read(uint8, readOptions as { type: 'array' });
-
-          // ── Check for encrypted file: all sheets truly empty (no cell data) ──
-          const isEncrypted = workbook.SheetNames.length > 0 &&
-            workbook.SheetNames.every(name => {
-              const ws = workbook.Sheets[name];
-              if (!ws) return true;
-              if (!ws['!ref']) return true;
-              const ref = ws['!ref'];
-              if (ref === 'A1' || ref === '') return true;
-              // Decode range and check if there are actual cell values
-              const range = XLSX.utils.decode_range(ref);
-              if (range.e.r === 0 && range.e.c === 0) {
-                const cell = ws[XLSX.utils.encode_cell({ r: 0, c: 0 })];
-                return !cell || !cell.v;
-              }
-              // If range extends beyond A1, there IS data — NOT encrypted
-              return false;
-            });
-
-          if (isEncrypted) {
-            throw new Error('ENCRYPTED_FILE');
-          }
-
-          // ── Read ALL sheets ──
-          const sheets = workbook.SheetNames.map(name => {
-            const ws = workbook.Sheets[name];
-            let data: Record<string, string>[] = [];
-
-            // Method 1: sheet_to_json with header row
-            try {
-              const aoaData: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
-              if (aoaData.length >= 2) {
-                const headers = aoaData[0].map((h: unknown) => h != null ? String(h).trim() : '');
-                for (let i = 1; i < aoaData.length; i++) {
-                  const row: Record<string, string> = {};
-                  let hasData = false;
-                  headers.forEach((header, idx) => {
-                    const val = aoaData[i]?.[idx];
-                    const strVal = val != null ? String(val).trim() : '';
-                    row[header] = strVal;
-                    if (strVal) hasData = true;
-                  });
-                  if (hasData) data.push(row);
-                }
-              }
-            } catch { /* try next */ }
-
-            // Method 2: Raw key-value extraction
-            if (data.length === 0) {
-              try {
-                const rawData = XLSX.utils.sheet_to_json(ws, { defval: '', blankrows: false });
-                for (const row of rawData) {
-                  const strRow: Record<string, string> = {};
-                  for (const [key, val] of Object.entries(row as Record<string, unknown>)) {
-                    strRow[key] = val != null ? String(val) : '';
-                  }
-                  if (Object.values(strRow).some(v => v.trim())) data.push(strRow);
-                }
-              } catch { /* try next */ }
-            }
-
-            // Method 3: Manual cell-by-cell extraction
-            if (data.length === 0 && ws['!ref']) {
-              try {
-                const range = XLSX.utils.decode_range(ws['!ref']);
-                const headers: string[] = [];
-                for (let c = range.s.c; c <= range.e.c; c++) {
-                  const addr = XLSX.utils.encode_cell({ r: range.s.r, c });
-                  const cell = ws[addr];
-                  headers.push(cell ? String(cell.v).trim() : `Col_${c + 1}`);
-                }
-                for (let r = range.s.r + 1; r <= range.e.r; r++) {
-                  const row: Record<string, string> = {};
-                  let hasData = false;
-                  for (let c = range.s.c; c <= range.e.c; c++) {
-                    const addr = XLSX.utils.encode_cell({ r, c });
-                    const cell = ws[addr];
-                    const val = cell ? String(cell.v).trim() : '';
-                    row[headers[c - range.s.c]] = val;
-                    if (val) hasData = true;
-                  }
-                  if (hasData) data.push(row);
-                }
-              } catch { /* give up */ }
-            }
-
-            return { name, data };
-          });
-
-          const totalRows = sheets.reduce((sum, s) => sum + s.data.length, 0);
-          if (totalRows === 0) {
-            throw new Error('El archivo parece estar vacío o no se pudieron leer los datos de ninguna hoja.');
-          }
-
-          // Send all sheets to server for processing (including comparative analysis for 2+ sheets)
-          const res = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'xlsx', sheets, sheetNames: workbook.SheetNames }),
-          });
-
-          clearInterval(progressInterval);
-          setUploadProgress(100);
-
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            // Check if server detected encryption
-            if (errData.isEncrypted) {
-              throw new Error('ENCRYPTED_FILE');
-            }
-            throw new Error(errData.error || 'Error al procesar archivo Excel en el servidor');
-          }
-
-          const uploadData = await res.json();
-
-          if (uploadData.type === 'xlsx_multi_sheet') {
-            setSheetNames(uploadData.sheetNames || []);
-            setBatchResults(uploadData.results);
-            setRelationshipAnalysis(uploadData.relationshipAnalysis || null);
-            setJointAnalysisId(uploadData.jointAnalysisId || null);
-            setJointReportFileName(uploadData.jointReportFileName || null);
-          } else {
-            setBatchResults(uploadData.results);
-          }
-
-          fetchPastScans();
-          return; // Success — done
-        } catch (clientError) {
-          const errMsg = clientError instanceof Error ? clientError.message : 'Error desconocido';
-
-          // ── Early encrypted file detection ──
-          if (errMsg === 'ENCRYPTED_FILE' || /encrypt|EncryptionInfo|ECMA-376/i.test(errMsg)) {
-            clearInterval(progressInterval);
-            setUploadProgress(100);
-            throw new Error(
-              'El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
-            );
-          }
-
-          console.warn('Client-side XLSX parsing failed, falling back to server:', errMsg);
-        }
-
-        // ── ATTEMPT 2: Server-side fallback via FormData ──
+        // ── Always use server-side parsing — more reliable for .xls and .xlsx ──
+        // Client-side xlsx import was causing Application errors on Vercel
         try {
           const formData = new FormData();
           formData.append('file', uploadFile);
@@ -1156,14 +999,13 @@ export default function Home() {
 
           fetchPastScans();
         } catch (serverError) {
-          // Single clear error message — no multi-attempt list
           const msg = serverError instanceof Error ? serverError.message : 'Error desconocido';
-          if (msg.includes('protegido con contraseña') || msg.includes('ENCRYPTED')) {
+          if (msg.includes('protegido con contrasena') || msg.includes('protegido con contraseña') || msg.includes('ENCRYPTED')) {
             throw serverError;
           }
           throw new Error(
-            'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado ni protegido con contraseña. ' +
-            'Si es un archivo .xls antiguo, ábrelo en Excel y guárdalo como .xlsx.'
+            'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado. ' +
+            'Si el problema persiste, intenta guardar el archivo como .xlsx desde Excel.'
           );
         }
       } else {

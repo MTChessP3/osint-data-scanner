@@ -200,7 +200,7 @@ async function handleParsedXLSX(body: {
   });
 }
 
-// ── Handle raw XLSX file (server-side parsing) ──
+// ── Handle raw XLSX/XLS file (server-side parsing) ──
 async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResponse> {
   try {
     const { sheets, sheetNames } = parseXLSXWithSheets(buffer);
@@ -210,8 +210,8 @@ async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResp
     if (nonEmptySheets.length === 0) {
       return NextResponse.json(
         {
-          error: 'El archivo Excel no contiene datos legibles. Puede estar vacío, dañado o protegido con contraseña.',
-          isEncrypted: true,
+          error: 'El archivo Excel no contiene datos legibles. Puede estar vacio, danado o protegido con contrasena.',
+          isEncrypted: false,
         },
         { status: 400 }
       );
@@ -229,14 +229,14 @@ async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResp
     console.error('[Upload API] XLSX parse error:', parseError);
 
     const errorMsg = parseError instanceof Error ? parseError.message : 'Error desconocido';
-    // Only flag as encrypted if ALL parsing methods failed AND message explicitly mentions encryption
-    const isEncrypted = /protegido con contraseña|password.?protected|file is encrypted/i.test(errorMsg);
+    // Only flag as encrypted if the error message explicitly mentions password/encryption
+    const isEncrypted = /protegido con contrasena|password.?protected|file is encrypted|unsupported encryption/i.test(errorMsg);
 
     return NextResponse.json(
       {
         error: isEncrypted
-          ? 'El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
-          : `No se pudo leer el archivo Excel: ${errorMsg}. Verifica que el archivo no esté dañado. Si es .xls, intenta guardarlo como .xlsx.`,
+          ? 'El archivo esta protegido con contrasena. Abre el archivo en Excel, elimina la proteccion y guardalo como .xlsx.'
+          : `No se pudo leer el archivo Excel: ${errorMsg}. Verifica que el archivo no este danado. Si es .xls, intenta guardarlo como .xlsx.`,
         details: errorMsg,
         isEncrypted,
       },

@@ -1,7 +1,7 @@
 /**
  * Analizador de Relaciones entre hojas de un archivo Excel (.xlsx).
- * Detecta vínculos empresariales, personales, familiares y laborales
- * entre los datos de dos pestañas/hojas del mismo archivo.
+ * Detecta vinculos empresariales, personales, familiares y laborales
+ * entre los datos de dos pestanas/hojas del mismo archivo.
  */
 
 import * as XLSX from 'xlsx';
@@ -221,7 +221,7 @@ export function analyzeRelationships(
                 sheet1Data: { [field1]: val1 },
                 sheet2Person: person2,
                 sheet2Data: { [field2]: val2 },
-                matchedField: `${field1} ↔ ${field2}`,
+                matchedField: `${field1} / ${field2}`,
                 matchedValue: val1,
               });
             }
@@ -241,12 +241,12 @@ export function analyzeRelationships(
                 links.push({
                   type: 'familiar',
                   confidence: 'baja',
-                  description: `Posible vínculo familiar entre "${person1}" y "${person2}" por coincidencia en apellidos: ${sharedParts.join(', ')}`,
+                  description: `Posible vinculo familiar entre "${person1}" y "${person2}" por coincidencia en apellidos: ${sharedParts.join(', ')}`,
                   sheet1Person: person1,
                   sheet1Data: { [field1]: val1 },
                   sheet2Person: person2,
                   sheet2Data: { [field2]: val2 },
-                  matchedField: `${field1} ↔ ${field2}`,
+                  matchedField: `${field1} / ${field2}`,
                   matchedValue: sharedParts.join(', '),
                 });
               }
@@ -308,30 +308,41 @@ function generateLinkDescription(
 ): string {
   switch (type) {
     case 'empresarial':
-      return `Vínculo empresarial entre "${person1}" y "${person2}" — comparten ${field1} ↔ ${field2}: "${value}". Posible relación societaria, vínculo contractual o asociación comercial.`;
+      return `Vinculo empresarial entre "${person1}" y "${person2}" - comparten ${field1} / ${field2}: "${value}". Posible relacion societaria, vinculo contractual o asociacion comercial.`;
     case 'personal':
-      return `Vínculo personal entre "${person1}" y "${person2}" — coincidencia en ${field1} ↔ ${field2}: "${value}". Los datos sugieren una conexión personal identificable.`;
+      return `Vinculo personal entre "${person1}" y "${person2}" - coincidencia en ${field1} / ${field2}: "${value}". Los datos sugieren una conexion personal identificable.`;
     case 'familiar':
-      return `Posible vínculo familiar entre "${person1}" y "${person2}" — coincidencia en ${field1} ↔ ${field2}: "${value}". Los datos compartidos sugieren una relación de parentesco.`;
+      return `Posible vinculo familiar entre "${person1}" y "${person2}" - coincidencia en ${field1} / ${field2}: "${value}". Los datos compartidos sugieren una relacion de parentesco.`;
     case 'laboral':
-      return `Vínculo laboral entre "${person1}" y "${person2}" — comparten ${field1} ↔ ${field2}: "${value}". Posible relación de empleo, misma empresa o vinculación contractual.`;
+      return `Vinculo laboral entre "${person1}" y "${person2}" - comparten ${field1} / ${field2}: "${value}". Posible relacion de empleo, misma empresa o vinculacion contractual.`;
     case 'contacto':
-      return `Vínculo de contacto entre "${person1}" y "${person2}" — mismo dato en ${field1} ↔ ${field2}: "${value}". Comparten medio de contacto directo.`;
+      return `Vinculo de contacto entre "${person1}" y "${person2}" - mismo dato en ${field1} / ${field2}: "${value}". Comparten medio de contacto directo.`;
     case 'ubicacion':
-      return `Vínculo de ubicación entre "${person1}" y "${person2}" — coincidencia en ${field1} ↔ ${field2}: "${value}". Comparten ubicación geográfica.`;
+      return `Vinculo de ubicacion entre "${person1}" y "${person2}" - coincidencia en ${field1} / ${field2}: "${value}". Comparten ubicacion geografica.`;
     default:
-      return `Dato compartido entre "${person1}" y "${person2}" — coincidencia en ${field1} ↔ ${field2}: "${value}". Se requiere investigación adicional para determinar la naturaleza del vínculo.`;
+      return `Dato compartido entre "${person1}" y "${person2}" - coincidencia en ${field1} / ${field2}: "${value}". Se requiere investigacion adicional para determinar la naturaleza del vinculo.`;
   }
 }
 
+// ── Detect if file is a legacy .xls (BIFF) format by magic bytes ──
+function isLegacyXLS(buffer: Buffer | Uint8Array): boolean {
+  if (buffer.length < 8) return false;
+  const uint8 = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer.buffer || buffer);
+  // BIFF5-8 starts with D0 CF 11 E0 A1 B1 1A E1 (OLE2 Compound Document)
+  return (
+    uint8[0] === 0xD0 && uint8[1] === 0xCF && uint8[2] === 0x11 &&
+    uint8[3] === 0xE0 && uint8[4] === 0xA1 && uint8[5] === 0xB1 &&
+    uint8[6] === 0x1A && uint8[7] === 0xE1
+  );
+}
+
 // ── Parse XLSX file with multiple sheets ──
+// REWRITTEN: Removed isEncryptedWorkbook() which caused false positives.
+// Now tries each method and checks if actual data was extracted.
 export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): {
   sheets: { name: string; data: Record<string, string>[] }[];
   sheetNames: string[];
 } {
-  const errors: string[] = [];
-  let workbook: XLSX.WorkBook;
-
   // Ensure we have a Uint8Array for the most compatible method
   const uint8 = buffer instanceof Uint8Array
     ? buffer
@@ -339,115 +350,78 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       ? new Uint8Array(buffer)
       : new Uint8Array(buffer.buffer || buffer);
 
-  // Options for better .xls compatibility and cell handling
-  const readOptions = { cellNF: true, cellStyles: true, cellDates: true };
+  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
+  const isXLS = isLegacyXLS(uint8);
 
-  // Method 1: Uint8Array with type 'array' — most compatible across environments
-  try {
-    workbook = XLSX.read(uint8, { type: 'array', ...readOptions });
-    // Check for encrypted file: workbook reads but all sheets are empty
-    if (isEncryptedWorkbook(workbook)) {
-      throw new Error('ECMA-376 Encrypted file missing /EncryptionInfo — el archivo está protegido con contraseña');
+  // Read options: use different strategies based on file format
+  // For .xls: NO cellStyles/cellNF/cellDates which can cause issues with legacy BIFF
+  // For .xlsx: use full options
+  const xlsxReadOptions = { cellNF: true, cellDates: true };
+  const xlsReadOptions = {};  // Minimal options for legacy .xls
+
+  // Try different read methods — most compatible first
+  const readMethods: Array<{ type: string; label: string; getData: () => unknown }> = [
+    { type: 'buffer', label: 'buffer', getData: () => buf },
+    { type: 'array', label: 'array', getData: () => uint8 },
+    { type: 'binary', label: 'binary', getData: () => buf.toString('binary') },
+    { type: 'base64', label: 'base64', getData: () => buf.toString('base64') },
+  ];
+
+  const errors: string[] = [];
+
+  for (const method of readMethods) {
+    try {
+      const readOptions = isXLS
+        ? { type: method.type as 'buffer' | 'array' | 'binary' | 'base64', ...xlsReadOptions }
+        : { type: method.type as 'buffer' | 'array' | 'binary' | 'base64', ...xlsxReadOptions };
+
+      const workbook = XLSX.read(method.getData(), readOptions);
+
+      if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+        errors.push(`${method.label}: workbook vacio o sin hojas`);
+        continue;
+      }
+
+      // Build sheets from workbook — DO NOT use isEncryptedWorkbook check here
+      // because that check gives false positives for valid .xls files where
+      // SheetJS might not fully parse all cells in certain read modes.
+      // Instead, we try to extract data and only flag encrypted if we get
+      // zero data from ALL methods.
+      const result = buildSheetsFromWorkbook(workbook);
+      const nonEmptySheets = result.sheets.filter(s => s.data.length > 0);
+
+      if (nonEmptySheets.length > 0) {
+        // We got data — file is NOT encrypted
+        return result;
+      }
+
+      // All sheets came back empty with this method
+      errors.push(`${method.label}: todas las hojas vacias`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Only throw for genuine encryption errors from the library itself
+      // The library itself will throw with "password" or "encryption" keywords
+      if (/unsupported encryption|password.*protected|file is encrypted/i.test(msg)) {
+        throw new Error('El archivo esta protegido con contrasena. Retire la proteccion y vuelva a intentarlo.');
+      }
+      errors.push(`${method.label}: ${msg}`);
     }
-    if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
-      return buildSheetsFromWorkbook(workbook);
-    }
-    errors.push('array: workbook vacío');
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    // Early exit for encrypted files — no point trying other methods
-    if (/encrypt|EncryptionInfo|ECMA-376/i.test(msg)) {
-      throw new Error('El archivo está protegido con contraseña. Retire la protección y vuelva a intentarlo.');
-    }
-    errors.push(`array: ${msg}`);
   }
 
-  // Method 2: Buffer with type 'buffer'
-  try {
-    const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
-    workbook = XLSX.read(buf, { type: 'buffer', ...readOptions });
-    if (isEncryptedWorkbook(workbook)) {
-      throw new Error('ECMA-376 Encrypted file — el archivo está protegido con contraseña');
-    }
-    if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
-      return buildSheetsFromWorkbook(workbook);
-    }
-    errors.push('buffer: workbook vacío');
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (/encrypt|EncryptionInfo|ECMA-376/i.test(msg)) {
-      throw new Error('El archivo está protegido con contraseña. Retire la protección y vuelva a intentarlo.');
-    }
-    errors.push(`buffer: ${msg}`);
-  }
-
-  // Method 3: Binary string (best for legacy .xls)
-  try {
-    const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
-    const binary = buf.toString('binary');
-    workbook = XLSX.read(binary, { type: 'binary', ...readOptions });
-    if (isEncryptedWorkbook(workbook)) {
-      throw new Error('ECMA-376 Encrypted file — el archivo está protegido con contraseña');
-    }
-    if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
-      return buildSheetsFromWorkbook(workbook);
-    }
-    errors.push('binary: workbook vacío');
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (/encrypt|EncryptionInfo|ECMA-376/i.test(msg)) {
-      throw new Error('El archivo está protegido con contraseña. Retire la protección y vuelva a intentarlo.');
-    }
-    errors.push(`binary: ${msg}`);
-  }
-
-  // Method 4: Base64 string
-  try {
-    const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
-    const base64 = buf.toString('base64');
-    workbook = XLSX.read(base64, { type: 'base64', ...readOptions });
-    if (isEncryptedWorkbook(workbook)) {
-      throw new Error('ECMA-376 Encrypted file — el archivo está protegido con contraseña');
-    }
-    if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
-      return buildSheetsFromWorkbook(workbook);
-    }
-    errors.push('base64: workbook vacío');
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (/encrypt|EncryptionInfo|ECMA-376/i.test(msg)) {
-      throw new Error('El archivo está protegido con contraseña. Retire la protección y vuelva a intentarlo.');
-    }
-    errors.push(`base64: ${msg}`);
+  // If we get here, all methods failed or returned empty data
+  // For .xls files, this often means the file is encrypted (SheetJS can't read encrypted BIFF)
+  // For .xlsx files, this could also mean encryption or corruption
+  if (isXLS) {
+    throw new Error(
+      'No se pudo leer el archivo .xls. Puede estar protegido con contrasena o usar un formato no soportado. ' +
+      'Intenta abrirlo en Excel y guardarlo como .xlsx.'
+    );
   }
 
   throw new Error(
-    'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado ni protegido con contraseña. ' +
-    'Si es un archivo .xls antiguo, ábrelo en Excel y guárdalo como .xlsx.'
+    'No se pudo leer el archivo Excel. Verifica que el archivo no este danado ni protegido con contrasena. ' +
+    'Detalles tecnicos: ' + errors.join(' | ')
   );
-}
-
-// ── Check if workbook appears to be encrypted (reads successfully but all sheets are empty) ──
-function isEncryptedWorkbook(workbook: XLSX.WorkBook): boolean {
-  if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
-    return false;
-  }
-  // An encrypted file often has SheetNames but every sheet has no data (just A1 or empty ref)
-  // IMPORTANT: We check if ALL sheets are empty. If at least one sheet has data, it's NOT encrypted.
-  const allSheetsEmpty = workbook.SheetNames.every(name => {
-    const ws = workbook.Sheets[name];
-    if (!ws) return true;
-    if (!ws['!ref']) return true;
-    const ref = ws['!ref'];
-    if (ref === 'A1' || ref === '') return true;
-    // Decode range — if it extends beyond a single cell, there IS data
-    const range = XLSX.utils.decode_range(ref);
-    if (range.e.r > 0 || range.e.c > 0) return false; // Has data beyond A1
-    // Only A1 cell — check if it has a value
-    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: 0 })];
-    return !cell || !cell.v;
-  });
-  return allSheetsEmpty;
 }
 
 function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
