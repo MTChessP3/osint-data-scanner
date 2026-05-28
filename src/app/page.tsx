@@ -107,6 +107,9 @@ interface BatchResult {
   reportGenerated: boolean;
   reportFileName: string | null;
   summary: ScanSummary;
+  sheetName?: string;
+  rowCount?: number;
+  personsInvestigated?: Array<{ name: string; identifiers: Record<string, string>; findingsCount: number }>;
 }
 
 interface RelationshipLink {
@@ -566,7 +569,7 @@ export default function Home() {
     try {
       const fmt = format || 'pdf';
 
-      // Build results data from current scanData or past scans
+      // Build results data from current scanData, past scans, or batch results
       let resultsToSend: ScanResult[] = [];
       let fullNameToSend = '';
       let emailToSend = '';
@@ -597,6 +600,19 @@ export default function Home() {
             dataFound: r.dataFound ?? undefined,
           }));
         }
+
+        // Also check batch results as fallback (for batch/Excel scenarios)
+        if (resultsToSend.length === 0 && batchResults) {
+          const batchResult = batchResults.find(r => r.scanId === scanId);
+          if (batchResult) {
+            fullNameToSend = batchResult.fullName || '';
+          }
+        }
+      }
+
+      if (!fullNameToSend) {
+        alert('No se encontraron datos para generar el informe');
+        return;
       }
 
       const res = await fetch('/api/report', {
@@ -632,6 +648,24 @@ export default function Home() {
       console.error('Download error:', err);
       alert('Error al descargar el informe. Intente nuevamente.');
     }
+  }
+
+  // ── Download both PDF and DOCX reports ──
+  async function handleDownloadBothReports(scanId: string) {
+    await handleDownloadReport(scanId, 'pdf');
+    setTimeout(() => handleDownloadReport(scanId, 'docx'), 500);
+  }
+
+  // ── Download both social reports ──
+  async function handleDownloadBothSocialReports() {
+    await handleDownloadSocialReport();
+    setTimeout(() => handleDownloadSocialDocxReport(), 500);
+  }
+
+  // ── Download both joint reports ──
+  async function handleDownloadBothJointReports(analysisId: string) {
+    await handleDownloadJointReport(analysisId, 'pdf');
+    setTimeout(() => handleDownloadJointReport(analysisId, 'docx'), 500);
   }
 
   // ── Download joint report ──
@@ -1348,6 +1382,9 @@ export default function Home() {
                         <Button onClick={() => handleDownloadReport(scanData.scanId, 'docx')} className="flex-1 bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b]">
                           <Download className="w-4 h-4 mr-2" />DOCX
                         </Button>
+                        <Button onClick={() => handleDownloadBothReports(scanData.scanId)} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white">
+                          <FileDown className="w-4 h-4 mr-2" />Ambos
+                        </Button>
                       </div>
                     )}
                   </CardContent>
@@ -1454,6 +1491,9 @@ export default function Home() {
                                       <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white h-7 text-[10px] px-2" onClick={() => handleDownloadReport(result.scanId, 'docx')}>
                                         <FileText className="w-3 h-3" />
                                       </Button>
+                                      <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white h-7 text-[10px] px-2" onClick={() => handleDownloadBothReports(result.scanId)}>
+                                        <FileDown className="w-3 h-3" />
+                                      </Button>
                                     </div>
                                   </div>
                                 </div>
@@ -1479,6 +1519,9 @@ export default function Home() {
                                 </Button>
                                 <Button size="sm" className="bg-violet-900/40 hover:bg-violet-900/60 text-violet-300 border border-violet-800/30 h-7 text-[10px]" onClick={() => handleDownloadJointReport(jointAnalysisId, 'docx')}>
                                   <FileSpreadsheet className="w-3 h-3 mr-1" />DOCX
+                                </Button>
+                                <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white h-7 text-[10px]" onClick={() => handleDownloadBothJointReports(jointAnalysisId)}>
+                                  <FileDown className="w-3 h-3 mr-1" />Ambos
                                 </Button>
                               </div>
                             </div>
@@ -1679,6 +1722,9 @@ export default function Home() {
                       <Button onClick={() => handleDownloadReport(scanData.scanId, 'docx')} className="bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b]">
                         <Download className="w-4 h-4 mr-2" />DOCX
                       </Button>
+                      <Button onClick={() => handleDownloadBothReports(scanData.scanId)} className="bg-emerald-700 hover:bg-emerald-800 text-white">
+                        <FileDown className="w-4 h-4 mr-2" />PDF + DOCX
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1864,6 +1910,17 @@ export default function Home() {
                             <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generando...</>
                           ) : (
                             <><FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />DOCX</>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={handleDownloadBothSocialReports}
+                          disabled={socialReportLoading}
+                          className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8"
+                        >
+                          {socialReportLoading ? (
+                            <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generando...</>
+                          ) : (
+                            <><FileDown className="w-3.5 h-3.5 mr-1.5" />Ambos</>
                           )}
                         </Button>
                       </div>
@@ -2477,6 +2534,9 @@ export default function Home() {
                               <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleDownloadSocialHistoryReport(scan.id, 'docx')}>
                                 <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />DOCX
                               </Button>
+                              <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={async () => { await handleDownloadSocialHistoryReport(scan.id, 'pdf'); setTimeout(() => handleDownloadSocialHistoryReport(scan.id, 'docx'), 500); }}>
+                                <FileDown className="w-3.5 h-3.5 mr-1" />Ambos
+                              </Button>
                             </>
                           ) : (
                             <>
@@ -2485,6 +2545,9 @@ export default function Home() {
                               </Button>
                               <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleDownloadReport(scan.id, 'docx')}>
                                 <Download className="w-3.5 h-3.5 mr-1" />DOCX
+                              </Button>
+                              <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={() => handleDownloadBothReports(scan.id)}>
+                                <FileDown className="w-3.5 h-3.5 mr-1" />Ambos
                               </Button>
                             </>
                           )}

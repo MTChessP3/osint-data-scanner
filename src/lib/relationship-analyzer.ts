@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { OSINTResult } from './osint-scanner';
 
 export interface RelationshipLink {
   type: 'empresarial' | 'personal' | 'familiar' | 'laboral' | 'contacto' | 'ubicacion' | 'dato_compartido';
@@ -649,4 +650,378 @@ function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
   });
 
   return { sheets, sheetNames: workbook.SheetNames };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  OSINT CROSS-REFERENCE — Compare investigation results between sheets
+//  Detects shared entities, companies, addresses, phone numbers, etc.
+// ══════════════════════════════════════════════════════════════════
+
+export interface PersonWithOSINT {
+  name: string;
+  identifiers: {
+    name: string;
+    cedula: string;
+    email: string;
+    phone: string;
+    address: string;
+    rawRow: Record<string, string>;
+  };
+  osintResults: OSINTResult[];
+  findingsCount: number;
+}
+
+/**
+ * Cross-reference OSINT investigation results between two sheets.
+ *
+ * This function:
+ * 1. Compares identifiers between persons across sheets (existing raw-data logic)
+ * 2. Checks if OSINT results from different persons reference the same entities
+ *    (companies, addresses, phone numbers, domains, etc.)
+ * 3. Detects shared mentions in OSINT findings
+ *
+ * Returns a RelationshipAnalysisResult compatible with the existing analysis format.
+ */
+export function crossReferenceOSINTResults(
+  sheet1Persons: PersonWithOSINT[],
+  sheet2Persons: PersonWithOSINT[],
+  sheet1Name: string = 'Hoja 1',
+  sheet2Name: string = 'Hoja 2'
+): RelationshipAnalysisResult {
+  const links: RelationshipLink[] = [];
+
+  // ── Strategy 1: Direct identifier comparison between persons ──
+  for (const person1 of sheet1Persons) {
+    for (const person2 of sheet2Persons) {
+      // Compare cédulas
+      if (
+        person1.identifiers.cedula &&
+        person2.identifiers.cedula &&
+        person1.identifiers.cedula.trim().toLowerCase() === person2.identifiers.cedula.trim().toLowerCase()
+      ) {
+        addLinkIfNew(links, {
+          type: 'personal',
+          confidence: 'alta',
+          description: `Vinculo personal IDENTIFICADO entre "${person1.name}" y "${person2.name}" — comparten la misma cédula/NIT: "${person1.identifiers.cedula}". Esto indica que se trata de la misma persona o una entidad con identificación compartida.`,
+          sheet1Person: person1.name,
+          sheet1Data: { cedula: person1.identifiers.cedula },
+          sheet2Person: person2.name,
+          sheet2Data: { cedula: person2.identifiers.cedula },
+          matchedField: 'cedula / cedula',
+          matchedValue: person1.identifiers.cedula,
+        });
+      }
+
+      // Compare emails
+      if (
+        person1.identifiers.email &&
+        person2.identifiers.email &&
+        person1.identifiers.email.trim().toLowerCase() === person2.identifiers.email.trim().toLowerCase()
+      ) {
+        addLinkIfNew(links, {
+          type: 'contacto',
+          confidence: 'alta',
+          description: `Vinculo de contacto entre "${person1.name}" y "${person2.name}" — comparten el mismo correo electrónico: "${person1.identifiers.email}". Esto indica comunicación directa o uso de la misma cuenta de correo.`,
+          sheet1Person: person1.name,
+          sheet1Data: { email: person1.identifiers.email },
+          sheet2Person: person2.name,
+          sheet2Data: { email: person2.identifiers.email },
+          matchedField: 'email / email',
+          matchedValue: person1.identifiers.email,
+        });
+      }
+
+      // Compare phones
+      if (
+        person1.identifiers.phone &&
+        person2.identifiers.phone &&
+        normalizePhone(person1.identifiers.phone) === normalizePhone(person2.identifiers.phone)
+      ) {
+        addLinkIfNew(links, {
+          type: 'contacto',
+          confidence: 'alta',
+          description: `Vinculo de contacto entre "${person1.name}" y "${person2.name}" — comparten el mismo número telefónico: "${person1.identifiers.phone}". Esto indica comunicación directa o uso de la misma línea.`,
+          sheet1Person: person1.name,
+          sheet1Data: { phone: person1.identifiers.phone },
+          sheet2Person: person2.name,
+          sheet2Data: { phone: person2.identifiers.phone },
+          matchedField: 'phone / phone',
+          matchedValue: person1.identifiers.phone,
+        });
+      }
+
+      // Compare addresses (partial match)
+      if (
+        person1.identifiers.address &&
+        person2.identifiers.address
+      ) {
+        const addr1 = normalizeValue(person1.identifiers.address);
+        const addr2 = normalizeValue(person2.identifiers.address);
+        if (addr1 === addr2 && addr1.length >= 5) {
+          addLinkIfNew(links, {
+            type: 'ubicacion',
+            confidence: 'alta',
+            description: `Vinculo de ubicación entre "${person1.name}" y "${person2.name}" — comparten la misma dirección: "${person1.identifiers.address}".`,
+            sheet1Person: person1.name,
+            sheet1Data: { address: person1.identifiers.address },
+            sheet2Person: person2.name,
+            sheet2Data: { address: person2.identifiers.address },
+            matchedField: 'address / address',
+            matchedValue: person1.identifiers.address,
+          });
+        }
+      }
+
+      // Compare names for possible family connections (shared surnames)
+      if (person1.name && person2.name) {
+        const parts1 = normalizeValue(person1.name).split(/\s+/);
+        const parts2 = normalizeValue(person2.name).split(/\s+/);
+        const sharedParts = parts1.filter(p => p.length >= 3 && parts2.includes(p));
+        if (sharedParts.length >= 2 && normalizeValue(person1.name) !== normalizeValue(person2.name)) {
+          addLinkIfNew(links, {
+            type: 'familiar',
+            confidence: 'baja',
+            description: `Posible vinculo familiar entre "${person1.name}" y "${person2.name}" por coincidencia en apellidos: ${sharedParts.join(', ')}. Detectado mediante investigación OSINT.`,
+            sheet1Person: person1.name,
+            sheet1Data: { name: person1.name },
+            sheet2Person: person2.name,
+            sheet2Data: { name: person2.name },
+            matchedField: 'nombre / nombre',
+            matchedValue: sharedParts.join(', '),
+          });
+        }
+      }
+    }
+  }
+
+  // ── Strategy 2: Cross-reference OSINT results for shared entities ──
+  // Extract entities from OSINT results (company names, domains, addresses, phone numbers)
+  for (const person1 of sheet1Persons) {
+    const entities1 = extractEntitiesFromOSINT(person1.osintResults);
+
+    for (const person2 of sheet2Persons) {
+      const entities2 = extractEntitiesFromOSINT(person2.osintResults);
+
+      // Find shared entities
+      for (const entity1 of entities1) {
+        for (const entity2 of entities2) {
+          if (
+            entity1.type === entity2.type &&
+            normalizeValue(entity1.value) === normalizeValue(entity2.value) &&
+            normalizeValue(entity1.value).length >= 3
+          ) {
+            // Determine link type based on entity type
+            let linkType: RelationshipLink['type'] = 'dato_compartido';
+            let linkConfidence: RelationshipLink['confidence'] = 'media';
+
+            switch (entity1.type) {
+              case 'company':
+                linkType = 'empresarial';
+                linkConfidence = 'alta';
+                break;
+              case 'address':
+                linkType = 'ubicacion';
+                linkConfidence = 'media';
+                break;
+              case 'phone':
+                linkType = 'contacto';
+                linkConfidence = 'alta';
+                break;
+              case 'email':
+                linkType = 'contacto';
+                linkConfidence = 'alta';
+                break;
+              case 'domain':
+                linkType = 'empresarial';
+                linkConfidence = 'media';
+                break;
+              default:
+                linkType = 'dato_compartido';
+                linkConfidence = 'baja';
+            }
+
+            addLinkIfNew(links, {
+              type: linkType,
+              confidence: linkConfidence,
+              description: `Vinculo ${linkType} detectado por investigación OSINT entre "${person1.name}" y "${person2.name}" — ambos mencionan ${entity1.type === 'company' ? 'la empresa' : entity1.type === 'address' ? 'la dirección' : entity1.type === 'phone' ? 'el teléfono' : entity1.type === 'email' ? 'el correo' : entity1.type === 'domain' ? 'el dominio' : 'el dato'}: "${entity1.value}". Este vinculo fue identificado mediante el análisis cruzado de resultados de inteligencia de fuentes abiertas.`,
+              sheet1Person: person1.name,
+              sheet1Data: { [entity1.source]: entity1.value },
+              sheet2Person: person2.name,
+              sheet2Data: { [entity2.source]: entity2.value },
+              matchedField: `${entity1.source} / ${entity2.source}`,
+              matchedValue: entity1.value,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Build summary
+  const summary = {
+    empresariales: links.filter(l => l.type === 'empresarial').length,
+    personales: links.filter(l => l.type === 'personal').length,
+    familiares: links.filter(l => l.type === 'familiar').length,
+    laborales: links.filter(l => l.type === 'laboral').length,
+    contacto: links.filter(l => l.type === 'contacto').length,
+    ubicacion: links.filter(l => l.type === 'ubicacion').length,
+    dato_compartido: links.filter(l => l.type === 'dato_compartido').length,
+  };
+
+  // Build network map
+  const connectionMap = new Map<string, { connections: number; types: Set<string> }>();
+  for (const link of links) {
+    for (const person of [link.sheet1Person, link.sheet2Person]) {
+      if (!connectionMap.has(person)) {
+        connectionMap.set(person, { connections: 0, types: new Set<string>() });
+      }
+      const entry = connectionMap.get(person)!;
+      entry.connections++;
+      entry.types.add(link.type);
+    }
+  }
+
+  const networkMap = Array.from(connectionMap.entries())
+    .map(([person, data]) => ({
+      person,
+      connections: data.connections,
+      types: Array.from(data.types),
+    }))
+    .sort((a, b) => b.connections - a.connections);
+
+  return {
+    sheet1Name,
+    sheet2Name,
+    sheet1RowCount: sheet1Persons.length,
+    sheet2RowCount: sheet2Persons.length,
+    totalLinks: links.length,
+    links,
+    summary,
+    networkMap,
+  };
+}
+
+// ── Helper: Add link only if not duplicated ──
+function addLinkIfNew(links: RelationshipLink[], link: RelationshipLink): void {
+  const exists = links.some(l =>
+    l.sheet1Person === link.sheet1Person &&
+    l.sheet2Person === link.sheet2Person &&
+    l.type === link.type &&
+    normalizeValue(l.matchedValue) === normalizeValue(link.matchedValue)
+  );
+  if (!exists) {
+    links.push(link);
+  }
+}
+
+// ── Helper: Normalize phone numbers for comparison ──
+function normalizePhone(phone: string): string {
+  return phone.replace(/[\s\-\(\)\+\.]/g, '').replace(/^57/, '').replace(/^0/, '').toLowerCase();
+}
+
+// ── Entity extraction from OSINT results ──
+interface ExtractedEntity {
+  type: 'company' | 'address' | 'phone' | 'email' | 'domain' | 'other';
+  value: string;
+  source: string;
+}
+
+function extractEntitiesFromOSINT(results: OSINTResult[]): ExtractedEntity[] {
+  const entities: ExtractedEntity[] = [];
+  const seen = new Set<string>();
+
+  for (const result of results) {
+    // Extract from dataFound field
+    const dataFound = result.dataFound || '';
+    const description = result.description || '';
+    const combined = `${dataFound} ${description}`.toLowerCase();
+
+    // Extract emails
+    const emailPattern = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+    let match;
+    while ((match = emailPattern.exec(combined)) !== null) {
+      const key = `email:${match[0].toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        entities.push({ type: 'email', value: match[0], source: result.source || 'OSINT' });
+      }
+    }
+
+    // Extract domains
+    const domainPattern = /(?:https?:\/\/)?([a-zA-Z0-9\-]+\.[a-zA-Z0-9\-]+\.[a-zA-Z]{2,})/g;
+    while ((match = domainPattern.exec(combined)) !== null) {
+      const domain = match[1].toLowerCase();
+      // Skip common domains
+      if (['google.com', 'facebook.com', 'linkedin.com', 'twitter.com', 'instagram.com'].includes(domain)) continue;
+      const key = `domain:${domain}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        entities.push({ type: 'domain', value: domain, source: result.source || 'OSINT' });
+      }
+    }
+
+    // Extract phone numbers (Colombian format)
+    const phonePattern = /(?:\+?57\s?)?(?:3[0-9]{2}|[1-9][0-9])\s?[0-9]{3}\s?[0-9]{2}\s?[0-9]{2}/g;
+    while ((match = phonePattern.exec(combined)) !== null) {
+      const phone = match[0].replace(/[\s\-\(\)\+]/g, '');
+      if (phone.length >= 7) {
+        const key = `phone:${phone}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          entities.push({ type: 'phone', value: match[0].trim(), source: result.source || 'OSINT' });
+        }
+      }
+    }
+
+    // Extract company names from descriptions containing keywords
+    const companyKeywords = ['empresa', 'company', 'sociedad', 'organización', 'nit', 'razón social'];
+    for (const keyword of companyKeywords) {
+      const idx = combined.indexOf(keyword);
+      if (idx !== -1) {
+        // Try to extract the company name after the keyword
+        const afterKeyword = combined.substring(idx + keyword.length).trim();
+        const companyName = afterKeyword.split(/[,.\n:;]/)[0].replace(/^[:\s]+/, '').trim();
+        if (companyName.length >= 3 && companyName.length <= 100) {
+          const key = `company:${normalizeValue(companyName)}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            entities.push({ type: 'company', value: companyName, source: result.source || 'OSINT' });
+          }
+        }
+      }
+    }
+
+    // Extract addresses
+    const addressKeywords = ['dirección', 'address', 'ubicación', 'domicilio', 'residencia'];
+    for (const keyword of addressKeywords) {
+      const idx = combined.indexOf(keyword);
+      if (idx !== -1) {
+        const afterKeyword = combined.substring(idx + keyword.length).trim();
+        const address = afterKeyword.split(/[.\n]/)[0].replace(/^[:\s]+/, '').trim();
+        if (address.length >= 5 && address.length <= 200) {
+          const key = `address:${normalizeValue(address)}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            entities.push({ type: 'address', value: address, source: result.source || 'OSINT' });
+          }
+        }
+      }
+    }
+
+    // Extract from title if it mentions a company or entity
+    if (result.title) {
+      const titleLC = result.title.toLowerCase();
+      // Check for NIT patterns (Colombian company IDs)
+      const nitPattern = /nit\s*[.:]?\s*(\d[\d.\-]+)/gi;
+      while ((match = nitPattern.exec(titleLC)) !== null) {
+        const key = `company:nit_${normalizeValue(match[1])}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          entities.push({ type: 'company', value: `NIT: ${match[1]}`, source: result.source || 'OSINT' });
+        }
+      }
+    }
+  }
+
+  return entities;
 }
