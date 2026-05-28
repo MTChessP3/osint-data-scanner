@@ -1502,7 +1502,7 @@ export default function Home() {
                       Carga de Archivo / Vinculos
                     </CardTitle>
                     <CardDescription className="text-slate-500 text-xs">
-                      .xlsx con 2 hojas = analisis de vinculos | .csv = lote
+                      .xlsx / .xls con 2 hojas = analisis de vinculos | .csv = lote
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -1541,7 +1541,7 @@ export default function Home() {
                         <div className="space-y-1">
                           <Upload className="w-8 h-8 mx-auto text-slate-600" />
                           <p className="text-sm text-slate-400">Arrastra tu archivo aqui o haz clic</p>
-                          <p className="text-[10px] text-slate-600">.xlsx (2 hojas = vinculos) | .csv (lote)</p>
+                          <p className="text-[10px] text-slate-600">.xlsx / .xls (2 hojas = vinculos) | .csv (lote)</p>
                         </div>
                       )}
                     </div>
@@ -2028,7 +2028,7 @@ export default function Home() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left Column: Search Form + Platform Selector */}
-              <div className="lg:col-span-4 space-y-4">
+              <div className="lg:col-span-5 space-y-4">
                 <Card className="bg-[#111827] border-[#1e293b]">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
@@ -2224,40 +2224,38 @@ export default function Home() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {socialPlatforms.map(platform => {
                         const isSelected = selectedSocialPlatforms.has(platform.id);
                         const PlatformIcon = platform.icon;
                         return (
                           <div
                             key={platform.id}
-                            className={`group flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all min-h-[42px] ${
+                            className={`group flex items-center gap-1.5 p-2 rounded-lg border cursor-pointer transition-all min-h-[36px] ${
                               isSelected
                                 ? `${platform.bgColor} ${platform.borderColor}`
                                 : 'bg-[#0b0f19] border-[#1e293b] opacity-50 hover:opacity-80 hover:border-slate-600'
                             }`}
                             onClick={() => toggleSocialPlatform(platform.id)}
                           >
-                            <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
+                            <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
                               isSelected ? 'bg-[#0b0f19]' : 'bg-slate-800/30'
                             }`}>
-                              <PlatformIcon className={`w-3.5 h-3.5 ${
+                              <PlatformIcon className={`w-3 h-3 ${
                                 isSelected ? platform.color : 'text-slate-600 group-hover:text-slate-400'
                               }`} />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-[11px] font-semibold truncate ${
-                                isSelected ? 'text-white' : 'text-slate-500'
-                              }`}>
-                                {platform.name}
-                              </p>
-                            </div>
-                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            <p className={`text-[10px] font-semibold truncate flex-1 min-w-0 ${
+                              isSelected ? 'text-white' : 'text-slate-500'
+                            }`}>
+                              {platform.name}
+                            </p>
+                            <div className={`w-3 h-3 rounded-full border-2 flex items-center justify-center shrink-0 ${
                               isSelected
                                 ? 'bg-blue-500 border-blue-500'
                                 : 'border-slate-600 bg-transparent'
                             }`}>
-                              {isSelected && <Check className="w-2 h-2 text-white" />}
+                              {isSelected && <Check className="w-1.5 h-1.5 text-white" />}
                             </div>
                           </div>
                         );
@@ -2268,7 +2266,7 @@ export default function Home() {
               </div>
 
               {/* Right Column: Digital Footprint Map + Results */}
-              <div className="lg:col-span-8 space-y-4">
+              <div className="lg:col-span-7 space-y-4">
 
                 {/* Digital Footprint Map */}
                 <Card className="bg-[#111827] border-[#1e293b]">
@@ -2289,7 +2287,7 @@ export default function Home() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-5 gap-2">
                       {socialPlatforms.map(platform => {
                         const PlatformIcon = platform.icon;
                         const result = socialScanData?.results.find(r => r.platformId === platform.id);
