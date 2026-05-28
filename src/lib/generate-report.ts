@@ -429,56 +429,82 @@ export async function generateDocxReport(data: {
   //  PÁGINA 1: PORTADA PROFESIONAL (INTELLIGENCE-GRADE)
   // ════════════════════════════════════════
 
-  // Spacer before header
-  children.push(emptyPara({ before: 200 }));
+  // Top spacer
+  children.push(emptyPara({ before: 600 }));
 
-  // Full-width dark navy header bar with title — large white text
+  // Top accent line (navy bar)
   children.push(
     new Paragraph({
-      alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 0 },
       shading: { type: ShadingType.SOLID, color: C.navyDark },
       children: [
+        new TextRun({ text: ' ', size: 8, font: 'Arial' }),
+      ],
+    })
+  );
+
+  // Main title
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 400, after: 0 },
+      children: [
         new TextRun({
-          text: '    INFORME DE INVESTIGACIÓN OSINT',
+          text: 'INFORME DE',
+          bold: true,
+          size: 44,
+          font: 'Arial',
+          color: C.navy,
+        }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 60 },
+      children: [
+        new TextRun({
+          text: 'INVESTIGACIÓN OSINT',
           bold: true,
           size: 56,
           font: 'Arial',
-          color: C.white,
+          color: C.navyDark,
         }),
       ],
     })
   );
 
-  // Secondary title bar — slightly lighter navy
+  // Subtitle with border underneath
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 0, after: 0 },
-      shading: { type: ShadingType.SOLID, color: C.navyMid },
+      spacing: { before: 60, after: 120 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: C.navy } },
       children: [
         new TextRun({
-          text: '    Open Source Intelligence — Análisis de Superficie Digital',
+          text: 'Open Source Intelligence — Análisis de Superficie Digital',
           bold: false,
           size: 22,
           font: 'Arial',
-          color: '8aa4c8',
+          color: C.textLight,
         }),
       ],
     })
   );
 
-  // Classification bar — red background
+  // Classification badge — red background
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 0, after: 200 },
+      spacing: { before: 100, after: 200 },
       shading: { type: ShadingType.SOLID, color: C.redDark },
       children: [
         new TextRun({
-          text: '  CLASIFICACIÓN: CONFIDENCIAL  —  DISTRIBUCIÓN RESTRINGIDA',
+          text: '  CLASIFICACIÓN: CONFIDENCIAL  —  DISTRIBUCIÓN RESTRINGIDA  ',
           bold: true,
-          size: 22,
+          size: 20,
           font: 'Arial',
           color: C.redLight,
         }),
@@ -486,21 +512,13 @@ export async function generateDocxReport(data: {
     })
   );
 
-  // Spacer
-  children.push(emptyPara({ before: 200, after: 200 }));
-
-  // Risk score visualization — large centered block characters
-  const filledBlocks = Math.ceil(riskScore / 5);
-  const totalBlocks = 20;
-  const emptyBlocks = totalBlocks - filledBlocks;
-  const riskBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
-
+  // Risk score — large centered number
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 80 },
+      spacing: { before: 100, after: 0 },
       children: [
-        new TextRun({ text: '▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄', size: 14, font: 'Courier New', color: C.navy }),
+        new TextRun({ text: 'PUNTAJE DE RIESGO', bold: true, size: 22, font: 'Arial', color: C.navy }),
       ],
     })
   );
@@ -508,29 +526,9 @@ export async function generateDocxReport(data: {
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
+      spacing: { before: 40, after: 0 },
       children: [
-        new TextRun({ text: 'PUNTAJE DE RIESGO', bold: true, size: 24, font: 'Arial', color: C.navy }),
-      ],
-    })
-  );
-
-  children.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 20 },
-      children: [
-        new TextRun({ text: riskBar, size: 32, font: 'Courier New', color: riskColor }),
-      ],
-    })
-  );
-
-  children.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 60 },
-      children: [
-        new TextRun({ text: `${riskScore}`, bold: true, size: 72, font: 'Arial', color: riskColor }),
+        new TextRun({ text: `${riskScore}`, bold: true, size: 80, font: 'Arial', color: riskColor }),
         new TextRun({ text: '/100', bold: true, size: 36, font: 'Arial', color: C.textLight }),
       ],
     })
@@ -540,13 +538,13 @@ export async function generateDocxReport(data: {
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
+      spacing: { before: 40, after: 60 },
       shading: { type: ShadingType.SOLID, color: riskColor },
       children: [
         new TextRun({
           text: `  NIVEL DE RIESGO: ${riskLevel}  `,
           bold: true,
-          size: 28,
+          size: 26,
           font: 'Arial',
           color: C.white,
         }),
@@ -554,27 +552,28 @@ export async function generateDocxReport(data: {
     })
   );
 
+  // Bottom accent line (navy bar)
   children.push(
     new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
+      spacing: { before: 100, after: 0 },
+      shading: { type: ShadingType.SOLID, color: C.navyDark },
       children: [
-        new TextRun({ text: '▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀', size: 14, font: 'Courier New', color: C.navy }),
+        new TextRun({ text: ' ', size: 8, font: 'Arial' }),
       ],
     })
   );
 
-  // Spacer
+  // Spacer before subject info
   children.push(emptyPara({ before: 200 }));
 
   // Subject information section — dark background block
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 100, after: 0 },
+      spacing: { before: 60, after: 0 },
       shading: { type: ShadingType.SOLID, color: C.slateDark },
       children: [
-        new TextRun({ text: '  ═══ SUJETO DE INVESTIGACIÓN ═══', bold: true, size: 20, font: 'Arial', color: C.slateText }),
+        new TextRun({ text: '  SUJETO DE INVESTIGACIÓN', bold: true, size: 18, font: 'Arial', color: C.slateText }),
       ],
     })
   );
@@ -585,7 +584,7 @@ export async function generateDocxReport(data: {
       spacing: { after: 10 },
       shading: { type: ShadingType.SOLID, color: C.slateDarker },
       children: [
-        new TextRun({ text: '  NOMBRE: ', bold: true, size: 18, font: 'Arial', color: C.slateText }),
+        new TextRun({ text: '  NOMBRE: ', bold: true, size: 16, font: 'Arial', color: C.slateText }),
         new TextRun({ text: fullName.toUpperCase(), bold: true, size: 28, font: 'Arial', color: C.white }),
       ],
     })
@@ -598,8 +597,8 @@ export async function generateDocxReport(data: {
         spacing: { after: 10 },
         shading: { type: ShadingType.SOLID, color: C.slateDarker },
         children: [
-          new TextRun({ text: '  IDENTIFICACIÓN: ', bold: true, size: 18, font: 'Arial', color: C.slateText }),
-          new TextRun({ text: cedula, size: 18, font: 'Arial', color: C.slateLight }),
+          new TextRun({ text: '  IDENTIFICACIÓN: ', bold: true, size: 16, font: 'Arial', color: C.slateText }),
+          new TextRun({ text: cedula, size: 16, font: 'Arial', color: C.slateLight }),
         ],
       })
     );
@@ -612,8 +611,8 @@ export async function generateDocxReport(data: {
         spacing: { after: 10 },
         shading: { type: ShadingType.SOLID, color: C.slateDarker },
         children: [
-          new TextRun({ text: '  CORREO ELECTRÓNICO: ', bold: true, size: 18, font: 'Arial', color: C.slateText }),
-          new TextRun({ text: email, size: 18, font: 'Arial', color: C.slateLight }),
+          new TextRun({ text: '  CORREO ELECTRÓNICO: ', bold: true, size: 16, font: 'Arial', color: C.slateText }),
+          new TextRun({ text: email, size: 16, font: 'Arial', color: C.slateLight }),
         ],
       })
     );
@@ -626,8 +625,8 @@ export async function generateDocxReport(data: {
         spacing: { after: 10 },
         shading: { type: ShadingType.SOLID, color: C.slateDarker },
         children: [
-          new TextRun({ text: '  TELÉFONO: ', bold: true, size: 18, font: 'Arial', color: C.slateText }),
-          new TextRun({ text: phone, size: 18, font: 'Arial', color: C.slateLight }),
+          new TextRun({ text: '  TELÉFONO: ', bold: true, size: 16, font: 'Arial', color: C.slateText }),
+          new TextRun({ text: phone, size: 16, font: 'Arial', color: C.slateLight }),
         ],
       })
     );
@@ -640,7 +639,7 @@ export async function generateDocxReport(data: {
       spacing: { before: 0, after: 100 },
       shading: { type: ShadingType.SOLID, color: C.slateDark },
       children: [
-        new TextRun({ text: '  ══════════════════════════════════', bold: true, size: 14, font: 'Arial', color: C.slateText }),
+        new TextRun({ text: ' ', size: 8, font: 'Arial' }),
       ],
     })
   );
@@ -741,7 +740,7 @@ export async function generateDocxReport(data: {
       alignment: AlignmentType.CENTER,
       spacing: { after: 0 },
       children: [
-        new TextRun({ text: 'OSINT Data Scanner v5.0 — Generado automáticamente', size: 12, font: 'Arial', color: C.gray }),
+        new TextRun({ text: 'OSINT Data Scanner — Generado automáticamente', size: 12, font: 'Arial', color: C.gray }),
       ],
     })
   );
