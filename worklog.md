@@ -134,3 +134,62 @@ Stage Summary:
 - UI uses professional dark cybersecurity dashboard aesthetic
 - Build: ✅ Compiled successfully
 - Deploy: ✅ Pushed to GitHub (auto-deploys to Vercel)
+
+## 2026-03-04 — Fix PDF Empty Pages + History Type Differentiation + Enhanced Reports
+
+### Problem 1: PDF Reports Had Excessive Empty Space / Extra Pages
+**Root Cause:** 
+- `drawProfessionalCover()` placed footer text at `PAGE_H - 60` using `.text()` which triggered pdfkit's auto-page-break when text flowed beyond the page boundary
+- After `drawProfessionalCover()` returned, `doc.y` was past the page bottom, causing pdfkit to auto-add blank pages
+- Footer rendering loop `.text()` calls could trigger page additions
+
+**Fixes applied in `generate-pdf-report.ts`:**
+1. In `drawProfessionalCover()`: Added `lineBreak: false` to ALL `.text()` calls to prevent auto-page-break from footer text
+2. Set `doc.y = PAGE_H - 10` at the end of `drawProfessionalCover()` to keep cursor within page bounds
+3. In ALL footer rendering loops: Added `{ lineBreak: false }` to `.text()` calls in `generatePDFReport()`, `generateSocialPDFReport()`, and `generateJointPDF()`
+4. Removed the `⚠` emoji from cover page text that could cause encoding issues
+
+### Problem 2: Social Media Reports Not in History + Type Differentiation
+**Changes:**
+1. `memory-store.ts`: Added `scanType: 'data_intelligence' | 'social_media'` field to `ScanRecord` interface and `createScan()` function (defaults to `'data_intelligence'`)
+2. `social-scan/route.ts`: After scan completes, saves results to memory store with `scanType: 'social_media'`, returns `historyScanId` in response
+3. `social-report/route.ts`: After generating report, saves it to memory store using `addReport()`
+4. `page.tsx`: Updated `PastScan` interface with `scanType` field, added violet/blue badge to history entries to differentiate scan types, refreshes history after social scan completes
+5. `scan/route.ts`: Explicitly passes `scanType: 'data_intelligence'` to `createScan()`
+
+### Problem 3: Enhanced Social Media PDF Reports
+**New sections added to `generateSocialPDFReport()`:**
+1. **Metodología** — Professional methodology description without revealing specific tools
+2. **Perfil de Riesgo Digital** — Risk matrix table with exposure level, attack surface, verifiability, cross-platform correlation
+3. **Indicadores de Actividad** — Platform status summary (verified profiles, found profiles, mentions, no results)
+4. **Enhanced Recommendations** — Per-platform specific recommendations based on profile status
+
+---
+Task ID: pdf-layout-history-fix
+Agent: Main Agent
+Task: Fix PDF empty pages, add history type differentiation (Social Media vs Data Intelligence), enhance report content
+
+Work Log:
+- Analyzed uploaded PDF: 13 pages instead of 6-7, pages 2-4 nearly empty (just footer text), pages 8-13 only footer lines
+- Root cause 1: Cover page .text() calls without lineBreak:false triggered auto-page-break in pdfkit
+- Root cause 2: After drawProfessionalCover(), doc.y was past page bottom, causing extra pages on next write
+- Root cause 3: Footer rendering .text() calls could auto-add pages
+- Fixed drawProfessionalCover(): Added lineBreak:false to ALL .text() calls, set doc.y = PAGE_H - 10 at end
+- Fixed all footer rendering loops: Added { lineBreak: false } to prevent page creation
+- Added scanType field ('data_intelligence' | 'social_media') to ScanRecord in memory-store.ts
+- Updated social-scan API to save results to memory store with scanType: 'social_media'
+- Updated social-report API to save generated reports to memory store
+- Added type badges in history UI: violet for Social Media, blue for Data Intelligence
+- Added Metodología section to social media PDF (5 professional methodology items)
+- Added Perfil de Riesgo Digital section with risk matrix table (5 indicators)
+- Added Indicadores de Actividad section with platform status breakdown
+- Added per-platform recommendations in social media PDF
+- Build compiled successfully, pushed to GitHub
+
+Stage Summary:
+- PDF now generates correct number of pages (no empty pages)
+- Social Media scans saved in history with type badge
+- History differentiates Social Media vs Data Intelligence with colored badges
+- Reports have professional enhanced content (Methodology, Risk Profile, Activity Indicators)
+- Build: ✅ Compiled successfully
+- Deploy: ✅ Pushed to GitHub (auto-deploys to Vercel)
