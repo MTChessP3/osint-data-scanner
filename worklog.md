@@ -1,27 +1,36 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Fix social media scanner and OSINT scanner - complete rewrite for reliability
+Task: Fix Social Media Panel - Editable inputs, search engine buttons, scraping
 
 Work Log:
-- Analyzed the entire codebase: social-media-scanner.ts, osint-scanner.ts, page.tsx, API routes
-- Identified root cause: sequential scanning (10 platforms × 5 searches + 3 verifications = 600+ seconds) exceeding Vercel's 60s timeout
-- Rewrote social-media-scanner.ts (v3.0) with:
-  - Parallel platform scanning (3 at a time) instead of sequential
-  - Per-platform timeout (15s) and overall scan timeout (55s)
-  - HEAD request profile verification (fast, 6s timeout) instead of GET
-  - Only 1-2 web searches per platform instead of 4-5
-  - Smart platform verification: TikTok, YouTube, Telegram, Snapchat, Pinterest use HEAD; Instagram, Facebook, X, LinkedIn use web search only
-  - Better findings with clear labels
-- Fixed performWebSearch() in osint-scanner.ts with Z.ai public API direct fallback
-- Fixed social-scan API route with timeout protection
-- Fixed scan API route with maxDuration and timeout
-- Fixed joint-analysis route (removed broken import)
-- Installed missing packages (docx, xlsx)
-- Build verified: All routes compile successfully
+- Analyzed osint.rocks website architecture and methodology
+- Read current project files: page.tsx, social-media-scanner.ts, social-scan/route.ts
+- Identified root cause: Email and Name fields were read-only display divs, not editable inputs
+- Added socialEmail and socialName state variables
+- Replaced read-only email display with editable Input component
+- Replaced read-only name display with editable Input component  
+- Added "quick-fill" buttons to auto-populate from main form values
+- Added searchEngines config (Google, Bing, Yandex, DuckDuckGo)
+- Added buildPlatformSearchQuery function for platform-specific dorking
+- Added search engine quick link buttons in the social media input panel
+- Added per-platform search engine mini-buttons in Digital Footprint Map
+- Added per-platform search engine buttons in detail card headers
+- Added domain property to all socialPlatforms config entries
+- Rewrote social-media-scanner.ts v4.0 with:
+  - Platform-specific dorking templates for each platform and search mode
+  - Multi-engine web scraping via ZAI SDK
+  - scrapePlatform function for parallel dork query execution
+  - Enhanced search result analysis and findings generation
+  - Search engine links for manual verification when no results found
+- Build verified: npx next build compiled successfully
+- Git commit: 4ee04da "Fix: Social Media v4.0 - Editable inputs, multi-engine scraping, search engine buttons"
 
 Stage Summary:
-- Social media scanner completely rewritten for speed and reliability
-- All builds pass
-- Code needs to be pushed to GitHub for Vercel deployment
-- User needs to push from their local environment or set up git credentials
+- All 3 input fields now editable (nickname, email, name)
+- 4 search engine buttons added (Google, Bing, Yandex, DuckDuckGo)
+- Per-platform search engine buttons in footprint map and detail cards
+- Enhanced scraper with platform-specific dorking queries
+- Build passes, changes committed locally
+- CANNOT push to GitHub/Vercel: No authentication credentials available
+- User needs to push manually or provide GitHub token
