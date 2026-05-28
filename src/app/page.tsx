@@ -237,16 +237,16 @@ const TOTAL_ENGINES = allEngineNames.length;
 
 // ── Social Media Platforms Config ──
 const socialPlatforms = [
-  { id: 'tiktok', name: 'TikTok', color: 'text-pink-400', bgColor: 'bg-pink-900/20', borderColor: 'border-pink-800/50', icon: Music2, desc: 'Perfiles y contenido viral', glowColor: 'shadow-pink-500/40', accentHex: '#ec4899', verifyUrl: 'https://www.tiktok.com/search?q=', searchUrl: 'https://www.tiktok.com/search?q=' },
-  { id: 'instagram', name: 'Instagram', color: 'text-purple-400', bgColor: 'bg-purple-900/20', borderColor: 'border-purple-800/50', icon: Camera, desc: 'Perfiles, fotos y stories', glowColor: 'shadow-purple-500/40', accentHex: '#a855f7', verifyUrl: 'https://www.instagram.com/', searchUrl: 'https://www.instagram.com/' },
-  { id: 'youtube', name: 'YouTube', color: 'text-red-400', bgColor: 'bg-red-900/20', borderColor: 'border-red-800/50', icon: Play, desc: 'Canales y videos', glowColor: 'shadow-red-500/40', accentHex: '#ef4444', verifyUrl: 'https://www.youtube.com/results?search_query=', searchUrl: 'https://www.youtube.com/results?search_query=' },
-  { id: 'whatsapp', name: 'WhatsApp', color: 'text-green-400', bgColor: 'bg-green-900/20', borderColor: 'border-green-800/50', icon: MessageCircle, desc: 'Numeros y grupos publicos', glowColor: 'shadow-green-500/40', accentHex: '#22c55e', verifyUrl: 'https://wa.me/', searchUrl: 'https://web.whatsapp.com/' },
-  { id: 'facebook', name: 'Facebook', color: 'text-blue-400', bgColor: 'bg-blue-900/20', borderColor: 'border-blue-800/50', icon: Users, desc: 'Perfiles, paginas y grupos', glowColor: 'shadow-blue-500/40', accentHex: '#3b82f6', verifyUrl: 'https://www.facebook.com/search/top?q=', searchUrl: 'https://www.facebook.com/search/top?q=' },
-  { id: 'twitter', name: 'X (Twitter)', color: 'text-gray-300', bgColor: 'bg-gray-800/20', borderColor: 'border-gray-700/50', icon: AtSign, desc: 'Perfiles y tweets', glowColor: 'shadow-gray-400/40', accentHex: '#9ca3af', verifyUrl: 'https://twitter.com/search?q=', searchUrl: 'https://twitter.com/search?q=' },
-  { id: 'linkedin', name: 'LinkedIn', color: 'text-sky-400', bgColor: 'bg-sky-900/20', borderColor: 'border-sky-800/50', icon: Briefcase, desc: 'Perfiles profesionales', glowColor: 'shadow-sky-500/40', accentHex: '#0ea5e9', verifyUrl: 'https://www.linkedin.com/search/results/people/?keywords=', searchUrl: 'https://www.linkedin.com/search/results/people/?keywords=' },
-  { id: 'telegram', name: 'Telegram', color: 'text-sky-300', bgColor: 'bg-sky-900/20', borderColor: 'border-sky-800/50', icon: Send, desc: 'Canales y grupos', glowColor: 'shadow-sky-400/40', accentHex: '#38bdf8', verifyUrl: 'https://t.me/', searchUrl: 'https://t.me/' },
-  { id: 'snapchat', name: 'Snapchat', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20', borderColor: 'border-yellow-800/50', icon: Camera, desc: 'Perfiles y snaps', glowColor: 'shadow-yellow-500/40', accentHex: '#eab308', verifyUrl: 'https://story.snapchat.com/s/', searchUrl: 'https://www.snapchat.com/add/' },
-  { id: 'pinterest', name: 'Pinterest', color: 'text-red-300', bgColor: 'bg-red-900/20', borderColor: 'border-red-800/50', icon: Pin, desc: 'Tableros y pines', glowColor: 'shadow-red-400/40', accentHex: '#f87171', verifyUrl: 'https://www.pinterest.com/search/pins/?q=', searchUrl: 'https://www.pinterest.com/search/pins/?q=' },
+  { id: 'tiktok', name: 'TikTok', domain: 'tiktok.com', color: 'text-pink-400', bgColor: 'bg-pink-900/20', borderColor: 'border-pink-800/50', icon: Music2, desc: 'Perfiles y contenido viral', glowColor: 'shadow-pink-500/40', accentHex: '#ec4899', verifyUrl: 'https://www.tiktok.com/search?q=', searchUrl: 'https://www.tiktok.com/search?q=' },
+  { id: 'instagram', name: 'Instagram', domain: 'instagram.com', color: 'text-purple-400', bgColor: 'bg-purple-900/20', borderColor: 'border-purple-800/50', icon: Camera, desc: 'Perfiles, fotos y stories', glowColor: 'shadow-purple-500/40', accentHex: '#a855f7', verifyUrl: 'https://www.instagram.com/', searchUrl: 'https://www.instagram.com/' },
+  { id: 'youtube', name: 'YouTube', domain: 'youtube.com', color: 'text-red-400', bgColor: 'bg-red-900/20', borderColor: 'border-red-800/50', icon: Play, desc: 'Canales y videos', glowColor: 'shadow-red-500/40', accentHex: '#ef4444', verifyUrl: 'https://www.youtube.com/results?search_query=', searchUrl: 'https://www.youtube.com/results?search_query=' },
+  { id: 'whatsapp', name: 'WhatsApp', domain: 'whatsapp.com', color: 'text-green-400', bgColor: 'bg-green-900/20', borderColor: 'border-green-800/50', icon: MessageCircle, desc: 'Numeros y grupos publicos', glowColor: 'shadow-green-500/40', accentHex: '#22c55e', verifyUrl: 'https://wa.me/', searchUrl: 'https://web.whatsapp.com/' },
+  { id: 'facebook', name: 'Facebook', domain: 'facebook.com', color: 'text-blue-400', bgColor: 'bg-blue-900/20', borderColor: 'border-blue-800/50', icon: Users, desc: 'Perfiles, paginas y grupos', glowColor: 'shadow-blue-500/40', accentHex: '#3b82f6', verifyUrl: 'https://www.facebook.com/search/top?q=', searchUrl: 'https://www.facebook.com/search/top?q=' },
+  { id: 'twitter', name: 'X (Twitter)', domain: 'x.com', color: 'text-gray-300', bgColor: 'bg-gray-800/20', borderColor: 'border-gray-700/50', icon: AtSign, desc: 'Perfiles y tweets', glowColor: 'shadow-gray-400/40', accentHex: '#9ca3af', verifyUrl: 'https://twitter.com/search?q=', searchUrl: 'https://twitter.com/search?q=' },
+  { id: 'linkedin', name: 'LinkedIn', domain: 'linkedin.com', color: 'text-sky-400', bgColor: 'bg-sky-900/20', borderColor: 'border-sky-800/50', icon: Briefcase, desc: 'Perfiles profesionales', glowColor: 'shadow-sky-500/40', accentHex: '#0ea5e9', verifyUrl: 'https://www.linkedin.com/search/results/people/?keywords=', searchUrl: 'https://www.linkedin.com/search/results/people/?keywords=' },
+  { id: 'telegram', name: 'Telegram', domain: 't.me', color: 'text-sky-300', bgColor: 'bg-sky-900/20', borderColor: 'border-sky-800/50', icon: Send, desc: 'Canales y grupos', glowColor: 'shadow-sky-400/40', accentHex: '#38bdf8', verifyUrl: 'https://t.me/', searchUrl: 'https://t.me/' },
+  { id: 'snapchat', name: 'Snapchat', domain: 'snapchat.com', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20', borderColor: 'border-yellow-800/50', icon: Camera, desc: 'Perfiles y snaps', glowColor: 'shadow-yellow-500/40', accentHex: '#eab308', verifyUrl: 'https://story.snapchat.com/s/', searchUrl: 'https://www.snapchat.com/add/' },
+  { id: 'pinterest', name: 'Pinterest', domain: 'pinterest.com', color: 'text-red-300', bgColor: 'bg-red-900/20', borderColor: 'border-red-800/50', icon: Pin, desc: 'Tableros y pines', glowColor: 'shadow-red-400/40', accentHex: '#f87171', verifyUrl: 'https://www.pinterest.com/search/pins/?q=', searchUrl: 'https://www.pinterest.com/search/pins/?q=' },
 ];
 
 // ── Helper: category color classes ──
@@ -362,6 +362,8 @@ export default function Home() {
   const [selectedSocialPlatforms, setSelectedSocialPlatforms] = useState<Set<string>>(new Set());
   const [socialSearchMode, setSocialSearchMode] = useState<'nickname' | 'email' | 'name'>('name');
   const [socialNickname, setSocialNickname] = useState('');
+  const [socialEmail, setSocialEmail] = useState('');
+  const [socialName, setSocialName] = useState('');
   const [socialScanLoading, setSocialScanLoading] = useState(false);
   const [socialScanProgress, setSocialScanProgress] = useState(0);
   const [socialScanData, setSocialScanData] = useState<SocialScanResponse | null>(null);
@@ -607,18 +609,54 @@ export default function Home() {
     }
   }
 
+  // ── Get effective social search value based on mode ──
+  const getSocialSearchValue = useCallback((): string => {
+    switch (socialSearchMode) {
+      case 'nickname': return socialNickname.trim() || '';
+      case 'email': return socialEmail.trim() || email.trim() || '';
+      case 'name': return socialName.trim() || fullName.trim() || '';
+    }
+  }, [socialSearchMode, socialNickname, socialEmail, socialName, email, fullName]);
+
+  // ── Search Engine URL generators ──
+  const searchEngines = useMemo(() => [
+    { id: 'google', name: 'Google', color: 'text-blue-400', bgColor: 'bg-blue-900/20', borderColor: 'border-blue-800/40', buildUrl: (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
+    { id: 'bing', name: 'Bing', color: 'text-cyan-400', bgColor: 'bg-cyan-900/20', borderColor: 'border-cyan-800/40', buildUrl: (q: string) => `https://www.bing.com/search?q=${encodeURIComponent(q)}` },
+    { id: 'yandex', name: 'Yandex', color: 'text-red-400', bgColor: 'bg-red-900/20', borderColor: 'border-red-800/40', buildUrl: (q: string) => `https://yandex.com/search/?text=${encodeURIComponent(q)}` },
+    { id: 'duckduckgo', name: 'DuckDuckGo', color: 'text-orange-400', bgColor: 'bg-orange-900/20', borderColor: 'border-orange-800/40', buildUrl: (q: string) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}` },
+  ], []);
+
+  // ── Build platform-specific search query ──
+  const buildPlatformSearchQuery = useCallback((platform: typeof socialPlatforms[0], engine: typeof searchEngines[0]): string => {
+    const searchValue = getSocialSearchValue();
+    if (!searchValue) return '';
+
+    switch (socialSearchMode) {
+      case 'nickname':
+        return `@${searchValue.replace(/^@/, '')} ${platform.name} profile OR account OR perfil`;
+      case 'email':
+        return `"${searchValue}" site:${platform.domain} OR "${searchValue}" ${platform.name}`;
+      case 'name':
+        return `"${searchValue}" site:${platform.domain} OR "${searchValue}" ${platform.name} profile`;
+    }
+  }, [socialSearchMode, getSocialSearchValue]);
+
   // ── Social media scan handler ──
   async function handleSocialScan() {
-    // Search mode validation
-    if (socialSearchMode === 'nickname' && !socialNickname.trim()) {
+    // Search mode validation using dedicated social inputs first, then fall back to main form
+    const effectiveNickname = socialNickname.trim();
+    const effectiveEmail = socialEmail.trim() || email.trim();
+    const effectiveName = socialName.trim() || fullName.trim();
+
+    if (socialSearchMode === 'nickname' && !effectiveNickname) {
       setSocialScanError('Ingresa un NickName o nombre de usuario');
       return;
     }
-    if (socialSearchMode === 'email' && !email.trim()) {
+    if (socialSearchMode === 'email' && !effectiveEmail) {
       setSocialScanError('Ingresa un correo electrónico');
       return;
     }
-    if (socialSearchMode === 'name' && !fullName.trim()) {
+    if (socialSearchMode === 'name' && !effectiveName) {
       setSocialScanError('Ingresa el nombre completo');
       return;
     }
@@ -644,11 +682,11 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName: fullName.trim(),
-          email: email.trim() || undefined,
+          fullName: effectiveName.trim(),
+          email: effectiveEmail.trim() || undefined,
           phone: phone.trim() || undefined,
           cedula: cedula.trim() || undefined,
-          nickname: socialNickname.trim() || undefined,
+          nickname: effectiveNickname.trim() || undefined,
           searchMode: socialSearchMode,
           selectedPlatforms: Array.from(selectedSocialPlatforms),
         }),
@@ -1988,7 +2026,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Conditional Input based on Search Mode */}
+                    {/* Conditional Input based on Search Mode - ALL EDITABLE */}
                     {socialSearchMode === 'nickname' && (
                       <div className="space-y-1.5">
                         <Label className="text-xs text-pink-300 font-medium flex items-center gap-1.5">
@@ -2008,17 +2046,23 @@ export default function Home() {
                         <Label className="text-xs text-sky-300 font-medium flex items-center gap-1.5">
                           <Mail className="w-3.5 h-3.5" /> Correo Electrónico
                         </Label>
-                        <div className={`p-3 rounded-xl border ${
-                          email.trim()
-                            ? 'bg-sky-900/15 border-sky-800/30'
-                            : 'bg-gray-800/30 border-dashed border-gray-700/50'
-                        }`}>
-                          {email.trim() ? (
-                            <p className="text-sm text-white font-medium">{email}</p>
-                          ) : (
-                            <p className="text-xs text-gray-500 italic">Ingresa el correo en el formulario de la pestaña "Escanear"</p>
-                          )}
-                        </div>
+                        <Input
+                          type="email"
+                          placeholder="ej: usuario@correo.com"
+                          value={socialEmail}
+                          onChange={(e) => setSocialEmail(e.target.value)}
+                          className="bg-gray-800/50 border-sky-800/30 focus:border-sky-500 text-white placeholder:text-gray-600"
+                        />
+                        {!socialEmail.trim() && email.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => setSocialEmail(email)}
+                            className="text-[9px] text-sky-400 hover:text-sky-300 flex items-center gap-1 transition-colors"
+                          >
+                            <Sparkles className="w-2.5 h-2.5" /> Usar correo del formulario principal: {email}
+                          </button>
+                        )}
+                        <p className="text-[9px] text-gray-500">Busca cuentas asociadas al correo electrónico</p>
                       </div>
                     )}
                     {socialSearchMode === 'name' && (
@@ -2026,16 +2070,52 @@ export default function Home() {
                         <Label className="text-xs text-emerald-300 font-medium flex items-center gap-1.5">
                           <User className="w-3.5 h-3.5" /> Nombre Completo
                         </Label>
-                        <div className={`p-3 rounded-xl border ${
-                          fullName.trim()
-                            ? 'bg-emerald-900/15 border-emerald-800/30'
-                            : 'bg-gray-800/30 border-dashed border-gray-700/50'
-                        }`}>
-                          {fullName.trim() ? (
-                            <p className="text-sm text-white font-medium">{fullName}</p>
-                          ) : (
-                            <p className="text-xs text-gray-500 italic">Ingresa el nombre en el formulario de la pestaña "Escanear"</p>
-                          )}
+                        <Input
+                          placeholder="ej: Juan Pérez García"
+                          value={socialName}
+                          onChange={(e) => setSocialName(e.target.value)}
+                          className="bg-gray-800/50 border-emerald-800/30 focus:border-emerald-500 text-white placeholder:text-gray-600"
+                        />
+                        {!socialName.trim() && fullName.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => setSocialName(fullName)}
+                            className="text-[9px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
+                          >
+                            <Sparkles className="w-2.5 h-2.5" /> Usar nombre del formulario principal: {fullName}
+                          </button>
+                        )}
+                        <p className="text-[9px] text-gray-500">Busca perfiles por nombre de persona</p>
+                      </div>
+                    )}
+
+                    {/* ── Search Engine Quick Links ── */}
+                    {getSocialSearchValue() && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Globe className="w-3 h-3" /> Buscar en Motores de Búsqueda
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {searchEngines.map(engine => {
+                            const query = buildPlatformSearchQuery(
+                              { name: socialSearchMode === 'nickname' ? 'Usuario' : socialSearchMode === 'email' ? 'Email' : 'Persona', domain: '' } as typeof socialPlatforms[0],
+                              engine
+                            );
+                            const url = engine.buildUrl(query || getSocialSearchValue());
+                            return (
+                              <a
+                                key={engine.id}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-medium transition-all duration-200 hover:scale-[1.02] ${engine.bgColor} ${engine.borderColor} ${engine.color} hover:shadow-lg`}
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <ExternalLink className="w-3 h-3 shrink-0" />
+                                {engine.name}
+                              </a>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -2051,24 +2131,24 @@ export default function Home() {
                             <Badge className="bg-pink-600/30 text-pink-300 text-[8px] border-0 ml-auto">NickName</Badge>
                           </div>
                         )}
-                        {socialSearchMode === 'email' && email.trim() && (
+                        {socialSearchMode === 'email' && (socialEmail.trim() || email.trim()) && (
                           <div className="flex items-center gap-2">
                             <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                            <p className="text-[10px] text-gray-300 truncate">{email}</p>
+                            <p className="text-[10px] text-gray-300 truncate">{socialEmail.trim() || email}</p>
                             <Badge className="bg-sky-600/30 text-sky-300 text-[8px] border-0 ml-auto">Correo</Badge>
                           </div>
                         )}
-                        {socialSearchMode === 'name' && fullName.trim() && (
+                        {socialSearchMode === 'name' && (socialName.trim() || fullName.trim()) && (
                           <div className="flex items-center gap-2">
                             <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <p className="text-xs text-white font-medium truncate">{fullName}</p>
+                            <p className="text-xs text-white font-medium truncate">{socialName.trim() || fullName}</p>
                             <Badge className="bg-emerald-600/30 text-emerald-300 text-[8px] border-0 ml-auto">Nombre</Badge>
                           </div>
                         )}
-                        {email.trim() && socialSearchMode !== 'email' && (
+                        {(socialEmail.trim() || email.trim()) && socialSearchMode !== 'email' && (
                           <div className="flex items-center gap-2">
                             <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                            <p className="text-[10px] text-gray-400 truncate">{email}</p>
+                            <p className="text-[10px] text-gray-400 truncate">{socialEmail.trim() || email}</p>
                           </div>
                         )}
                         {phone.trim() && (
@@ -2083,7 +2163,7 @@ export default function Home() {
                             <p className="text-[10px] text-gray-400 truncate">{cedula}</p>
                           </div>
                         )}
-                        {!fullName.trim() && !email.trim() && !socialNickname.trim() && !phone.trim() && !cedula.trim() && (
+                        {!getSocialSearchValue() && !phone.trim() && !cedula.trim() && (
                           <p className="text-[10px] text-gray-600 italic">No hay datos de búsqueda ingresados</p>
                         )}
                       </div>
@@ -2098,7 +2178,7 @@ export default function Home() {
 
                     <Button
                       onClick={handleSocialScan}
-                      disabled={socialScanLoading || selectedSocialPlatforms.size === 0 || (socialSearchMode === 'nickname' ? !socialNickname.trim() : socialSearchMode === 'email' ? !email.trim() : !fullName.trim())}
+                      disabled={socialScanLoading || selectedSocialPlatforms.size === 0 || !getSocialSearchValue()}
                       className="w-full bg-pink-600 hover:bg-pink-700 text-white font-semibold shadow-lg shadow-pink-900/30"
                       size="lg"
                     >
@@ -2283,7 +2363,7 @@ export default function Home() {
                             {/* Quick verify link */}
                             {wasScanned && (
                               <a
-                                href={`${platform.searchUrl}${encodeURIComponent(fullName)}`}
+                                href={`${platform.searchUrl}${encodeURIComponent(getSocialSearchValue() || fullName)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-[8px] text-pink-400 hover:text-pink-300 flex items-center gap-0.5 mt-0.5 transition-colors"
@@ -2291,6 +2371,29 @@ export default function Home() {
                               >
                                 <ExternalLink className="w-2.5 h-2.5" /> Verificar
                               </a>
+                            )}
+
+                            {/* Search engine mini-buttons */}
+                            {getSocialSearchValue() && (
+                              <div className="flex gap-0.5 mt-1">
+                                {searchEngines.slice(0, 4).map(engine => {
+                                  const q = buildPlatformSearchQuery(platform, engine);
+                                  const url = engine.buildUrl(q || getSocialSearchValue());
+                                  return (
+                                    <a
+                                      key={engine.id}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`text-[6px] px-1 py-0.5 rounded border ${engine.bgColor} ${engine.borderColor} ${engine.color} hover:opacity-80 transition-opacity`}
+                                      onClick={e => e.stopPropagation()}
+                                      title={`Buscar en ${engine.name}`}
+                                    >
+                                      {engine.name.substring(0, 2).toUpperCase()}
+                                    </a>
+                                  );
+                                })}
+                              </div>
                             )}
 
                             {/* Scanning animation */}
@@ -2385,16 +2488,27 @@ export default function Home() {
                                   </p>
                                 </div>
 
-                                {/* Quick verify link */}
-                                <a
-                                  href={`${platformConfig?.searchUrl || ''}${encodeURIComponent(fullName)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-pink-400 hover:text-pink-300 flex items-center gap-1 px-2 py-1 rounded-md bg-pink-900/15 border border-pink-800/30 hover:bg-pink-900/30 transition-colors shrink-0"
-                                  onClick={e => e.stopPropagation()}
-                                >
-                                  <ExternalLink className="w-3 h-3" /> Verificar
-                                </a>
+                                {/* Search Engine buttons per platform */}
+                                <div className="flex items-center gap-1">
+                                  {searchEngines.map(engine => {
+                                    const q = platformConfig ? buildPlatformSearchQuery(platformConfig, engine) : getSocialSearchValue();
+                                    const url = engine.buildUrl(q || getSocialSearchValue());
+                                    return (
+                                      <a
+                                        key={engine.id}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`text-[9px] px-1.5 py-1 rounded-md border flex items-center gap-0.5 transition-all duration-200 hover:scale-105 ${engine.bgColor} ${engine.borderColor} ${engine.color}`}
+                                        onClick={e => e.stopPropagation()}
+                                        title={`Buscar en ${engine.name}`}
+                                      >
+                                        <ExternalLink className="w-2.5 h-2.5" />
+                                        {engine.name.substring(0, 3)}
+                                      </a>
+                                    );
+                                  })}
+                                </div>
 
                                 {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-600 shrink-0 ml-1" /> : <ChevronDown className="w-4 h-4 text-gray-600 shrink-0 ml-1" />}
                               </div>

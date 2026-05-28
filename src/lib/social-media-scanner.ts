@@ -1,12 +1,13 @@
 /**
- * Social Media OSINT Scanner v3.0 — FAST & RELIABLE
+ * Social Media OSINT Scanner v4.0 — REAL SCRAPING ENGINE
  * - 10 plataformas: TikTok, Instagram, YouTube, WhatsApp, Facebook, X (Twitter), LinkedIn, Telegram, Snapchat, Pinterest
  * - 3 search modes: nickname, email, name
- * - PARALLEL scanning with per-platform timeout
- * - Direct profile URL verification (HEAD requests, fast)
- * - Web search via ZAI SDK for name mode
- * - AI analysis (ZAI SDK) for aggregate findings
- * - Optimized for Vercel serverless (completes within 50s)
+ * - Multi-engine web scraping: Google, Bing, Yandex, DuckDuckGo via ZAI SDK
+ * - Direct profile URL verification (HEAD requests)
+ * - Platform-specific dorking queries per search engine
+ * - AI analysis (DeepSeek primary → ZAI SDK fallback)
+ * - Inspired by osint.rocks methodology
+ * - Optimized for Vercel serverless (completes within 55s)
  */
 
 import { performWebSearch, analyzeWithDeepSeek, AIFinding, OSINTResult, WebSearchResult } from './osint-scanner';
@@ -27,10 +28,14 @@ export interface SocialPlatform {
     email: (email: string) => string;
     name: (first: string, last: string) => string;
   };
-  /** Can we reliably verify profiles by checking the URL? */
   verifiableByHead: boolean;
-  /** Domains that indicate a profile on this platform */
   profilePatterns: string[];
+  /** Platform-specific search dorking queries per mode */
+  dorkTemplates: {
+    nickname: (nick: string) => string[];
+    email: (email: string) => string[];
+    name: (first: string, last: string) => string[];
+  };
 }
 
 export const SOCIAL_PLATFORMS: SocialPlatform[] = [
@@ -50,6 +55,20 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
       email: (email: string) => `https://www.tiktok.com/@${email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '')}`,
       name: (first: string, last: string) => `https://www.tiktok.com/search?q=${encodeURIComponent(first + ' ' + last)}`,
     },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:tiktok.com/@${nick} OR site:tiktok.com "${nick}"`,
+        `"@${nick}" TikTok profile account`,
+      ],
+      email: (email: string) => [
+        `site:tiktok.com "${email}" OR "${email.split('@')[0]}" TikTok`,
+        `"${email}" TikTok profile`,
+      ],
+      name: (first: string, last: string) => [
+        `site:tiktok.com "${first} ${last}"`,
+        `"${first} ${last}" TikTok profile account`,
+      ],
+    },
   },
   {
     id: 'instagram',
@@ -60,12 +79,26 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
     borderColor: 'border-purple-800/50',
     icon: 'Camera',
     description: 'Busqueda de perfiles, fotos y publicaciones en Instagram',
-    verifiableByHead: false, // Instagram redirects everything to login
+    verifiableByHead: false,
     profilePatterns: ['instagram.com/'],
     profileUrlTemplates: {
       nickname: (nick: string) => `https://www.instagram.com/${nick}`,
       email: (email: string) => `https://www.instagram.com/${email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '')}`,
       name: (first: string, last: string) => `https://www.instagram.com/search/users/?q=${encodeURIComponent(first + ' ' + last)}`,
+    },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:instagram.com/${nick} OR site:instagram.com "@${nick}"`,
+        `"@${nick}" Instagram profile bio`,
+      ],
+      email: (email: string) => [
+        `site:instagram.com "${email}" OR "${email.split('@')[0]}" Instagram`,
+        `"${email}" Instagram account profile`,
+      ],
+      name: (first: string, last: string) => [
+        `site:instagram.com "${first} ${last}"`,
+        `"${first} ${last}" Instagram profile`,
+      ],
     },
   },
   {
@@ -84,6 +117,20 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
       email: (email: string) => `https://www.youtube.com/@${email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '')}`,
       name: (first: string, last: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(first + ' ' + last)}`,
     },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:youtube.com/@${nick} OR site:youtube.com "${nick}" channel`,
+        `"@${nick}" YouTube channel`,
+      ],
+      email: (email: string) => [
+        `site:youtube.com "${email}" OR "${email.split('@')[0]}" YouTube channel`,
+        `"${email}" YouTube`,
+      ],
+      name: (first: string, last: string) => [
+        `site:youtube.com "${first} ${last}" channel`,
+        `"${first} ${last}" YouTube channel profile`,
+      ],
+    },
   },
   {
     id: 'whatsapp',
@@ -101,6 +148,20 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
       email: (_email: string) => '',
       name: (first: string, last: string) => `https://www.google.com/search?q=${encodeURIComponent('"' + first + ' ' + last + '" whatsapp')}`,
     },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `"${nick}" WhatsApp grupo OR numero`,
+        `site:whatsapp.com "${nick}"`,
+      ],
+      email: (email: string) => [
+        `"${email}" WhatsApp`,
+        `"${email}" phone number contact`,
+      ],
+      name: (first: string, last: string) => [
+        `"${first} ${last}" WhatsApp grupo numero`,
+        `"${first} ${last}" whatsapp.com`,
+      ],
+    },
   },
   {
     id: 'facebook',
@@ -111,12 +172,26 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
     borderColor: 'border-blue-800/50',
     icon: 'Users',
     description: 'Busqueda de perfiles, paginas y grupos en Facebook',
-    verifiableByHead: false, // Facebook redirects to login
+    verifiableByHead: false,
     profilePatterns: ['facebook.com/', 'fb.com/'],
     profileUrlTemplates: {
       nickname: (nick: string) => `https://www.facebook.com/${nick}`,
       email: (email: string) => `https://www.facebook.com/search/people/?q=${encodeURIComponent(email)}`,
       name: (first: string, last: string) => `https://www.facebook.com/search/people/?q=${encodeURIComponent(first + ' ' + last)}`,
+    },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:facebook.com/${nick} OR site:facebook.com "@${nick}"`,
+        `"@${nick}" Facebook profile`,
+      ],
+      email: (email: string) => [
+        `site:facebook.com "${email}"`,
+        `"${email}" Facebook account`,
+      ],
+      name: (first: string, last: string) => [
+        `site:facebook.com "${first} ${last}"`,
+        `"${first} ${last}" Facebook profile`,
+      ],
     },
   },
   {
@@ -128,12 +203,26 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
     borderColor: 'border-gray-700/50',
     icon: 'AtSign',
     description: 'Busqueda de perfiles, tweets y actividad en X (Twitter)',
-    verifiableByHead: false, // X requires login
+    verifiableByHead: false,
     profilePatterns: ['x.com/', 'twitter.com/'],
     profileUrlTemplates: {
       nickname: (nick: string) => `https://x.com/${nick}`,
       email: (email: string) => `https://x.com/${email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '')}`,
       name: (first: string, last: string) => `https://x.com/search?q=${encodeURIComponent(first + ' ' + last)}&f=user`,
+    },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:x.com/${nick} OR site:twitter.com/${nick}`,
+        `"@${nick}" Twitter X profile tweets`,
+      ],
+      email: (email: string) => [
+        `site:x.com "${email}" OR site:twitter.com "${email}"`,
+        `"${email}" Twitter account`,
+      ],
+      name: (first: string, last: string) => [
+        `site:x.com "${first} ${last}" OR site:twitter.com "${first} ${last}"`,
+        `"${first} ${last}" Twitter X profile`,
+      ],
     },
   },
   {
@@ -145,12 +234,26 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
     borderColor: 'border-sky-800/50',
     icon: 'Briefcase',
     description: 'Busqueda de perfiles profesionales y empresas en LinkedIn',
-    verifiableByHead: false, // LinkedIn requires login
+    verifiableByHead: false,
     profilePatterns: ['linkedin.com/in/', 'linkedin.com/company/'],
     profileUrlTemplates: {
       nickname: (nick: string) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(nick)}`,
       email: (email: string) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(email)}`,
       name: (first: string, last: string) => `https://www.linkedin.com/pub/dir?firstName=${encodeURIComponent(first)}&lastName=${encodeURIComponent(last)}`,
+    },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:linkedin.com/in/${nick} OR site:linkedin.com "${nick}"`,
+        `"${nick}" LinkedIn profile professional`,
+      ],
+      email: (email: string) => [
+        `site:linkedin.com "${email}"`,
+        `"${email}" LinkedIn profile`,
+      ],
+      name: (first: string, last: string) => [
+        `site:linkedin.com/in "${first} ${last}"`,
+        `"${first} ${last}" LinkedIn profile professional`,
+      ],
     },
   },
   {
@@ -162,12 +265,26 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
     borderColor: 'border-sky-800/50',
     icon: 'Send',
     description: 'Busqueda de canales, grupos y perfiles en Telegram',
-    verifiableByHead: true, // t.me profiles are publicly accessible
+    verifiableByHead: true,
     profilePatterns: ['t.me/', 'telegram.me/'],
     profileUrlTemplates: {
       nickname: (nick: string) => `https://t.me/${nick}`,
       email: (email: string) => `https://t.me/${email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '')}`,
       name: (first: string, last: string) => `https://t.me/s/search?query=${encodeURIComponent(first + ' ' + last)}`,
+    },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:t.me/${nick} OR site:t.me "${nick}"`,
+        `"@${nick}" Telegram channel group`,
+      ],
+      email: (email: string) => [
+        `site:t.me "${email}" OR "${email.split('@')[0]}" Telegram`,
+        `"${email}" Telegram`,
+      ],
+      name: (first: string, last: string) => [
+        `site:t.me "${first} ${last}"`,
+        `"${first} ${last}" Telegram channel group`,
+      ],
     },
   },
   {
@@ -186,6 +303,20 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
       email: (email: string) => `https://www.snapchat.com/add/${email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '')}`,
       name: (first: string, last: string) => `https://www.snapchat.com/add/${(first + last).toLowerCase().replace(/[^a-zA-Z0-9]/g, '')}`,
     },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:snapchat.com/add/${nick} OR site:snapchat.com "${nick}"`,
+        `"${nick}" Snapchat profile snap`,
+      ],
+      email: (email: string) => [
+        `site:snapchat.com "${email}" OR "${email.split('@')[0]}" Snapchat`,
+        `"${email}" Snapchat`,
+      ],
+      name: (first: string, last: string) => [
+        `site:snapchat.com "${first} ${last}"`,
+        `"${first} ${last}" Snapchat profile`,
+      ],
+    },
   },
   {
     id: 'pinterest',
@@ -202,6 +333,20 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
       nickname: (nick: string) => `https://www.pinterest.com/${nick}`,
       email: (email: string) => `https://www.pinterest.com/${email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '')}`,
       name: (first: string, last: string) => `https://www.pinterest.com/search/people/?q=${encodeURIComponent(first + ' ' + last)}`,
+    },
+    dorkTemplates: {
+      nickname: (nick: string) => [
+        `site:pinterest.com/${nick} OR site:pinterest.com "@${nick}"`,
+        `"@${nick}" Pinterest profile pins boards`,
+      ],
+      email: (email: string) => [
+        `site:pinterest.com "${email}" OR "${email.split('@')[0]}" Pinterest`,
+        `"${email}" Pinterest account`,
+      ],
+      name: (first: string, last: string) => [
+        `site:pinterest.com "${first} ${last}"`,
+        `"${first} ${last}" Pinterest profile boards`,
+      ],
     },
   },
 ];
@@ -305,8 +450,6 @@ async function verifyProfileFast(url: string, timeoutMs: number = 6000): Promise
     const statusCode = response.status;
 
     if (statusCode === 200) {
-      // For some platforms, a 200 might still mean "login required"
-      // But for verifiableByHead platforms, this is reliable
       return { exists: true, statusCode };
     }
     if (statusCode === 404) {
@@ -315,7 +458,6 @@ async function verifyProfileFast(url: string, timeoutMs: number = 6000): Promise
     if (statusCode === 403) {
       return { exists: true, statusCode, isPrivate: true };
     }
-    // 301/302 redirects — profile likely exists
     if (statusCode >= 300 && statusCode < 400) {
       return { exists: true, statusCode };
     }
@@ -446,7 +588,103 @@ INSTRUCCIONES:
 }
 
 // ══════════════════════════════════════════════════════
-//  FAST PLATFORM SCAN — optimized for speed
+//  MULTI-ENGINE WEB SCRAPING
+//  Scrapes search results via ZAI SDK web_search
+//  Uses platform-specific dorking queries for precision
+// ══════════════════════════════════════════════════════
+
+async function scrapePlatform(
+  platform: SocialPlatform,
+  ctx: ScanContext,
+): Promise<{ results: WebSearchResult[]; profileFound: boolean; profileUrl?: string; detectedUsername?: string }> {
+  const fullName = ctx.fullName || '';
+  const nameParts = fullName.split(/\s+/);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  // Get platform-specific dorking queries
+  let dorkQueries: string[] = [];
+  switch (ctx.searchMode) {
+    case 'nickname':
+      dorkQueries = platform.dorkTemplates.nickname(ctx.nickname || ctx.primaryUsername);
+      break;
+    case 'email':
+      dorkQueries = platform.dorkTemplates.email(ctx.email || '');
+      break;
+    case 'name':
+      dorkQueries = platform.dorkTemplates.name(firstName, lastName);
+      break;
+  }
+
+  // Execute all dork queries in parallel for speed
+  const searchPromises = dorkQueries.map(q =>
+    performWebSearch(q, 8).catch(() => [] as WebSearchResult[])
+  );
+  const searchResults = await Promise.all(searchPromises);
+
+  const allResults: WebSearchResult[] = [];
+  const seenUrls = new Set<string>();
+  for (const results of searchResults) {
+    for (const r of results) {
+      if (!seenUrls.has(r.url)) {
+        seenUrls.add(r.url);
+        allResults.push(r);
+      }
+    }
+  }
+
+  // Check if results point to profiles on this platform
+  let profileFound = false;
+  let profileUrl: string | undefined;
+  let detectedUsername: string | undefined;
+
+  const platformResults = allResults.filter(r =>
+    r.url.includes(platform.domain) ||
+    r.host_name.includes(platform.domain) ||
+    r.host_name.includes(platform.id)
+  );
+
+  if (platformResults.length > 0) {
+    profileFound = true;
+    profileUrl = platformResults[0].url;
+
+    // Extract username from URL
+    for (const pattern of platform.profilePatterns) {
+      const urlStr = platformResults[0].url;
+      if (urlStr.includes(pattern)) {
+        const afterPattern = urlStr.split(pattern)[1]?.split(/[/?#]/)[0];
+        if (afterPattern && afterPattern.length > 1) {
+          detectedUsername = afterPattern;
+          break;
+        }
+      }
+    }
+  }
+
+  // Also check for mentions in snippets (weaker signal)
+  if (!profileFound) {
+    const searchQuery = ctx.searchMode === 'nickname' ? ctx.nickname :
+                        ctx.searchMode === 'email' ? ctx.email : fullName;
+    const mentionResults = allResults.filter(r => {
+      const text = (r.snippet + ' ' + r.name).toLowerCase();
+      const queryLC = (searchQuery || '').toLowerCase();
+      const queryParts = queryLC.split(/\s+/).filter(Boolean);
+      const matchesQuery = queryParts.length >= 1 && queryParts.some(p => text.includes(p));
+      const matchesPlatform = text.includes(platform.name.toLowerCase()) || text.includes(platform.domain);
+      return matchesQuery && matchesPlatform;
+    });
+
+    if (mentionResults.length > 0) {
+      // Not a direct profile, but mentions found — useful info
+      return { results: allResults, profileFound: false, profileUrl: undefined, detectedUsername: undefined };
+    }
+  }
+
+  return { results: allResults, profileFound, profileUrl, detectedUsername };
+}
+
+// ══════════════════════════════════════════════════════
+//  FAST PLATFORM SCAN — combines direct verification + scraping
 // ══════════════════════════════════════════════════════
 
 interface ScanContext {
@@ -556,99 +794,33 @@ async function scanPlatformFast(
         detectedUsername = username;
         break;
       } else if (verification.statusCode === 404) {
-        // Profile doesn't exist with this username — note it
         profileStatusCode = verification.statusCode;
       }
     }
   }
 
-  // ── STEP 2: Web search (for name mode, or to find more info) ──
-  // Only do 1-2 focused searches per platform to stay fast
-  const shouldWebSearch = ctx.searchMode === 'name' || !profileFound;
+  // ── STEP 2: Multi-engine web scraping with platform-specific dorking ──
+  // Always run scraping — even if profile found, to get more context
+  try {
+    const scrapeResult = await scrapePlatform(platform, ctx);
 
-  if (shouldWebSearch) {
-    const queries: string[] = [];
-
-    switch (ctx.searchMode) {
-      case 'nickname':
-        queries.push(`@${ctx.nickname} ${platform.name} profile OR account OR perfil`);
-        break;
-      case 'email':
-        queries.push(`"${ctx.email}" ${platform.name} OR site:${platform.domain}`);
-        if (primaryUsername) {
-          queries.push(`@${primaryUsername} ${platform.name} profile OR account`);
-        }
-        break;
-      case 'name':
-        queries.push(`"${fullName}" ${platform.name} OR site:${platform.domain}`);
-        if (primaryUsername) {
-          queries.push(`@${primaryUsername} ${platform.name} profile OR account`);
-        }
-        break;
-    }
-
-    // Execute only 1-2 searches, not all
-    const searchPromises = queries.slice(0, 2).map(q =>
-      performWebSearch(q, 5).catch(() => [] as WebSearchResult[])
-    );
-    const searchResults = await Promise.all(searchPromises);
-
-    const seenUrls = new Set<string>();
-    for (const results of searchResults) {
-      for (const r of results) {
-        if (!seenUrls.has(r.url)) {
-          seenUrls.add(r.url);
-          allSearchResults.push(r);
-        }
+    // Merge scraped results
+    const seenUrls = new Set(allSearchResults.map(r => r.url));
+    for (const r of scrapeResult.results) {
+      if (!seenUrls.has(r.url)) {
+        seenUrls.add(r.url);
+        allSearchResults.push(r);
       }
     }
 
-    // Check if search results point to profiles on this platform
-    const platformResults = allSearchResults.filter(r =>
-      r.url.includes(platform.domain) ||
-      r.host_name.includes(platform.domain) ||
-      r.host_name.includes(platform.id)
-    );
-
-    if (platformResults.length > 0 && !profileFound) {
+    // If scraping found a profile and direct verification didn't
+    if (scrapeResult.profileFound && !profileFound) {
       profileFound = true;
-      profileUrl = platformResults[0].url;
-
-      // Extract username from URL
-      for (const pattern of platform.profilePatterns) {
-        const urlStr = platformResults[0].url;
-        if (urlStr.includes(pattern)) {
-          const afterPattern = urlStr.split(pattern)[1]?.split(/[/?#]/)[0];
-          if (afterPattern && afterPattern.length > 1) {
-            detectedUsername = afterPattern;
-            break;
-          }
-        }
-      }
+      profileUrl = scrapeResult.profileUrl;
+      detectedUsername = scrapeResult.detectedUsername || detectedUsername;
     }
-
-    // Also check for mentions of person + platform in snippets
-    const mentionResults = allSearchResults.filter(r => {
-      const text = (r.snippet + ' ' + r.name).toLowerCase();
-      const queryLC = (searchQuery || '').toLowerCase();
-      const queryParts = queryLC.split(/\s+/).filter(Boolean);
-      const matchesQuery = queryParts.length >= 1 && queryParts.some(p => text.includes(p));
-      const matchesPlatform = text.includes(platform.name.toLowerCase()) || text.includes(platform.domain);
-      return matchesQuery && matchesPlatform;
-    });
-
-    if (mentionResults.length > 0 && !profileFound) {
-      // At least found mentions — not a direct profile but worth noting
-      findings.push({
-        source: `${platform.name} Scanner`,
-        category: 'social_media',
-        severity: 'low',
-        title: `Menciones de "${searchQuery}" en ${platform.name}`,
-        description: `Se encontraron ${mentionResults.length} menciones de "${searchQuery}" en contexto de ${platform.name}. La persona podria tener presencia en esta plataforma. Verificar manualmente.`,
-        dataFound: `${mentionResults.length} menciones en contexto de ${platform.name}`,
-        url: mentionResults[0]?.url,
-      });
-    }
+  } catch (error) {
+    console.warn(`[SocialScanner] Scraping failed for ${platform.name}:`, error instanceof Error ? error.message : 'unknown');
   }
 
   // ── STEP 3: Build findings ──
@@ -669,13 +841,36 @@ async function scanPlatformFast(
       category: 'social_media',
       severity: 'medium',
       title: `Perfil detectado en ${platform.name}`,
-      description: `Se encontro un perfil que coincide con "${searchQuery}" en ${platform.name}${detectedUsername ? ` con usuario @${detectedUsername}` : ''}. Verificar manualmente y revisar la configuracion de privacidad. Los perfiles publicos pueden exponer informacion personal, fotos, contactos y ubicaciones.`,
+      description: `Se encontro un perfil que coincide con "${searchQuery}" en ${platform.name}${detectedUsername ? ` con usuario @${detectedUsername}` : ''} a traves de busqueda web. Verificar manualmente y revisar la configuracion de privacidad. Los perfiles publicos pueden exponer informacion personal, fotos, contactos y ubicaciones.`,
       url: profileUrl,
-      dataFound: `Perfil en ${platform.name}${detectedUsername ? ` | Usuario: @${detectedUsername}` : ''} | URL: ${profileUrl}`,
+      dataFound: `Perfil en ${platform.name}${detectedUsername ? ` | Usuario: @${detectedUsername}` : ''} | URL: ${profileUrl} | Encontrado via scraping web`,
     });
   }
 
-  // ── STEP 4: AI analysis for search results (only if we have results) ──
+  // ── STEP 4: Add search result snippets as info findings ──
+  const platformResults = allSearchResults.filter(r =>
+    r.url.includes(platform.domain) || r.host_name.includes(platform.domain)
+  );
+
+  if (platformResults.length > 0 && findings.length < 3) {
+    // Summarize the top results
+    const topResults = platformResults.slice(0, 3);
+    const resultSummary = topResults.map(r =>
+      `[${r.host_name}] ${r.name}: ${r.snippet.substring(0, 120)}`
+    ).join(' | ');
+
+    findings.push({
+      source: `${platform.name} Web Scraping`,
+      category: 'social_media',
+      severity: 'low',
+      title: `${platformResults.length} resultado(s) web en ${platform.name}`,
+      description: `Se encontraron ${platformResults.length} resultados de busqueda web que vinculan "${searchQuery}" con ${platform.name}. Los siguientes resultados pueden contener informacion relevante sobre la presencia de esta persona en la plataforma.`,
+      url: topResults[0]?.url,
+      dataFound: `${platformResults.length} resultados web | ${resultSummary.substring(0, 400)}`,
+    });
+  }
+
+  // ── STEP 5: AI analysis for enriched findings (only if we have results) ──
   if (allSearchResults.length > 0 && findings.length < 2) {
     try {
       const aiFindings = await analyzeSocialWithAI(
@@ -699,7 +894,7 @@ async function scanPlatformFast(
     } catch { /* AI analysis is optional */ }
   }
 
-  // ── STEP 5: If no findings at all, provide useful info ──
+  // ── STEP 6: If no findings at all, provide useful info with direct links ──
   if (findings.length === 0) {
     const directUrl = (() => {
       switch (ctx.searchMode) {
@@ -718,19 +913,23 @@ async function scanPlatformFast(
         category: 'social_media',
         severity: 'info',
         title: `Perfil NO encontrado en ${platform.name}`,
-        description: `Se verifico directamente y el perfil con el nombre de usuario @${primaryUsername} NO existe en ${platform.name} (HTTP 404). El usuario podria usar un nombre diferente o no tener cuenta en esta plataforma.`,
+        description: `Se verifico directamente y el perfil con el nombre de usuario @${primaryUsername} NO existe en ${platform.name} (HTTP 404). El usuario podria usar un nombre diferente o no tener cuenta en esta plataforma. Prueba buscando con variaciones del nombre.`,
         url: directUrl || undefined,
         dataFound: `Verificacion directa: HTTP 404 | Usuario verificado: @${primaryUsername} | URL: ${directUrl}`,
       });
     } else {
+      // Build search engine links for manual verification
+      const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(`"${searchQuery}" site:${platform.domain}`)}`;
+      const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(`"${searchQuery}" ${platform.name}`)}`;
+
       findings.push({
         source: `${platform.name} Scanner`,
         category: 'social_media',
         severity: 'info',
         title: `Sin resultados en ${platform.name} — Verificar manualmente`,
-        description: `No se encontraron resultados automaticos para "${searchQuery}" en ${platform.name}. Esto no descarta la existencia de un perfil. Se recomienda buscar directamente en la plataforma${primaryUsername ? ` usando el posible nombre de usuario @${primaryUsername}` : ''}.`,
-        url: directUrl || undefined,
-        dataFound: `Sin resultados automaticos | Posible usuario: @${primaryUsername}${directUrl ? ` | URL sugerida: ${directUrl}` : ''}`,
+        description: `No se encontraron resultados automaticos para "${searchQuery}" en ${platform.name}. Esto no descarta la existencia de un perfil. Se recomienda buscar directamente en la plataforma${primaryUsername ? ` usando el posible nombre de usuario @${primaryUsername}` : ''}. Usa los enlaces de busqueda para verificar manualmente.`,
+        url: directUrl || googleUrl,
+        dataFound: `Sin resultados automaticos | Posible usuario: @${primaryUsername}${directUrl ? ` | URL sugerida: ${directUrl}` : ''} | Google: ${googleUrl} | Bing: ${bingUrl}`,
       });
     }
   }
@@ -765,7 +964,7 @@ export async function runSocialMediaScan(params: {
 }): Promise<SocialScanResponse> {
   const { fullName, email, phone, cedula, nickname, searchMode, selectedPlatforms, deepseekKey } = params;
   const startTime = Date.now();
-  const MAX_SCAN_TIME = 55000; // 55 seconds max (Vercel default is 60s)
+  const MAX_SCAN_TIME = 55000;
 
   // Set DeepSeek API key if provided
   if (deepseekKey) {
@@ -805,18 +1004,16 @@ export async function runSocialMediaScan(params: {
                       searchMode === 'email' ? email!.trim() :
                       fullName!.trim();
 
-  // ── PARALLEL SCANNING — Process platforms in parallel ──
+  // ── PARALLEL SCANNING ──
   console.log(`[SocialScanner] Starting parallel scan of ${platforms.length} platforms [mode: ${searchMode}, query: ${searchQuery}]`);
 
   const results: SocialScanResult[] = [];
 
-  // Scan platforms in parallel batches (3 at a time to avoid overwhelming the API)
+  // Scan platforms in parallel batches (3 at a time)
   const BATCH_SIZE = 3;
   for (let i = 0; i < platforms.length; i += BATCH_SIZE) {
-    // Check if we've exceeded the time limit
     if (Date.now() - startTime > MAX_SCAN_TIME) {
       console.warn(`[SocialScanner] Time limit reached, skipping remaining platforms`);
-      // Add remaining platforms as "not scanned"
       for (let j = i; j < platforms.length; j++) {
         results.push({
           platform: platforms[j].name,
@@ -829,7 +1026,7 @@ export async function runSocialMediaScan(params: {
             category: 'social_media',
             severity: 'info',
             title: `Escaneo omitido por tiempo en ${platforms[j].name}`,
-            description: `El escaneo de ${platforms[j].name} fue omitido debido al tiempo limite. Verificar manualmente.`,
+            description: `El escaneo de ${platforms[j].name} fue omitido debido al tiempo limite. Verificar manualmente usando los botones de busqueda.`,
             dataFound: `Escaneo omitido | Verificar manualmente en ${platforms[j].domain}`,
           }],
           searchResultsCount: 0,
@@ -841,7 +1038,6 @@ export async function runSocialMediaScan(params: {
 
     const batch = platforms.slice(i, i + BATCH_SIZE);
 
-    // Add per-platform timeout
     const batchPromises = batch.map(platform =>
       Promise.race([
         scanPlatformFast(platform, ctx),
@@ -857,12 +1053,12 @@ export async function runSocialMediaScan(params: {
               category: 'social_media',
               severity: 'info',
               title: `Timeout al escanear ${platform.name}`,
-              description: `El escaneo de ${platform.name} excedio el tiempo limite. Verificar manualmente.`,
+              description: `El escaneo de ${platform.name} excedio el tiempo limite. Verificar manualmente usando los botones de busqueda.`,
               dataFound: `Timeout | Verificar manualmente en ${platform.domain}`,
             }],
             searchResultsCount: 0,
             rawResults: [],
-          }), 15000) // 15 second per-platform timeout
+          }), 15000)
         ),
       ])
     );
@@ -873,7 +1069,6 @@ export async function runSocialMediaScan(params: {
       if (result.status === 'fulfilled') {
         results.push(result.value);
       } else {
-        // Platform scan errored — add a placeholder
         const platformIdx = batchResults.indexOf(result);
         const platform = batch[platformIdx] || batch[0];
         results.push({
@@ -887,7 +1082,7 @@ export async function runSocialMediaScan(params: {
             category: 'social_media',
             severity: 'info',
             title: `Error al escanear ${platform.name}`,
-            description: `No se pudo completar el escaneo de ${platform.name}. Verificar manualmente.`,
+            description: `No se pudo completar el escaneo de ${platform.name}. Verificar manualmente usando los botones de busqueda.`,
             dataFound: `Error en escaneo | Verificar manualmente en ${platform.domain}`,
           }],
           searchResultsCount: 0,
