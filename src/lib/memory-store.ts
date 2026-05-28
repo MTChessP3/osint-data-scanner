@@ -14,6 +14,7 @@ export interface ScanRecord {
   email: string | null;
   phone: string | null;
   status: string;
+  scanType: 'data_intelligence' | 'social_media';
   results: ScanResultRecord[];
   reports: ReportRecord[];
   createdAt: Date;
@@ -88,6 +89,7 @@ export function createScan(data: {
   email?: string | null;
   phone?: string | null;
   status?: string;
+  scanType?: 'data_intelligence' | 'social_media';
 }): ScanRecord {
   const id = nextId();
   const now = new Date();
@@ -98,6 +100,7 @@ export function createScan(data: {
     email: data.email || null,
     phone: data.phone || null,
     status: data.status || 'pending',
+    scanType: data.scanType || 'data_intelligence',
     results: [],
     reports: [],
     createdAt: now,

@@ -1,14 +1,16 @@
 /**
- * Generador de Informes OSINT en PDF — Formato PROFESIONAL
+ * Generador de Informes OSINT en PDF — Formato PROFESIONAL 8 Páginas
+ *
+ * Estructura:
+ *  Pág 1: Portada Profesional
+ *  Pág 2: Resumen Ejecutivo
+ *  Pág 3-5: Hallazgos Detallados (agrupados por severidad)
+ *  Pág 6: Recomendaciones
+ *  Pág 7: Indicadores de Riesgo
+ *  Pág 8: Fuentes y Anexos
  *
  * Límites: máx 4 críticos, 4 altos, 4 medios, 2 bajos
  * Fuentes: DejaVuSans / DejaVuSans-Bold con fallback Helvetica
- *
- * FIXES:
- *  - Cover page: set doc.y = PAGE_H - 10 after all content to prevent auto-page-break
- *  - All footer text calls use { lineBreak: false } to prevent auto page creation
- *  - After drawProfessionalCover(), reset doc.y before next addPage()
- *  - Social report: added Metodología, Perfil de Riesgo Digital, Indicadores de Actividad sections
  */
 
 import PDFDocument from 'pdfkit';
@@ -172,6 +174,7 @@ function drawSectionHeader(doc: PDFDocument, title: string): void {
   checkPage(doc, 40);
   doc.moveDown(0.4);
   const y = doc.y;
+  // Navy background bar
   doc.fillColor(C.navy).rect(M.left, y, CW, 22).fill();
   setFont(doc, true).fillColor(C.white).fontSize(11)
     .text(title, M.left + 8, y + 5, { width: CW - 16 });
@@ -225,23 +228,23 @@ function drawProfessionalCover(
   const logoY = 40;
   doc.fillColor('#1e293b').rect(M.left, logoY, 40, 40).fill();
   setFont(doc, true).fillColor(C.coverAccent).fontSize(18)
-    .text('◆', M.left + 9, logoY + 8, { width: 22, lineBreak: false });
+    .text('◆', M.left + 9, logoY + 8, { width: 22 });
   setFont(doc, true).fillColor(C.coverLight).fontSize(10)
-    .text('OSINT DATA SCANNER', M.left + 50, logoY + 12, { width: 200, lineBreak: false });
+    .text('OSINT DATA SCANNER', M.left + 50, logoY + 12, { width: 200 });
 
   // CONFIDENTIAL badge
   const confX = PAGE_W - M.right - 130;
   doc.fillColor('#7f1d1d').rect(confX, logoY, 130, 24).fill();
   setFont(doc, true).fillColor('#fca5a5').fontSize(8)
-    .text('CLASIFICACIÓN: CONFIDENCIAL', confX + 6, logoY + 7, { width: 118, lineBreak: false });
+    .text('⚠ CLASIFICACIÓN: CONFIDENCIAL', confX + 6, logoY + 7, { width: 118 });
 
   // Main title area
   doc.y = 160;
   setFont(doc, true).fillColor(C.coverLight).fontSize(28)
-    .text('INFORME DE', M.left, doc.y, { width: CW, align: 'center', lineBreak: false });
+    .text('INFORME DE', M.left, doc.y, { width: CW, align: 'center' });
   doc.moveDown(0.2);
   setFont(doc, true).fillColor(C.coverAccent).fontSize(32)
-    .text('INVESTIGACIÓN', M.left, doc.y, { width: CW, align: 'center', lineBreak: false });
+    .text('INVESTIGACIÓN', M.left, doc.y, { width: CW, align: 'center' });
   doc.moveDown(1);
 
   // Decorative line
@@ -253,7 +256,7 @@ function drawProfessionalCover(
   // Subtitle
   if (opts.subtitle) {
     setFont(doc, false).fillColor(C.coverSlate).fontSize(12)
-      .text(opts.subtitle, M.left, doc.y, { width: CW, align: 'center', lineBreak: false });
+      .text(opts.subtitle, M.left, doc.y, { width: CW, align: 'center' });
     doc.moveDown(0.8);
   }
 
@@ -265,15 +268,19 @@ function drawProfessionalCover(
   // Outer ring
   doc.strokeColor('#1e293b').lineWidth(3)
     .circle(PAGE_W / 2, gaugeY + 30, 28).stroke();
+  // Inner filled arc
+  const scoreAngle = (opts.riskScore / 100) * 2 * Math.PI;
+  const startAngle = -Math.PI / 2;
   doc.strokeColor(opts.riskColor).lineWidth(3);
   doc.save();
+  // Simplified: just draw filled circle for score
   doc.fillColor(opts.riskColor).circle(PAGE_W / 2, gaugeY + 30, 24).fill();
   doc.restore();
 
   setFont(doc, true).fillColor(C.white).fontSize(22)
-    .text(`${opts.riskScore}`, gaugeX, gaugeY + 17, { width: gaugeW, align: 'center', lineBreak: false });
+    .text(`${opts.riskScore}`, gaugeX, gaugeY + 17, { width: gaugeW, align: 'center' });
   setFont(doc, true).fillColor(C.white).fontSize(8)
-    .text(`/100  ${opts.riskLevel}`, gaugeX, gaugeY + 40, { width: gaugeW, align: 'center', lineBreak: false });
+    .text(`/100  ${opts.riskLevel}`, gaugeX, gaugeY + 40, { width: gaugeW, align: 'center' });
 
   doc.y = gaugeY + 65;
 
@@ -285,21 +292,21 @@ function drawProfessionalCover(
 
   const infoX = M.left + 55;
   setFont(doc, true).fillColor(C.coverAccent).fontSize(9)
-    .text('SUJETO DE INVESTIGACIÓN', infoX, infoBoxY + 8, { width: CW - 110, lineBreak: false });
+    .text('SUJETO DE INVESTIGACIÓN', infoX, infoBoxY + 8, { width: CW - 110 });
   setFont(doc, true).fillColor(C.coverLight).fontSize(13)
-    .text(opts.fullName, infoX, infoBoxY + 22, { width: CW - 110, lineBreak: false });
+    .text(opts.fullName, infoX, infoBoxY + 22, { width: CW - 110 });
 
   const detailLines: string[] = [];
   if (opts.cedula) detailLines.push(`CC: ${opts.cedula}`);
-  if (opts.email) detailLines.push(`${opts.email}`);
-  if (opts.phone) detailLines.push(`Tel: ${opts.phone}`);
+  if (opts.email) detailLines.push(`✉ ${opts.email}`);
+  if (opts.phone) detailLines.push(`☎ ${opts.phone}`);
   if (detailLines.length > 0) {
     setFont(doc, false).fillColor(C.coverSlate).fontSize(8)
-      .text(detailLines.join('   |   '), infoX, infoBoxY + 42, { width: CW - 110, lineBreak: false });
+      .text(detailLines.join('   |   '), infoX, infoBoxY + 42, { width: CW - 110 });
   }
 
   setFont(doc, false).fillColor(C.coverSlate).fontSize(7)
-    .text(`ID: ${opts.reportId}  |  Fecha: ${opts.today}`, infoX, infoBoxY + 60, { width: CW - 110, lineBreak: false });
+    .text(`ID: ${opts.reportId}  |  Fecha: ${opts.today}`, infoX, infoBoxY + 60, { width: CW - 110 });
 
   doc.y = infoBoxY + 95;
 
@@ -309,16 +316,13 @@ function drawProfessionalCover(
   // Bottom accent line
   doc.fillColor(C.coverAccent).rect(0, footerY - 10, PAGE_W, 2).fill();
 
-  // Classification marking — use lineBreak: false to prevent auto-page-break
+  // Classification marking
   setFont(doc, true).fillColor('#ef4444').fontSize(9)
-    .text('DOCUMENTO CONFIDENCIAL — USO RESTRINGIDO', M.left, footerY, { width: CW, align: 'center', lineBreak: false });
+    .text('DOCUMENTO CONFIDENCIAL — USO RESTRINGIDO', M.left, footerY, { width: CW, align: 'center' });
   setFont(doc, false).fillColor('#64748b').fontSize(6)
-    .text('La distribución no autorizada de este documento viola la Ley 1581 de 2012 y la Ley 1273 de 2009', M.left, footerY + 14, { width: CW, align: 'center', lineBreak: false });
+    .text('La distribución no autorizada de este documento viola la Ley 1581 de 2012 y la Ley 1273 de 2009', M.left, footerY + 14, { width: CW, align: 'center' });
   setFont(doc, false).fillColor('#475569').fontSize(6)
-    .text(`OSINT Data Scanner  |  ${opts.reportId}  |  ${opts.today}`, M.left, footerY + 26, { width: CW, align: 'center', lineBreak: false });
-
-  // CRITICAL FIX: Set doc.y to near page bottom but within bounds to prevent auto-page-break
-  doc.y = PAGE_H - 10;
+    .text(`OSINT Data Scanner  |  ${opts.reportId}  |  ${opts.today}`, M.left, footerY + 26, { width: CW, align: 'center' });
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -334,6 +338,7 @@ export async function generatePDFReport(data: {
   riskScore?: number;
   scanId?: string;
 }): Promise<Buffer> {
+  // Reset source map for each report
   resetSourceMap();
 
   return new Promise((resolve, reject) => {
@@ -345,6 +350,7 @@ export async function generatePDFReport(data: {
       autoFirstPage: false,
     });
 
+    // Register fonts with fallback
     registerFonts(doc);
 
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -356,6 +362,7 @@ export async function generatePDFReport(data: {
       ? `OSINT-${data.scanId.substring(0, 8).toUpperCase()}`
       : `OSINT-${Date.now().toString(36).toUpperCase()}`;
 
+    // Filter and categorize results
     const realResults = data.results.filter(r => r.category !== 'error');
     const crit = realResults.filter(r => r.severity === 'critical').length;
     const high = realResults.filter(r => r.severity === 'high').length;
@@ -366,11 +373,13 @@ export async function generatePDFReport(data: {
     const riskLevel = riskScore >= 70 ? 'CRÍTICO' : riskScore >= 40 ? 'ALTO' : riskScore >= 15 ? 'MODERADO' : 'BAJO';
     const riskColor = riskScore >= 70 ? C.red : riskScore >= 40 ? C.orange : riskScore >= 15 ? C.yellow : C.green;
 
+    // Anonymize all source names before using them
     const anonymizedResults = realResults.map(r => ({
       ...r,
       source: anonymizeSource(r.source),
     }));
 
+    // Apply finding limits
     const limitedResults: typeof anonymizedResults = [];
     const severityOrder = ['critical', 'high', 'medium', 'low', 'info'] as const;
     for (const sev of severityOrder) {
@@ -414,6 +423,7 @@ export async function generatePDFReport(data: {
     setFont(doc, true).fillColor(C.white).fontSize(9)
       .text(`/100 ${riskLevel}`, M.left + 5, boxY + 30, { width: 80, align: 'center' });
 
+    // Info next to score
     doc.fillColor(C.bg).rect(M.left + 90, boxY, CW - 90, boxH).fill();
     const infoX = M.left + 100;
     setFont(doc, true).fillColor(C.navy).fontSize(10)
@@ -421,6 +431,7 @@ export async function generatePDFReport(data: {
     setFont(doc, false).fillColor(C.textLight).fontSize(8)
       .text(`${realResults.length} hallazgos en ${uniqueSources.length} fuentes  |  Email: ${data.email || 'N/A'}  |  Tel: ${data.phone || 'N/A'}`, infoX, boxY + 20, { width: CW - 110 });
 
+    // Severity counts inline
     const sevY = boxY + 34;
     let sevX = infoX;
     const sevItems: [string, number, string][] = [
@@ -438,6 +449,7 @@ export async function generatePDFReport(data: {
     }
     doc.y = boxY + boxH + 10;
 
+    // Executive narrative
     const execNarrative = crit > 0
       ? `La investigación OSINT identificó ${crit} hallazgo(s) crítico(s) que representan un riesgo inmediato para la seguridad digital del sujeto. Se detectaron filtraciones de credenciales y/o exposición de datos sensibles que requieren acción correctiva inmediata. Se recomienda cambiar contraseñas comprometidas, habilitar autenticación multifactor y solicitar eliminación de datos en brokers de información. El nivel de riesgo calculado es ${riskLevel} con un puntaje de ${riskScore}/100.`
       : high > 0
@@ -447,12 +459,14 @@ export async function generatePDFReport(data: {
       : `No se identificaron hallazgos de riesgo significativo en las fuentes consultadas. Se recomienda mantener prácticas de higiene digital y monitoreo periódico. El nivel de riesgo calculado es ${riskLevel} con un puntaje de ${riskScore}/100.`;
     drawParagraph(doc, execNarrative);
 
+    // Risk assessment text
     doc.moveDown(0.3);
     setFont(doc, true).fillColor(C.navy).fontSize(9)
       .text('Evaluación de Riesgo:', M.left, doc.y, { width: CW });
     doc.moveDown(0.15);
     drawParagraph(doc, `Nivel de riesgo: ${riskLevel} (${riskScore}/100). ${crit > 0 ? 'Se requiere intervención inmediata.' : high > 0 ? 'Se requiere atención prioritaria.' : 'Se recomienda seguimiento.'}`, { fontSize: 8.5, color: C.textLight });
 
+    // Key findings counts
     doc.moveDown(0.3);
     setFont(doc, true).fillColor(C.navy).fontSize(9)
       .text('Hallazgos por Severidad:', M.left, doc.y, { width: CW });
@@ -487,6 +501,7 @@ export async function generatePDFReport(data: {
         const showingCount = filtered.length;
         const omittedCount = totalOfSev - showingCount;
 
+        // Severity section header
         checkPage(doc, 30);
         const sevY = doc.y;
         doc.fillColor(sev.bg).rect(M.left, sevY, CW, 16).fill();
@@ -499,22 +514,28 @@ export async function generatePDFReport(data: {
           checkPage(doc, 65);
 
           const cardY = doc.y;
+
+          // Color-coded severity square
           doc.fillColor(sev.bg).rect(M.left, cardY, 4, 8).fill();
 
+          // Title in bold
           setFont(doc, true).fillColor(C.navy).fontSize(9)
             .text(`${findingNum}. ${r.title}`, M.left + 10, cardY, { width: CW - 14 });
           doc.moveDown(0.1);
 
+          // Description as paragraph
           const desc = r.description || r.dataFound || 'Sin descripción disponible';
           checkPage(doc, 30);
           setFont(doc, false).fillColor(C.text).fontSize(8)
             .text(desc, M.left + 10, doc.y, { width: CW - 14, lineGap: 1.5 });
           doc.moveDown(0.1);
 
+          // Source (anonymized) and category in gray
           checkPage(doc, 14);
           setFont(doc, false).fillColor(C.textLight).fontSize(7)
             .text(`Fuente: ${r.source}  |  Categoría: ${catES(r.category)}`, M.left + 10, doc.y, { width: CW - 14 });
 
+          // URL if available (truncated)
           if (r.url) {
             checkPage(doc, 12);
             setFont(doc, false).fillColor(C.blue).fontSize(6.5)
@@ -522,6 +543,8 @@ export async function generatePDFReport(data: {
           }
 
           doc.moveDown(0.3);
+
+          // Thin separator
           const sepY = doc.y;
           doc.strokeColor('#e0e0e0').lineWidth(0.3)
             .moveTo(M.left + 8, sepY).lineTo(PAGE_W - M.right, sepY).stroke();
@@ -536,6 +559,7 @@ export async function generatePDFReport(data: {
     doc.addPage();
     drawSectionHeader(doc, 'RECOMENDACIONES');
 
+    // Group recommendations by category
     const recCategories = new Map<string, { cat: string; count: number; rec: string }>();
     for (const r of limitedResults) {
       if (r.severity === 'info') continue;
@@ -546,10 +570,12 @@ export async function generatePDFReport(data: {
       recCategories.get(cat)!.count++;
     }
 
+    // Add general recommendations
     if (recCategories.size === 0) {
       drawParagraph(doc, 'No se requieren acciones correctivas específicas basadas en los hallazgos del informe.', { fontSize: 9 });
     }
 
+    // General first
     checkPage(doc, 20);
     setFont(doc, true).fillColor(C.navy).fontSize(9)
       .text('Recomendaciones Generales', M.left, doc.y, { width: CW });
@@ -574,6 +600,7 @@ export async function generatePDFReport(data: {
       drawParagraph(doc, rec, { fontSize: 8.5, indent: 8 });
     }
 
+    // Category-specific recommendations
     if (recCategories.size > 0) {
       doc.moveDown(0.3);
       setFont(doc, true).fillColor(C.navy).fontSize(9)
@@ -589,6 +616,7 @@ export async function generatePDFReport(data: {
       }
     }
 
+    // Additional recommendations
     doc.moveDown(0.3);
     checkPage(doc, 30);
     setFont(doc, true).fillColor(C.navy).fontSize(9)
@@ -611,10 +639,12 @@ export async function generatePDFReport(data: {
     doc.addPage();
     drawSectionHeader(doc, 'INDICADORES DE RIESGO');
 
+    // Overall risk assessment
     setFont(doc, true).fillColor(C.navy).fontSize(9)
       .text('Evaluación General de Riesgo', M.left, doc.y, { width: CW });
     doc.moveDown(0.15);
 
+    // Risk score visual box
     checkPage(doc, 40);
     const riskBoxY = doc.y;
     doc.fillColor(riskColor).rect(M.left, riskBoxY, CW, 30).fill();
@@ -622,11 +652,13 @@ export async function generatePDFReport(data: {
       .text(`Nivel de Riesgo: ${riskLevel}  —  Puntaje: ${riskScore}/100`, M.left + 10, riskBoxY + 8, { width: CW - 20, align: 'center' });
     doc.y = riskBoxY + 38;
 
+    // Category breakdown
     doc.moveDown(0.2);
     setFont(doc, true).fillColor(C.navy).fontSize(9)
       .text('Desglose por Categoría de Riesgo', M.left, doc.y, { width: CW });
     doc.moveDown(0.15);
 
+    // Table header
     checkPage(doc, 20);
     let y = doc.y;
     const colW = [CW * 0.45, CW * 0.20, CW * 0.35];
@@ -669,6 +701,7 @@ export async function generatePDFReport(data: {
     }
     doc.moveDown(0.5);
 
+    // Risk factors as text
     setFont(doc, true).fillColor(C.navy).fontSize(9)
       .text('Factores de Riesgo Identificados', M.left, doc.y, { width: CW });
     doc.moveDown(0.15);
@@ -692,11 +725,13 @@ export async function generatePDFReport(data: {
     doc.addPage();
     drawSectionHeader(doc, 'FUENTES Y ANEXOS');
 
+    // Generic sources statement (NO tool names)
     setFont(doc, true).fillColor(C.navy).fontSize(9)
       .text('Fuentes Consultadas', M.left, doc.y, { width: CW });
     doc.moveDown(0.15);
     drawParagraph(doc, 'Se consultaron múltiples fuentes de inteligencia de fuentes abiertas (OSINT) durante esta investigación. Los resultados fueron obtenidos a través de sistemas automatizados de recolección y análisis de datos públicos.', { fontSize: 8.5 });
 
+    // Sources summary (anonymized)
     if (uniqueSources.length > 0) {
       doc.moveDown(0.2);
       setFont(doc, true).fillColor(C.navy).fontSize(9)
@@ -716,6 +751,7 @@ export async function generatePDFReport(data: {
       }
     }
 
+    // Legal disclaimer
     doc.moveDown(0.3);
     checkPage(doc, 50);
     setFont(doc, true).fillColor(C.navy).fontSize(9)
@@ -723,6 +759,7 @@ export async function generatePDFReport(data: {
     doc.moveDown(0.1);
     drawParagraph(doc, 'Este informe ha sido generado mediante técnicas OSINT (Open Source Intelligence). La información proviene de fuentes públicas accesibles y no constituye investigación oficial ni prueba judicial sin validación por las autoridades competentes. El uso de este informe debe cumplir con la Ley 1581 de 2012 (Protección de Datos Personales), la Ley 1273 de 2009 (Delitos Informáticos), y la Constitución Política de Colombia. El responsable del tratamiento de datos es quien solicita el informe.', { fontSize: 7.5, color: C.textLight });
 
+    // Signature block
     checkPage(doc, 65);
     doc.moveDown(0.4);
     doc.strokeColor(C.tableBorder).lineWidth(0.5)
@@ -741,6 +778,7 @@ export async function generatePDFReport(data: {
       .text(reportId, M.left, doc.y, { width: CW * 0.5 });
     doc.moveDown(0.4);
 
+    // Signature lines
     const sigY = doc.y;
     const sigW = (CW - 40) / 2;
     doc.strokeColor(C.lightGray).lineWidth(0.5)
@@ -751,16 +789,16 @@ export async function generatePDFReport(data: {
       .text('Aprobado por', M.left + sigW + 40, sigY + 28, { width: sigW, align: 'center' });
 
     // ════════════════════════════════════════
-    //  FOOTERS (all non-cover pages) — FIXED: lineBreak: false
+    //  FOOTERS (all non-cover pages)
     // ════════════════════════════════════════
     const pages = doc.bufferedPageRange().count;
     for (let i = 0; i < pages; i++) {
       doc.switchToPage(i);
-      if (i === 0) continue;
+      if (i === 0) continue; // skip cover page
       doc.strokeColor(C.lightGray).lineWidth(0.3)
         .moveTo(M.left, PAGE_H - 30).lineTo(PAGE_W - M.right, PAGE_H - 30).stroke();
       setFont(doc, false).fillColor(C.gray).fontSize(6)
-        .text(`CONFIDENCIAL  |  ${reportId}  |  Página ${i} de ${pages - 1}`, M.left, PAGE_H - 24, { width: CW, align: 'center', lineBreak: false });
+        .text(`CONFIDENCIAL  |  ${reportId}  |  Página ${i} de ${pages - 1}`, M.left, PAGE_H - 24, { width: CW, align: 'center' });
     }
 
     doc.end();
@@ -811,7 +849,7 @@ export function generateJointPDFFileName(fullName: string): string {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  SOCIAL MEDIA PDF REPORT — ENHANCED with methodology, risk profile, activity indicators
+//  SOCIAL MEDIA PDF REPORT
 // ════════════════════════════════════════════════════════════════
 
 interface SocialScanResultItem {
@@ -900,6 +938,7 @@ export async function generateSocialPDFReport(data: {
     doc.addPage();
     drawSectionHeader(doc, 'RESUMEN EJECUTIVO — REDES SOCIALES');
 
+    // Risk score box
     checkPage(doc, 55);
     const boxY = doc.y;
     const boxH = 48;
@@ -944,130 +983,8 @@ export async function generateSocialPDFReport(data: {
       : `No se identificaron perfiles o hallazgos significativos en las plataformas consultadas. El nivel de riesgo calculado es ${riskLevel} con un puntaje de ${riskScore}/100.`;
     drawParagraph(doc, execNarrative);
 
-    // ── METODOLOGÍA ──
-    checkPage(doc, 60);
-    doc.moveDown(0.3);
-    drawSectionHeader(doc, 'METODOLOGÍA');
-
-    drawParagraph(doc, 'La presente investigación fue realizada aplicando las siguientes técnicas y procedimientos de inteligencia de fuentes abiertas (OSINT), sin revelar herramientas o métodos específicos:', { fontSize: 8.5 });
-
-    const methodology = [
-      '• Verificación directa de perfiles mediante consulta de plataformas públicas de redes sociales.',
-      '• Análisis de huella digital en redes sociales mediante correlación de identificadores.',
-      '• Correlación de datos entre plataformas para determinar consistencia de identidad digital.',
-      '• Evaluación de exposición de información personal disponible públicamente en perfiles detectados.',
-      '• Clasificación de severidad basada en el tipo de dato expuesto y su accesibilidad pública.',
-    ];
-    for (const item of methodology) {
-      checkPage(doc, 14);
-      drawParagraph(doc, item, { fontSize: 8.5, indent: 8 });
-    }
-
-    // ── PERFIL DE RIESGO DIGITAL ──
-    checkPage(doc, 80);
-    doc.moveDown(0.3);
-    drawSectionHeader(doc, 'PERFIL DE RIESGO DIGITAL');
-
-    const verifiedCount = scanResults.filter(r => r.profileVerified).length;
-    const foundCount = scanResults.filter(r => r.profileFound).length;
-    const sameUsername = data.searchMode === 'nickname'
-      ? scanResults.filter(r => r.profileFound && r.username).length
-      : 0;
-
-    // Risk profile table
-    checkPage(doc, 20);
-    let tY = doc.y;
-    doc.fillColor(C.tableHeader).rect(M.left, tY, CW, 14).fill();
-    setFont(doc, true).fillColor(C.white).fontSize(7.5)
-      .text('Indicador', M.left + 4, tY + 3, { width: CW * 0.45 })
-      .text('Valor', M.left + CW * 0.45 + 4, tY + 3, { width: CW * 0.25 })
-      .text('Evaluación', M.left + CW * 0.7 + 4, tY + 3, { width: CW * 0.3 - 8 });
-    tY += 15;
-
-    const nivelExposicion = riskScore >= 70 ? 'Alto' : riskScore >= 40 ? 'Medio' : 'Bajo';
-    const superficieAtaque = String(foundCount);
-    const correlacionPlataformas = sameUsername >= 3 ? 'Alta' : sameUsername >= 1 ? 'Media' : 'Baja';
-
-    const riskProfileRows: [string, string, string][] = [
-      ['Nivel de Exposición', nivelExposicion, riskScore >= 70 ? 'RIESGO ELEVADO' : riskScore >= 40 ? 'PRECAUCIÓN' : 'ACEPTABLE'],
-      ['Superficie de Ataque', `${superficieAtaque} plataforma${foundCount !== 1 ? 's' : ''} con perfil`, foundCount >= 5 ? 'AMPLIA' : foundCount >= 2 ? 'MODERADA' : 'LIMITADA'],
-      ['Verificabilidad', `${verifiedCount} perfil${verifiedCount !== 1 ? 'es' : ''} verificado${verifiedCount !== 1 ? 's' : ''}`, verifiedCount >= 3 ? 'ALTA VULNERABILIDAD' : 'VERIFICADO'],
-      ['Correlación entre Plataformas', correlacionPlataformas, sameUsername >= 3 ? 'IDENTIDAD COMPARTIDA' : 'SIN CORRELACIÓN SIGNIFICATIVA'],
-      ['Puntaje de Riesgo Global', `${riskScore}/100`, riskLevel],
-    ];
-
-    for (let i = 0; i < riskProfileRows.length; i++) {
-      checkPage(doc, 14);
-      const rY = doc.y;
-      if (i % 2 === 0) doc.fillColor(C.tableStripe).rect(M.left, rY, CW, 13).fill();
-      const row = riskProfileRows[i];
-      const evalColor = row[2].includes('RIESGO') || row[2].includes('VULNERabilidad') || row[2].includes('COMPARTIDA') ? C.red
-        : row[2].includes('PRECAUCIÓN') || row[2].includes('MODERADA') || row[2].includes('AMPLIA') ? C.orange
-        : C.text;
-      setFont(doc, false).fillColor(C.text).fontSize(7)
-        .text(row[0], M.left + 4, rY + 3, { width: CW * 0.45 - 8 });
-      setFont(doc, true).fillColor(C.navy).fontSize(7)
-        .text(row[1], M.left + CW * 0.45 + 4, rY + 3, { width: CW * 0.25 - 8 });
-      setFont(doc, true).fillColor(evalColor).fontSize(7)
-        .text(row[2], M.left + CW * 0.7 + 4, rY + 3, { width: CW * 0.3 - 8 });
-      doc.y = rY + 13;
-    }
-    doc.moveDown(0.3);
-
-    // ── INDICADORES DE ACTIVIDAD ──
-    checkPage(doc, 60);
-    doc.moveDown(0.3);
-    drawSectionHeader(doc, 'INDICADORES DE ACTIVIDAD');
-
-    // Summary by platform status
-    const verifiedPlatforms = scanResults.filter(r => r.profileFound && r.profileVerified);
-    const foundPlatforms = scanResults.filter(r => r.profileFound && !r.profileVerified);
-    const mentionPlatforms = scanResults.filter(r => !r.profileFound && r.findings.length > 0);
-    const noResultPlatforms = scanResults.filter(r => !r.profileFound && r.findings.length === 0);
-
-    checkPage(doc, 14);
-    setFont(doc, true).fillColor(C.green).fontSize(8)
-      .text(`Perfiles Verificados: ${verifiedPlatforms.length}`, M.left, doc.y, { width: CW });
-    doc.moveDown(0.05);
-    if (verifiedPlatforms.length > 0) {
-      setFont(doc, false).fillColor(C.text).fontSize(7.5)
-        .text(verifiedPlatforms.map(r => r.platform).join(', '), M.left + 12, doc.y, { width: CW - 12 });
-      doc.moveDown(0.1);
-    }
-
-    checkPage(doc, 14);
-    setFont(doc, true).fillColor(C.navy).fontSize(8)
-      .text(`Perfiles Encontrados (sin verificar): ${foundPlatforms.length}`, M.left, doc.y, { width: CW });
-    doc.moveDown(0.05);
-    if (foundPlatforms.length > 0) {
-      setFont(doc, false).fillColor(C.text).fontSize(7.5)
-        .text(foundPlatforms.map(r => r.platform).join(', '), M.left + 12, doc.y, { width: CW - 12 });
-      doc.moveDown(0.1);
-    }
-
-    checkPage(doc, 14);
-    setFont(doc, true).fillColor(C.orange).fontSize(8)
-      .text(`Menciones sin Perfil: ${mentionPlatforms.length}`, M.left, doc.y, { width: CW });
-    doc.moveDown(0.05);
-    if (mentionPlatforms.length > 0) {
-      setFont(doc, false).fillColor(C.text).fontSize(7.5)
-        .text(mentionPlatforms.map(r => r.platform).join(', '), M.left + 12, doc.y, { width: CW - 12 });
-      doc.moveDown(0.1);
-    }
-
-    checkPage(doc, 14);
-    setFont(doc, true).fillColor(C.gray).fontSize(8)
-      .text(`Sin Resultados: ${noResultPlatforms.length}`, M.left, doc.y, { width: CW });
-    doc.moveDown(0.05);
-    if (noResultPlatforms.length > 0) {
-      setFont(doc, false).fillColor(C.textLight).fontSize(7.5)
-        .text(noResultPlatforms.map(r => r.platform).join(', '), M.left + 12, doc.y, { width: CW - 12 });
-      doc.moveDown(0.1);
-    }
-
-    // ── RESULTADOS POR PLATAFORMA ──
-    checkPage(doc, 50);
-    doc.moveDown(0.3);
+    // ── PAGE 3-5: RESULTADOS POR PLATAFORMA ──
+    doc.addPage();
     drawSectionHeader(doc, 'RESULTADOS POR PLATAFORMA');
 
     let platformNum = 0;
@@ -1076,12 +993,15 @@ export async function generateSocialPDFReport(data: {
       checkPage(doc, 50);
 
       const cardY = doc.y;
+
+      // Platform header bar
       const headerColor = result.profileFound ? '#1b4332' : result.findings.length > 0 ? '#7c4a03' : C.accent;
       doc.fillColor(headerColor).rect(M.left, cardY, CW, 18).fill();
       setFont(doc, true).fillColor(C.white).fontSize(9)
-        .text(`${platformNum}. ${result.platform}${result.profileFound ? '  — Perfil Detectado' : result.findings.length > 0 ? '  — Menciones' : '  — Sin resultados'}`, M.left + 8, cardY + 4, { width: CW - 16 });
+        .text(`${platformNum}. ${result.platform}${result.profileFound ? '  ✓ Perfil Detectado' : result.findings.length > 0 ? '  ⚠ Menciones' : '  — Sin resultados'}`, M.left + 8, cardY + 4, { width: CW - 16 });
       doc.y = cardY + 22;
 
+      // Profile info
       if (result.profileFound) {
         checkPage(doc, 14);
         setFont(doc, true).fillColor(C.green).fontSize(8)
@@ -1095,11 +1015,13 @@ export async function generateSocialPDFReport(data: {
         }
       }
 
+      // Findings
       for (const finding of result.findings) {
         checkPage(doc, 25);
         const sev = SEV[finding.severity] || SEV.info;
         const fY = doc.y;
 
+        // Severity indicator
         doc.fillColor(sev.bg).rect(M.left + 10, fY, 3, 7).fill();
         setFont(doc, true).fillColor(C.navy).fontSize(8)
           .text(`[${sev.label}] ${finding.title}`, M.left + 18, fY, { width: CW - 24 });
@@ -1112,6 +1034,7 @@ export async function generateSocialPDFReport(data: {
           doc.moveDown(0.05);
         }
 
+        // Source (anonymized)
         checkPage(doc, 10);
         setFont(doc, false).fillColor(C.textLight).fontSize(6.5)
           .text(`Fuente: ${anonymizeSource(finding.source)}  |  ${catES(finding.category)}`, M.left + 18, doc.y, { width: CW - 24 });
@@ -1124,56 +1047,28 @@ export async function generateSocialPDFReport(data: {
         doc.moveDown(0.15);
       }
 
+      // Separator
       const sepY = doc.y;
       doc.strokeColor('#e0e0e0').lineWidth(0.3)
         .moveTo(M.left + 8, sepY).lineTo(PAGE_W - M.right, sepY).stroke();
       doc.y = sepY + 6;
     }
 
-    // ── RECOMMENDATIONS (enhanced with per-platform) ──
+    // ── RECOMMENDATIONS ──
     checkPage(doc, 80);
     doc.moveDown(0.3);
     drawSectionHeader(doc, 'RECOMENDACIONES');
 
-    // General recommendations
-    setFont(doc, true).fillColor(C.navy).fontSize(9)
-      .text('Recomendaciones Generales', M.left, doc.y, { width: CW });
-    doc.moveDown(0.15);
-
     const socialRecs = [
       '• Revisar y restringir la configuración de privacidad en todas las plataformas detectadas.',
-      '• Eliminar información personal innecesaria de perfiles públicos (teléfono, dirección, fecha de nacimiento).',
-      '• Habilitar autenticación de dos factores (2FA) en todas las cuentas detectadas.',
+      '• Eliminar información personal innecesaria de perfiles públicos.',
+      '• Habilitar autenticación de dos factores en todas las cuentas.',
       '• Monitorear periódicamente la huella digital en redes sociales.',
       '• Considerar la desactivación de perfiles no utilizados.',
-      '• Utilizar seudónimos o nombres alternativos en nuevas cuentas para dificultar la correlación.',
     ];
     for (const rec of socialRecs) {
       checkPage(doc, 14);
       drawParagraph(doc, rec, { fontSize: 8.5, indent: 8 });
-    }
-
-    // Per-platform recommendations
-    if (foundCount > 0) {
-      doc.moveDown(0.3);
-      checkPage(doc, 30);
-      setFont(doc, true).fillColor(C.navy).fontSize(9)
-        .text('Recomendaciones por Plataforma', M.left, doc.y, { width: CW });
-      doc.moveDown(0.15);
-
-      for (const result of scanResults.filter(r => r.profileFound || r.findings.length > 0)) {
-        checkPage(doc, 18);
-        setFont(doc, true).fillColor(C.accent).fontSize(8.5)
-          .text(`${result.platform}${result.profileVerified ? ' (Verificado)' : ''}`, M.left, doc.y, { width: CW });
-        doc.moveDown(0.1);
-
-        const platformRec = result.profileVerified
-          ? '• Perfil verificado detectado. Se recomienda revisar la información visible públicamente y limitar la exposición de datos personales.'
-          : result.profileFound
-          ? '• Perfil encontrado. Restringir la visibilidad del perfil, revisar configuración de privacidad y evaluar si la cuenta es necesaria.'
-          : '• Se detectaron menciones sin perfil confirmado. Monitorear futuras apariciones y evaluar si es necesario crear alertas.';
-        drawParagraph(doc, platformRec, { fontSize: 8.5, indent: 8 });
-      }
     }
 
     // Legal disclaimer
@@ -1184,7 +1079,7 @@ export async function generateSocialPDFReport(data: {
     doc.moveDown(0.1);
     drawParagraph(doc, 'Este informe ha sido generado mediante técnicas OSINT. La información proviene de fuentes públicas. No constituye investigación oficial ni prueba judicial sin validación. Uso sujeto a Ley 1581/2012 y Ley 1273/2009.', { fontSize: 7.5, color: C.textLight });
 
-    // ── FOOTERS — FIXED: lineBreak: false ──
+    // ── FOOTERS ──
     const pages = doc.bufferedPageRange().count;
     for (let i = 0; i < pages; i++) {
       doc.switchToPage(i);
@@ -1192,7 +1087,7 @@ export async function generateSocialPDFReport(data: {
       doc.strokeColor(C.lightGray).lineWidth(0.3)
         .moveTo(M.left, PAGE_H - 30).lineTo(PAGE_W - M.right, PAGE_H - 30).stroke();
       setFont(doc, false).fillColor(C.gray).fontSize(6)
-        .text(`CONFIDENCIAL  |  ${reportId}  |  Página ${i} de ${pages - 1}`, M.left, PAGE_H - 24, { width: CW, align: 'center', lineBreak: false });
+        .text(`CONFIDENCIAL  |  ${reportId}  |  Página ${i} de ${pages - 1}`, M.left, PAGE_H - 24, { width: CW, align: 'center' });
     }
 
     doc.end();
@@ -1245,6 +1140,7 @@ export async function generateJointPDF(
     drawSectionHeader(doc, 'RESUMEN DEL ANÁLISIS DE VÍNCULOS');
     drawParagraph(doc, `Análisis de vínculos entre "${analysis.sheet1Name}" (${analysis.sheet1RowCount} registros) y "${analysis.sheet2Name}" (${analysis.sheet2RowCount} registros). Se identificaron ${analysis.totalLinks} vínculos.`);
 
+    // Summary by type
     const summaryItemsRaw: [string, number][] = [
       ['Empresariales', Number(analysis.summary.empresariales) || 0],
       ['Personales', Number(analysis.summary.personales) || 0],
@@ -1269,6 +1165,7 @@ export async function generateJointPDF(
       }
     }
 
+    // Links detail
     drawSectionHeader(doc, 'DETALLE DE VÍNCULOS');
     if (analysis.links.length > 0) {
       checkPage(doc, 15);
@@ -1297,11 +1194,12 @@ export async function generateJointPDF(
       }
     }
 
+    // Legal
     checkPage(doc, 40);
     drawSectionHeader(doc, 'AVISO LEGAL');
     drawParagraph(doc, 'Este informe ha sido generado mediante técnicas OSINT. La información proviene de fuentes públicas. No constituye investigación oficial ni prueba judicial sin validación. Uso sujeto a Ley 1581/2012 y Ley 1273/2009.', { fontSize: 7.5 });
 
-    // ── Footers — FIXED: lineBreak: false ──
+    // ── Footers ──
     const pages = doc.bufferedPageRange().count;
     for (let i = 0; i < pages; i++) {
       doc.switchToPage(i);
@@ -1309,7 +1207,7 @@ export async function generateJointPDF(
       doc.strokeColor(C.lightGray).lineWidth(0.3)
         .moveTo(M.left, PAGE_H - 30).lineTo(PAGE_W - M.right, PAGE_H - 30).stroke();
       setFont(doc, false).fillColor(C.gray).fontSize(6)
-        .text(`CONFIDENCIAL  |  ${reportId}  |  Página ${i} de ${pages - 1}`, M.left, PAGE_H - 24, { width: CW, align: 'center', lineBreak: false });
+        .text(`CONFIDENCIAL  |  ${reportId}  |  Página ${i} de ${pages - 1}`, M.left, PAGE_H - 24, { width: CW, align: 'center' });
     }
 
     doc.end();

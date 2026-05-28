@@ -94,6 +94,7 @@ interface PastScan {
   email: string | null;
   phone: string | null;
   status: string;
+  scanType: 'data_intelligence' | 'social_media';
   createdAt: string;
   results: { id: string; severity: string }[];
   reports: { id: string; fileName: string; format?: string }[];
@@ -799,6 +800,8 @@ export default function Home() {
 
       const data: SocialScanResponse = await res.json();
       setSocialScanData(data);
+      // Refresh history list to include the new social media scan
+      fetchPastScans();
     } catch (err) {
       setSocialScanError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
@@ -2455,7 +2458,14 @@ export default function Home() {
                             {scan.cedula && <span>CC: {scan.cedula}</span>}
                             {scan.phone && <span>Tel: {scan.phone}</span>}
                           </div>
-                          <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <Badge className={
+                              scan.scanType === 'social_media'
+                                ? 'bg-violet-900/40 text-violet-400 border border-violet-800/30 text-xs'
+                                : 'bg-blue-900/40 text-blue-400 border border-blue-800/30 text-xs'
+                            }>
+                              {scan.scanType === 'social_media' ? 'Social Media' : 'Data Intelligence'}
+                            </Badge>
                             <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-xs">
                               {new Date(scan.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </Badge>

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create scan record
-    const scan = createScan({ fullName, cedula, email, phone, status: 'running' });
+    const scan = createScan({ fullName, cedula, email, phone, status: 'running', scanType: 'data_intelligence' });
 
     // Run OSINT scan — prefer server-side DEEPSEEK_API_KEY env var over client-provided key
     const effectiveDeepseekKey = process.env.DEEPSEEK_API_KEY || deepseekKey;

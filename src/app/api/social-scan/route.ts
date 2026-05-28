@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runSocialMediaScan, SOCIAL_PLATFORMS, SocialScanResponse } from '@/lib/social-media-scanner';
 import { initZAIConfig } from '@/lib/zai-config';
+import { createScan, addScanResults, updateScanStatus } from '@/lib/memory-store';
 
 // Set max duration for this API route (Vercel Pro supports up to 60s)
 export const maxDuration = 60;
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     // Initialize ZAI config (non-blocking, with timeout)
     await Promise.race([
       initZAIConfig(),
-      new Promise<void>(resolve => setTimeout(resolve, 3000)), // Don't block more than 3s on config
+      new Promise<void>(resolve => setTimeout(resolve, 3000)),
     ]);
 
     const body = await request.json();
@@ -92,7 +93,57 @@ export async function POST(request: NextRequest) {
     const elapsed = Date.now() - startTime;
     console.log(`[SocialScan API] Completed in ${elapsed}ms — ${result.summary.profilesFound} profiles found, ${result.summary.totalFindings} findings`);
 
-    return NextResponse.json(result);
+    // ── Save to memory store ──
+    let historyScanId: string | undefined;
+    try {
+      const scanName = fullName || nickname || email || 'Social Media Scan';
+      const scan = createScan({
+        fullName: scanName,
+        email: email || null,
+        phone: phone || null,
+        status: 'completed',
+        scanType: 'social_media',
+      });
+
+      // Convert social results to OSINTResult format for storage
+      const osintResults = result.results.flatMap(r =>
+        r.findings.map(f => ({
+          source: r.platform,
+          category: f.category || 'social_media',
+          severity: f.severity,
+          title: f.title,
+          description: f.description || null,
+          url: f.url || r.profileUrl || null,
+          dataFound: f.dataFound || null,
+        }))
+      );
+
+      // Also add profile-found results as info entries if no findings
+      for (const r of result.results) {
+        if (r.profileFound && r.findings.length === 0) {
+          osintResults.push({
+            source: r.platform,
+            category: 'social_media',
+            severity: 'info',
+            title: `Perfil encontrado en ${r.platform}`,
+            description: r.username ? `Username: @${r.username}${r.profileVerified ? ' (Verificado)' : ''}` : 'Perfil público detectado',
+            url: r.profileUrl || null,
+            dataFound: null,
+          });
+        }
+      }
+
+      if (osintResults.length > 0) {
+        addScanResults(scan.id, osintResults);
+      }
+      updateScanStatus(scan.id, 'completed');
+      historyScanId = scan.id;
+      console.log(`[SocialScan API] Saved to memory store as ${scan.id} (social_media)`);
+    } catch (storeError) {
+      console.warn('[SocialScan API] Failed to save to memory store:', storeError);
+    }
+
+    return NextResponse.json({ ...result, historyScanId });
   } catch (error) {
     const elapsed = Date.now() - startTime;
     console.error(`[SocialScan API] Error after ${elapsed}ms:`, error);

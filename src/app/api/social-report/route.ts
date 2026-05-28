@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSocialPDFReport } from '@/lib/generate-pdf-report';
+import { addReport } from '@/lib/memory-store';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,16 @@ export async function POST(request: NextRequest) {
     });
 
     const fileName = `Informe_Redes_Sociales_${Date.now()}.pdf`;
+
+    // Save report to memory store if scanId is provided
+    if (scanId) {
+      try {
+        addReport(scanId, fileName, 'pdf');
+        console.log(`[SocialReport API] Report saved to memory store for scan ${scanId}`);
+      } catch (storeError) {
+        console.warn('[SocialReport API] Failed to save report to memory store:', storeError);
+      }
+    }
 
     return new NextResponse(buffer, {
       headers: {
