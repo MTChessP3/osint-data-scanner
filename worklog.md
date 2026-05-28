@@ -34,3 +34,29 @@ Stage Summary:
 - Build passes, changes committed locally
 - CANNOT push to GitHub/Vercel: No authentication credentials available
 - User needs to push manually or provide GitHub token
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix all download buttons, professional UI redesign, remove hardcoded API keys
+
+Work Log:
+- Read and analyzed all project files (page.tsx, osint-scanner.ts, report routes, memory-store, etc.)
+- Identified root cause of download failure: Vercel serverless cold starts lose in-memory data (reportBuffers, memory-store)
+- Added POST handler to /api/report/route.ts that accepts scan data in body for on-demand report generation
+- Rewrote handleDownloadReport() in page.tsx to POST scan data + results to API instead of GET
+- Complete UI redesign: replaced bright rainbow colors with professional navy/slate/steel palette
+- Reduced tabs from 6 to 4 (Escaneo, Resultados, Redes Sociales, Historial)
+- Merged Batch Upload into Scan tab as a section
+- Removed DeepSeek API key input from Settings dialog (server-side only, with test button)
+- Removed hardcoded Z.ai tokens from osint-scanner.ts (replaced with setZAIHeaders())
+- Removed hardcoded credentials from zai-config.ts (now uses environment variables)
+- Updated globals.css dark theme variables to navy/slate palette
+- Build verified successful (zero errors)
+- Committed and pushed to GitHub (MTChessP3/osint-data-scanner)
+
+Stage Summary:
+- Downloads now work via POST (solves Vercel serverless cold start issue)
+- UI is professional with navy/slate colors instead of bright rainbow
+- PDF + DOCX download buttons visible in Scan, Results, and History tabs
+- No hardcoded API keys in source code
+- Settings dialog shows connection test only, no API key input
