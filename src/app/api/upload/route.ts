@@ -164,17 +164,15 @@ async function handleParsedXLSX(body: {
       const pdfBuffer = await generateJointPDF(
         analysis,
         [
-          { name: sheet1.name, scanId: scan1.scanId },
-          { name: sheet2.name, scanId: scan2.scanId },
+          { name: sheet1.name, results: results1 },
+          { name: sheet2.name, results: results2 },
         ],
-        results1,
-        results2
       );
 
       jointAnalysisId = analysis.sheet1Name.replace(/\s+/g, '_') + '_' + Date.now();
       jointReportFileName = `Informe_Vinculos_${Date.now()}.pdf`;
 
-      jointBuffers.set(jointAnalysisId, pdfBuffer);
+      jointBuffers.set(jointAnalysisId, { buffer: pdfBuffer, format: 'pdf' });
 
       // Also store in memory store
       const { createJointAnalysis } = await import('@/lib/memory-store');
@@ -260,7 +258,6 @@ async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResp
 
     // Convert to the same format as pre-parsed and reuse handler
     const body = {
-      type: 'xlsx' as const,
       sheets: nonEmptySheets.map(s => ({ name: s.name, data: s.data })),
       sheetNames,
     };
@@ -294,7 +291,7 @@ async function handleCSV(buffer: Buffer, fileName: string): Promise<NextResponse
     const { parseXLSXWithSheets } = await import('@/lib/relationship-analyzer');
     // CSV can be parsed by xlsx library too
     const { sheets, sheetNames } = parseXLSXWithSheets(buffer);
-    return handleParsedXLSX({ type: 'xlsx', sheets, sheetNames });
+    return handleParsedXLSX({ sheets, sheetNames });
   } catch {
     // Fallback: manual CSV parse
     const text = buffer.toString('utf-8');

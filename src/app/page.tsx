@@ -635,15 +635,34 @@ export default function Home() {
   }
 
   // ── Download joint report ──
-  async function handleDownloadJointReport(analysisId: string) {
+  async function handleDownloadJointReport(analysisId: string, format: 'pdf' | 'docx' = 'pdf') {
     try {
-      const res = await fetch(`/api/joint-analysis?analysisId=${analysisId}&download=true`);
-      if (!res.ok) throw new Error('Error al descargar informe conjunto');
+      // Use POST to send analysis data (Vercel serverless cold start fix)
+      const res = await fetch('/api/joint-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          analysisId,
+          format,
+          analysis: relationshipAnalysis,
+          individualScans: batchResults?.map(r => ({
+            name: r.fullName,
+            results: pastScans.find(s => s.id === r.scanId)?.results || [],
+          })) || [],
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error al descargar informe conjunto');
+      }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = jointReportFileName || 'Informe_Conjunto.pdf';
+      const ext = format === 'docx' ? 'docx' : 'pdf';
+      a.download = jointReportFileName?.replace(/\.pdf$/, `.${ext}`) || `Informe_Conjunto.${ext}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -1455,8 +1474,11 @@ export default function Home() {
                                 </div>
                               </div>
                               <div className="flex gap-1.5">
-                                <Button size="sm" className="bg-violet-700 hover:bg-violet-800 text-white h-7 text-[10px]" onClick={() => handleDownloadJointReport(jointAnalysisId)}>
-                                  <Download className="w-3 h-3 mr-1" />PDF Conjunto
+                                <Button size="sm" className="bg-violet-700 hover:bg-violet-800 text-white h-7 text-[10px]" onClick={() => handleDownloadJointReport(jointAnalysisId, 'pdf')}>
+                                  <Download className="w-3 h-3 mr-1" />PDF
+                                </Button>
+                                <Button size="sm" className="bg-violet-900/40 hover:bg-violet-900/60 text-violet-300 border border-violet-800/30 h-7 text-[10px]" onClick={() => handleDownloadJointReport(jointAnalysisId, 'docx')}>
+                                  <FileSpreadsheet className="w-3 h-3 mr-1" />DOCX
                                 </Button>
                               </div>
                             </div>

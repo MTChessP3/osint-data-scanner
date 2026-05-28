@@ -1877,3 +1877,500 @@ export function generateReportFileName(fullName: string): string {
   const date = new Date().toISOString().replace(/[-:T]/g, '').substring(0, 14);
   return `Informe_OSINT_${clean}_${date}.docx`;
 }
+
+// ════════════════════════════════════════════════════════════════
+//  JOINT DOCX REPORT — Análisis de Vínculos entre hojas Excel
+// ════════════════════════════════════════════════════════════════
+
+interface RelationshipLinkDocx {
+  type: string;
+  confidence: string;
+  description: string;
+  sheet1Person: string;
+  sheet2Person: string;
+  matchedField: string;
+  matchedValue: string;
+}
+
+interface RelationshipAnalysisDocx {
+  sheet1Name: string;
+  sheet2Name: string;
+  sheet1RowCount: number;
+  sheet2RowCount: number;
+  totalLinks: number;
+  summary: {
+    empresariales: number;
+    personales: number;
+    familiares: number;
+    laborales: number;
+    contacto: number;
+    ubicacion: number;
+    dato_compartido: number;
+  };
+  links: RelationshipLinkDocx[];
+  networkMap: { person: string; connections: number; types: string[] }[];
+}
+
+export async function generateJointDocxReport(
+  analysis: RelationshipAnalysisDocx,
+  individualScans: { name: string; results: OSINTResult[] }[]
+): Promise<Buffer> {
+  resetDocxSourceMap();
+
+  const today = formatDate();
+  const todayLong = formatDateLong();
+  const reportId = `OSINT-JOINT-${Date.now().toString(36).toUpperCase()}`;
+
+  const totalLinks = analysis.totalLinks || 0;
+  const jointRiskScore = Math.min(100, totalLinks * 8);
+  const jointRiskLevel = totalLinks >= 10 ? 'CRITICO' : totalLinks >= 5 ? 'ALTO' : totalLinks >= 2 ? 'MODERADO' : 'BAJO';
+  const jointRiskColor = totalLinks >= 10 ? C.red : totalLinks >= 5 ? C.orange : totalLinks >= 2 ? C.yellow : C.green;
+
+  const children: Paragraph[] = [];
+
+  // ── COVER PAGE ──
+  children.push(emptyPara({ before: 600 }));
+
+  // Top accent bar
+  children.push(
+    new Paragraph({
+      spacing: { before: 0, after: 0 },
+      shading: { type: ShadingType.SOLID, color: C.navyDark },
+      children: [new TextRun({ text: ' ', size: 8, font: 'Calibri' })],
+    })
+  );
+
+  children.push(emptyPara({ before: 1200 }));
+
+  // Classification badge
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 },
+      children: [
+        new TextRun({
+          text: 'CLASIFICACION: CONFIDENCIAL',
+          bold: true,
+          color: C.red,
+          size: 14,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  children.push(emptyPara({ before: 200 }));
+
+  // Main title
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 50 },
+      children: [
+        new TextRun({
+          text: 'INFORME DE INVESTIGACION',
+          bold: true,
+          color: C.navy,
+          size: 48,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  // Subtitle
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [
+        new TextRun({
+          text: 'Analisis de Vinculos',
+          color: C.teal,
+          size: 28,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  // Separator line
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 300 },
+      children: [
+        new TextRun({
+          text: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          color: C.navy,
+          size: 16,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  // Risk score
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 50 },
+      children: [
+        new TextRun({
+          text: `Puntuacion de Riesgo: ${jointRiskScore}/100`,
+          bold: true,
+          color: jointRiskColor,
+          size: 24,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [
+        new TextRun({
+          text: `Nivel: ${jointRiskLevel}`,
+          bold: true,
+          color: jointRiskColor,
+          size: 20,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  // Subject info
+  const subjectInfo = `${analysis.sheet1Name} ↔ ${analysis.sheet2Name}`;
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 50 },
+      children: [
+        new TextRun({
+          text: 'SUJETOS DE INVESTIGACION',
+          bold: true,
+          color: C.slateDark,
+          size: 12,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 },
+      children: [
+        new TextRun({
+          text: subjectInfo,
+          bold: true,
+          color: C.navy,
+          size: 20,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  // Report metadata
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 },
+      children: [
+        new TextRun({ text: `ID: ${reportId}  |  Fecha: ${todayLong}`, color: C.gray, size: 10, font: 'Calibri' }),
+      ],
+    })
+  );
+
+  // Confidentiality notice
+  children.push(emptyPara({ before: 600 }));
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: 'DOCUMENTO CONFIDENCIAL — USO RESTRINGIDO',
+          bold: true,
+          color: C.red,
+          size: 11,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 },
+      children: [
+        new TextRun({
+          text: 'La distribucion, reproduccion o divulgacion no autorizada constituye una violacion a la Ley 1581/2012 y la Ley 1273/2009',
+          color: C.gray,
+          size: 8,
+          font: 'Calibri',
+        }),
+      ],
+    })
+  );
+
+  // ═══ PAGE 2: RESUMEN DEL ANALISIS ═══
+  children.push(
+    new Paragraph({
+      children: [new PageBreak()],
+    })
+  );
+
+  // Section header
+  children.push(sectionHeader('RESUMEN DEL ANALISIS DE VINCULOS'));
+
+  children.push(emptyPara({ before: 100 }));
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 150, line: 276 },
+      children: [
+        new TextRun({
+          text: `El presente informe de analisis de vinculos evalua las relaciones e interconexiones identificadas entre los sujetos contenidos en las dos hojas de datos analizadas: "${analysis.sheet1Name}" (${analysis.sheet1RowCount} registros) y "${analysis.sheet2Name}" (${analysis.sheet2RowCount} registros). Se identificaron ${totalLinks} vinculos entre los registros de ambas hojas, los cuales representan conexiones significativas que requieren analisis detallado. El nivel de riesgo derivado de las conexiones identificadas es ${jointRiskLevel} con una puntuacion de ${jointRiskScore}/100.`,
+          size: 20,
+          font: 'Calibri',
+          color: C.text,
+        }),
+      ],
+    })
+  );
+
+  // Summary breakdown
+  const summaryItemsRaw: [string, number][] = [
+    ['Empresariales', Number(analysis.summary.empresariales) || 0],
+    ['Personales', Number(analysis.summary.personales) || 0],
+    ['Familiares', Number(analysis.summary.familiares) || 0],
+    ['Laborales', Number(analysis.summary.laborales) || 0],
+    ['Contacto', Number(analysis.summary.contacto) || 0],
+    ['Ubicacion', Number(analysis.summary.ubicacion) || 0],
+    ['Datos compartidos', Number(analysis.summary.dato_compartido) || 0],
+  ];
+  const summaryItems = summaryItemsRaw.filter(([, count]) => count > 0);
+
+  if (summaryItems.length > 0) {
+    children.push(subHeader('Clasificacion de Vinculos'));
+
+    for (const [type, count] of summaryItems) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 60, line: 276 },
+          indent: { left: 400 },
+          children: [
+            new TextRun({ text: `${count}`, bold: true, color: C.navy, size: 20, font: 'Calibri' }),
+            new TextRun({ text: `  ${type}`, size: 20, font: 'Calibri', color: C.text }),
+          ],
+        })
+      );
+    }
+  }
+
+  // Methodology
+  children.push(emptyPara({ before: 100 }));
+  children.push(subHeader('Metodologia de Analisis de Vinculos'));
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 150, line: 276 },
+      children: [
+        new TextRun({
+          text: 'El analisis de vinculos se realizo mediante la comparacion sistematica de los datos contenidos en ambas hojas de informacion, identificando coincidencias en campos como nombres, numeros de identificacion, direcciones, numeros de telefono, correos electronicos, y otros datos de contacto. Los vinculos fueron clasificados segun su naturaleza (empresarial, personal, familiar, laboral, de contacto, de ubicacion, o datos compartidos) para facilitar la evaluacion del tipo de relacion entre los sujetos vinculados. La metodologia sigue estandares de analisis de inteligencia financiera y prevencion de lavado de activos.',
+          size: 20,
+          font: 'Calibri',
+          color: C.gray,
+        }),
+      ],
+    })
+  );
+
+  // ═══ VINCULOS DETALLADOS ═══
+  children.push(sectionHeader('VINCULOS DETALLADOS'));
+
+  children.push(emptyPara({ before: 100 }));
+
+  if (analysis.links && analysis.links.length > 0) {
+    // Show max 50 links
+    const displayLinks = analysis.links.slice(0, 50);
+
+    for (let i = 0; i < displayLinks.length; i++) {
+      const link = displayLinks[i];
+
+      // Type badge + confidence
+      const typeLabel = link.type.charAt(0).toUpperCase() + link.type.slice(1);
+      const confLabel = link.confidence === 'alta' ? 'Alta' : link.confidence === 'media' ? 'Media' : 'Baja';
+
+      children.push(
+        new Paragraph({
+          spacing: { after: 40 },
+          children: [
+            new TextRun({ text: `${i + 1}. `, bold: true, color: C.navy, size: 20, font: 'Calibri' }),
+            new TextRun({ text: `${typeLabel}`, bold: true, color: C.teal, size: 20, font: 'Calibri' }),
+            new TextRun({ text: ` (Confianza: ${confLabel})`, color: C.gray, size: 18, font: 'Calibri' }),
+          ],
+        })
+      );
+
+      // Persons involved
+      children.push(
+        new Paragraph({
+          spacing: { after: 40 },
+          indent: { left: 400 },
+          children: [
+            new TextRun({ text: 'Sujetos: ', bold: true, size: 18, font: 'Calibri', color: C.navy }),
+            new TextRun({ text: `${link.sheet1Person}`, color: C.blue, size: 18, font: 'Calibri' }),
+            new TextRun({ text: ' ↔ ', size: 18, font: 'Calibri', color: C.gray }),
+            new TextRun({ text: `${link.sheet2Person}`, color: C.blue, size: 18, font: 'Calibri' }),
+          ],
+        })
+      );
+
+      // Description
+      children.push(
+        new Paragraph({
+          spacing: { after: 60, line: 276 },
+          indent: { left: 400 },
+          children: [
+            new TextRun({
+              text: link.description,
+              size: 18,
+              font: 'Calibri',
+              color: C.text,
+            }),
+          ],
+        })
+      );
+
+      // Matched field/value
+      children.push(
+        new Paragraph({
+          spacing: { after: 120 },
+          indent: { left: 400 },
+          children: [
+            new TextRun({ text: 'Campo: ', bold: true, size: 16, font: 'Calibri', color: C.gray }),
+            new TextRun({ text: link.matchedField, size: 16, font: 'Calibri', color: C.text }),
+            new TextRun({ text: '  |  Valor: ', bold: true, size: 16, font: 'Calibri', color: C.gray }),
+            new TextRun({ text: `"${link.matchedValue}"`, size: 16, font: 'Calibri', color: C.text }),
+          ],
+        })
+      );
+    }
+
+    if (analysis.links.length > 50) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 100 },
+          children: [
+            new TextRun({
+              text: `... y ${analysis.links.length - 50} vinculos adicionales omitidos por brevedad.`,
+              italics: true,
+              color: C.gray,
+              size: 18,
+              font: 'Calibri',
+            }),
+          ],
+        })
+      );
+    }
+  } else {
+    children.push(
+      new Paragraph({
+        spacing: { after: 100 },
+        children: [
+          new TextRun({
+            text: 'No se identificaron vinculos entre los datos de las hojas analizadas. Esto no necesariamente significa que no existan relaciones; es posible que los datos no compartan campos comparables o que las coincidencias esten por debajo del umbral de significancia.',
+            size: 20,
+            font: 'Calibri',
+            color: C.text,
+          }),
+        ],
+      })
+    );
+  }
+
+  // ═══ MAPA DE RED ═══
+  if (analysis.networkMap && analysis.networkMap.length > 0) {
+    children.push(sectionHeader('MAPA DE RED'));
+
+    children.push(emptyPara({ before: 100 }));
+
+    children.push(
+      new Paragraph({
+        spacing: { after: 150, line: 276 },
+        children: [
+          new TextRun({
+            text: 'El mapa de red identifica los sujetos con mayor numero de conexiones en el analisis de vinculos, lo cual es un indicador clave para priorizar la investigacion. Los sujetos con multiples conexiones pueden actuar como nodos centrales en redes de relacion.',
+            size: 20,
+            font: 'Calibri',
+            color: C.text,
+          }),
+        ],
+      })
+    );
+
+    const displayMap = analysis.networkMap.slice(0, 20);
+    for (const node of displayMap) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 60 },
+          indent: { left: 400 },
+          children: [
+            new TextRun({ text: node.person, bold: true, color: C.navy, size: 20, font: 'Calibri' }),
+            new TextRun({ text: ` — ${node.connections} conexion(es)`, size: 18, font: 'Calibri', color: C.text }),
+            new TextRun({ text: ` [${node.types.join(', ')}]`, italics: true, size: 16, font: 'Calibri', color: C.gray }),
+          ],
+        })
+      );
+    }
+  }
+
+  // ═══ RECOMENDACIONES ═══
+  children.push(sectionHeader('RECOMENDACIONES'));
+
+  children.push(emptyPara({ before: 100 }));
+
+  const recommendations = [
+    'Verificar manualmente los vinculos identificados con fuentes adicionales para confirmar la naturaleza y vigencia de las relaciones detectadas.',
+    'Priorizar la investigacion de vinculos empresariales y familiares, que sugieren relaciones estructurales de mayor persistencia y impacto potencial.',
+    'Analizar los sujetos con mayor numero de conexiones en el mapa de red, ya que pueden representar nodos criticos en la red de relaciones.',
+    'Considerar la aplicacion de medidas de Debida Diligencia Ampliada (DDA) conforme a la Ley 1121 de 2006 y la Resolucion SARLAFT para los vinculos con confianza alta.',
+    'Documentar los hallazgos en el sistema de gestion de riesgo y actualizar el perfil de riesgo de los sujetos involucrados.',
+    'Realizar seguimiento periodico para detectar cambios en las relaciones identificadas, especialmente en vinculos laborales y empresariales.',
+  ];
+
+  for (const rec of recommendations) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 80, line: 276 },
+        indent: { left: 400 },
+        children: [
+          new TextRun({ text: '• ', color: C.navy, size: 20, font: 'Calibri', bold: true }),
+          new TextRun({ text: rec, size: 18, font: 'Calibri', color: C.text }),
+        ],
+      })
+    );
+  }
+
+  // ── Build document ──
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 },
+        },
+      },
+      children,
+    }],
+  });
+
+  return Packer.toBuffer(doc);
+}

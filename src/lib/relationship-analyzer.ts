@@ -5,6 +5,9 @@
  */
 
 import * as XLSX from 'xlsx';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 export interface RelationshipLink {
   type: 'empresarial' | 'personal' | 'familiar' | 'laboral' | 'contacto' | 'ubicacion' | 'dato_compartido';
@@ -327,7 +330,9 @@ function generateLinkDescription(
 // ── Detect file format by magic bytes ──
 function detectFileFormat(buffer: Buffer | Uint8Array): 'ole2' | 'xml_spreadsheet' | 'zip' | 'unknown' {
   if (buffer.length < 8) return 'unknown';
-  const uint8 = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer.buffer || buffer);
+  const uint8 = buffer instanceof Uint8Array
+    ? buffer
+    : new Uint8Array((buffer as unknown as { buffer: ArrayBuffer; byteOffset: number; byteLength: number }).buffer, (buffer as unknown as { byteOffset: number }).byteOffset, (buffer as unknown as { byteLength: number }).byteLength);
   // BIFF5-8 starts with D0 CF 11 E0 A1 B1 1A E1 (OLE2 Compound Document)
   if (
     uint8[0] === 0xD0 && uint8[1] === 0xCF && uint8[2] === 0x11 &&
@@ -357,33 +362,63 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
   sheetNames: string[];
 } {
   // Ensure we have a Uint8Array for the most compatible method
-  const uint8 = buffer instanceof Uint8Array
-    ? buffer
-    : buffer instanceof ArrayBuffer
-      ? new Uint8Array(buffer)
-      : new Uint8Array(buffer.buffer || buffer);
+  let uint8: Uint8Array;
+  if (buffer instanceof Uint8Array) {
+    uint8 = buffer;
+  } else if (buffer instanceof ArrayBuffer) {
+    uint8 = new Uint8Array(buffer);
+  } else if (Buffer.isBuffer(buffer)) {
+    const bufAny = buffer as unknown as { buffer: ArrayBuffer; byteOffset: number; byteLength: number };
+    uint8 = new Uint8Array(bufAny.buffer, bufAny.byteOffset, bufAny.byteLength);
+  } else {
+    uint8 = new Uint8Array(buffer as ArrayBuffer);
+  }
 
   const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
   const format = detectFileFormat(uint8);
 
-  // Try different read methods — most compatible first
-  const readMethods: Array<{ type: string; label: string; getData: () => unknown }> = [
-    { type: 'buffer', label: 'buffer', getData: () => buf },
-    { type: 'array', label: 'array', getData: () => uint8 },
-    { type: 'binary', label: 'binary', getData: () => buf.toString('binary') },
-    { type: 'base64', label: 'base64', getData: () => buf.toString('base64') },
-  ];
-
   const errors: string[] = [];
 
-  for (const method of readMethods) {
+  // ── For OLE2 (.xls) files, only use binary-compatible methods ──
+  // binary/base64 string conversion corrupts OLE2 format
+  const readMethods: Array<{ type: string; label: string; getData: () => unknown }> =
+    format === 'ole2'
+      ? [
+          // OLE2: only buffer and array methods (binary/base64 corrupt OLE2)
+          { type: 'buffer', label: 'buffer_full', getData: () => buf },
+          { type: 'array', label: 'array_full', getData: () => uint8 },
+          // Try with dense mode for .xls (different internal representation)
+          { type: 'buffer', label: 'buffer_dense', getData: () => buf },
+          { type: 'array', label: 'array_dense', getData: () => uint8 },
+          // Last resort: binary/base64 (may corrupt OLE2 but worth trying)
+          { type: 'binary', label: 'binary', getData: () => buf.toString('binary') },
+          { type: 'base64', label: 'base64', getData: () => buf.toString('base64') },
+        ]
+      : [
+          // Non-OLE2: all methods work fine
+          { type: 'buffer', label: 'buffer', getData: () => buf },
+          { type: 'array', label: 'array', getData: () => uint8 },
+          { type: 'binary', label: 'binary', getData: () => buf.toString('binary') },
+          { type: 'base64', label: 'base64', getData: () => buf.toString('base64') },
+        ];
+
+  for (let i = 0; i < readMethods.length; i++) {
+    const method = readMethods[i];
     try {
-      // For OLE2 (.xls) files, use minimal options to avoid parsing issues
-      // For ZIP (.xlsx) files, use full options
-      // For XML Spreadsheet, use string-based reading
       let readOptions: Record<string, unknown>;
+
       if (format === 'ole2') {
-        readOptions = { type: method.type, cellNF: false, cellStyles: false, sheetStubs: false };
+        // For OLE2, try different option combinations
+        if (i <= 1) {
+          // First attempts: full options
+          readOptions = { type: method.type, cellNF: true, cellDates: true, cellText: true, sheetStubs: true };
+        } else if (i <= 3) {
+          // Dense mode attempts
+          readOptions = { type: method.type, cellNF: true, cellDates: true, cellText: true, sheetStubs: true, dense: true };
+        } else {
+          // Last resort: string-based
+          readOptions = { type: method.type, cellNF: true, cellDates: true, cellText: true, sheetStubs: true };
+        }
       } else if (format === 'xml_spreadsheet') {
         readOptions = { type: method.type, cellNF: false, cellStyles: false };
       } else {
@@ -406,6 +441,27 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
 
       // All sheets came back empty with this method
       errors.push(`${method.label}: todas las hojas vacias (hojas: ${workbook.SheetNames.join(', ')})`);
+
+      // ── OLE2 FALLBACK: Try .xls → .xlsx conversion ──
+      // If we got sheet names but no data, the BIFF parsing failed.
+      // Convert the workbook to .xlsx in memory and re-read.
+      if (format === 'ole2' && workbook.SheetNames.length > 0 && i === readMethods.length - 1) {
+        try {
+          const xlsxBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+          const reReadWb = XLSX.read(xlsxBuffer, { type: 'buffer', cellNF: true, cellDates: true, cellText: true, sheetStubs: true });
+          if (reReadWb && reReadWb.SheetNames.length > 0) {
+            const reReadResult = buildSheetsFromWorkbook(reReadWb);
+            const reReadNonEmpty = reReadResult.sheets.filter(s => s.data.length > 0);
+            if (reReadNonEmpty.length > 0) {
+              return reReadResult;
+            }
+            errors.push('xls_to_xlsx_conversion: hojas convertidas pero sin datos extraibles');
+          }
+        } catch (convErr) {
+          const convMsg = convErr instanceof Error ? convErr.message : String(convErr);
+          errors.push(`xls_to_xlsx_conversion: ${convMsg}`);
+        }
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       // Only throw for genuine encryption errors from the library itself
@@ -417,8 +473,31 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
     }
   }
 
+  // ── FINAL OLE2 FALLBACK: Write to temp file and read with readFile ──
+  if (format === 'ole2') {
+    try {
+      const tmpDir = os.tmpdir();
+      const tmpFile = path.join(tmpDir, `osint_upload_${Date.now()}.xls`);
+      fs.writeFileSync(tmpFile, buf);
+      const fileWb = XLSX.readFile(tmpFile, { cellNF: true, cellDates: true, cellText: true, sheetStubs: true });
+      // Clean up temp file
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+
+      if (fileWb && fileWb.SheetNames.length > 0) {
+        const fileResult = buildSheetsFromWorkbook(fileWb);
+        const fileNonEmpty = fileResult.sheets.filter(s => s.data.length > 0);
+        if (fileNonEmpty.length > 0) {
+          return fileResult;
+        }
+        errors.push('readFile: hojas leidas pero sin datos extraibles');
+      }
+    } catch (tmpErr) {
+      const tmpMsg = tmpErr instanceof Error ? tmpErr.message : String(tmpErr);
+      errors.push(`readFile_fallback: ${tmpMsg}`);
+    }
+  }
+
   // If we get here, all methods failed or returned empty data
-  // Do NOT mention "protegido con contrasena" in generic error to avoid false positives
   if (format === 'ole2') {
     throw new Error(
       'No se pudo extraer datos del archivo .xls (formato BIFF). ' +
