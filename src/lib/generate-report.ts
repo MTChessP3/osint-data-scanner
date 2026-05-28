@@ -229,7 +229,9 @@ function findingParagraphs(
   category: string,
   description: string,
   severity: string,
-  url?: string
+  url?: string,
+  impactText?: string,
+  actionText?: string
 ): Paragraph[] {
   const sev = SEV[severity] || SEV.info;
   const paras: Paragraph[] = [];
@@ -273,11 +275,39 @@ function findingParagraphs(
         new TextRun({ text: 'Fuente: ', bold: true, size: 14, font: 'Arial', color: C.gray }),
         new TextRun({ text: source, size: 14, font: 'Arial', color: C.textLight, italics: true }),
         new TextRun({ text: '  |  ', size: 14, font: 'Arial', color: C.lightGray }),
-        new TextRun({ text: 'Categoria: ', bold: true, size: 14, font: 'Arial', color: C.gray }),
+        new TextRun({ text: 'Categoría: ', bold: true, size: 14, font: 'Arial', color: C.gray }),
         new TextRun({ text: category, size: 14, font: 'Arial', color: C.textLight, italics: true }),
       ],
     })
   );
+
+  // Impacto Potencial
+  if (impactText) {
+    paras.push(
+      new Paragraph({
+        spacing: { after: 20 },
+        indent: { left: 720 },
+        children: [
+          new TextRun({ text: 'Impacto Potencial: ', bold: true, size: 14, font: 'Arial', color: C.red }),
+          new TextRun({ text: impactText, size: 14, font: 'Arial', color: C.textLight }),
+        ],
+      })
+    );
+  }
+
+  // Acción Recomendada
+  if (actionText) {
+    paras.push(
+      new Paragraph({
+        spacing: { after: 20 },
+        indent: { left: 720 },
+        children: [
+          new TextRun({ text: 'Acción Recomendada: ', bold: true, size: 14, font: 'Arial', color: C.green }),
+          new TextRun({ text: actionText, size: 14, font: 'Arial', color: C.textLight }),
+        ],
+      })
+    );
+  }
 
   // URL as separate paragraph
   if (url) {
@@ -365,17 +395,17 @@ export async function generateDocxReport(data: {
   const children: Paragraph[] = [];
 
   // ════════════════════════════════════════
-  //  PÁGINA 1: PORTADA
+  //  PÁGINA 1: PORTADA PROFESIONAL
   // ════════════════════════════════════════
 
-  // Navy header bar
+  // Full-width navy header bar with title
   children.push(
     new Paragraph({
       spacing: { before: 0, after: 0 },
       shading: { type: ShadingType.SOLID, color: C.navyDark },
       children: [
         new TextRun({
-          text: '  INFORME OSINT',
+          text: '  INFORME DE INVESTIGACIÓN OSINT',
           bold: true,
           size: 52,
           font: 'Arial',
@@ -385,26 +415,24 @@ export async function generateDocxReport(data: {
     })
   );
 
-  // Subtitle bar
+  // Classification bar
   children.push(
     new Paragraph({
-      spacing: { before: 0, after: 100 },
-      shading: { type: ShadingType.SOLID, color: C.navy },
+      spacing: { before: 0, after: 200 },
+      shading: { type: ShadingType.SOLID, color: '7f1d1d' },
       children: [
         new TextRun({
-          text: '  INFORME DE INVESTIGACION OSINT',
+          text: '  CLASIFICACIÓN: CONFIDENCIAL',
           bold: true,
-          size: 24,
+          size: 22,
           font: 'Arial',
-          color: C.teal,
+          color: 'fca5a5',
         }),
       ],
     })
   );
 
-  children.push(emptyPara({ before: 1200 }));
-
-  // Risk score with visual indicator
+  // Risk score with visual bar
   const riskBar = '█'.repeat(Math.ceil(riskScore / 10)) + '░'.repeat(10 - Math.ceil(riskScore / 10));
   children.push(
     new Paragraph({
@@ -427,22 +455,23 @@ export async function generateDocxReport(data: {
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
+      spacing: { after: 300 },
       children: [
         new TextRun({ text: `${riskScore}/100`, bold: true, size: 36, font: 'Arial', color: riskColor }),
         new TextRun({ text: `  —  `, size: 24, font: 'Arial', color: C.textLight }),
-        new TextRun({ text: riskLevel, bold: true, size: 28, font: 'Arial', color: riskColor }),
+        new TextRun({ text: `NIVEL: ${riskLevel}`, bold: true, size: 28, font: 'Arial', color: riskColor }),
       ],
     })
   );
 
-  // Subject identification as paragraphs with bold labels
+  // Subject information block with dark background
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
+      spacing: { before: 100, after: 80 },
+      shading: { type: ShadingType.SOLID, color: '1e293b' },
       children: [
-        new TextRun({ text: 'SUJETO DE INVESTIGACION', bold: true, size: 18, font: 'Arial', color: C.navy }),
+        new TextRun({ text: '  SUJETO DE INVESTIGACIÓN', bold: true, size: 20, font: 'Arial', color: '94a3b8' }),
       ],
     })
   );
@@ -451,9 +480,10 @@ export async function generateDocxReport(data: {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 20 },
+      shading: { type: ShadingType.SOLID, color: '0f172a' },
       children: [
-        new TextRun({ text: 'Nombre: ', bold: true, size: 20, font: 'Arial', color: C.textLight }),
-        new TextRun({ text: fullName, bold: true, size: 22, font: 'Arial', color: C.navy }),
+        new TextRun({ text: '  SUJETO: ', bold: true, size: 20, font: 'Arial', color: '94a3b8' }),
+        new TextRun({ text: fullName, bold: true, size: 24, font: 'Arial', color: C.white }),
       ],
     })
   );
@@ -462,10 +492,11 @@ export async function generateDocxReport(data: {
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 20 },
+        spacing: { after: 10 },
+        shading: { type: ShadingType.SOLID, color: '0f172a' },
         children: [
-          new TextRun({ text: 'Cedula: ', bold: true, size: 18, font: 'Arial', color: C.textLight }),
-          new TextRun({ text: cedula, size: 18, font: 'Arial', color: C.text }),
+          new TextRun({ text: '  IDENTIFICACIÓN: ', bold: true, size: 18, font: 'Arial', color: '94a3b8' }),
+          new TextRun({ text: cedula, size: 18, font: 'Arial', color: 'e2e8f0' }),
         ],
       })
     );
@@ -475,10 +506,11 @@ export async function generateDocxReport(data: {
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 20 },
+        spacing: { after: 10 },
+        shading: { type: ShadingType.SOLID, color: '0f172a' },
         children: [
-          new TextRun({ text: 'Correo: ', bold: true, size: 18, font: 'Arial', color: C.textLight }),
-          new TextRun({ text: email, size: 18, font: 'Arial', color: C.text }),
+          new TextRun({ text: '  CORREO: ', bold: true, size: 18, font: 'Arial', color: '94a3b8' }),
+          new TextRun({ text: email, size: 18, font: 'Arial', color: 'e2e8f0' }),
         ],
       })
     );
@@ -489,9 +521,10 @@ export async function generateDocxReport(data: {
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 20 },
+        shading: { type: ShadingType.SOLID, color: '0f172a' },
         children: [
-          new TextRun({ text: 'Telefono: ', bold: true, size: 18, font: 'Arial', color: C.textLight }),
-          new TextRun({ text: phone, size: 18, font: 'Arial', color: C.text }),
+          new TextRun({ text: '  TELÉFONO: ', bold: true, size: 18, font: 'Arial', color: '94a3b8' }),
+          new TextRun({ text: phone, size: 18, font: 'Arial', color: 'e2e8f0' }),
         ],
       })
     );
@@ -523,18 +556,19 @@ export async function generateDocxReport(data: {
 
   children.push(emptyPara({ before: 600 }));
 
-  // Classification
+  // Legal footer
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 40 },
+      shading: { type: ShadingType.SOLID, color: '7f1d1d' },
       children: [
         new TextRun({
-          text: 'CLASIFICACION: CONFIDENCIAL',
+          text: '  DOCUMENTO CONFIDENCIAL — USO RESTRINGIDO',
           bold: true,
-          size: 20,
+          size: 18,
           font: 'Arial',
-          color: C.redBright,
+          color: 'fca5a5',
         }),
       ],
     })
@@ -656,14 +690,29 @@ export async function generateDocxReport(data: {
 
     for (const r of toShow) {
       findingNum++;
+      const impactMap: Record<string, string> = {
+        credential_breach: 'Suplantación de identidad, acceso no autorizado a cuentas, fraude financiero.',
+        password_exposure: 'Acceso no autorizado a cuentas, robo de información, compromiso de servicios vinculados.',
+        personal_exposure: 'Phishing dirigido, acoso, robo de identidad, extorsión.',
+        social_media: 'Recolección de información para ingeniería social, acoso cibernético, suplantación.',
+        data_broker: 'Perfilamiento no autorizado, marketing invasivo, violación de privacidad.',
+        dark_web_mention: 'Venta de datos personales, fraude, suplantación de identidad masiva.',
+        paste_site: 'Acceso masivo a credenciales, ataques de fuerza bruta en otros servicios.',
+        document_exposure: 'Fraude documental, suplantación ante entidades, robo de identidad.',
+        judicial: 'Perjuicio reputacional, discriminación, extorsión.',
+      };
+      const impactText = impactMap[r.category] || 'Compromiso de la seguridad digital y privacidad del sujeto.';
+      const actionText = recFor(r.category);
       const paras = findingParagraphs(
         findingNum,
         r.title,
         anonymizeSource(r.source),
         catES(r.category),
-        r.description || 'Sin descripcion disponible',
+        r.description || 'Sin descripción disponible',
         r.severity,
-        r.url
+        r.url,
+        impactText,
+        actionText
       );
       children.push(...paras);
     }
@@ -691,11 +740,74 @@ export async function generateDocxReport(data: {
   if (findingNum === 0) {
     children.push(
       bodyPara(
-        'No se identificaron hallazgos significativos en las fuentes automatizadas consultadas. Se recomienda realizar una verificacion manual en cada motor de busqueda para obtener resultados completos. La ausencia de resultados automaticos no garantiza la no exposicion del sujeto.',
+        'No se identificaron hallazgos significativos en las fuentes automatizadas consultadas. Se recomienda realizar una verificación manual en cada motor de búsqueda para obtener resultados completos. La ausencia de resultados automáticos no garantiza la no exposición del sujeto.',
         { indent: 200 }
       )
     );
   }
+
+  // ════════════════════════════════════════
+  //  ANÁLISIS DE SUPERFICIE DE EXPOSICIÓN
+  // ════════════════════════════════════════
+  children.push(sectionHeader('Análisis de Superficie de Exposición'));
+
+  children.push(bodyPara('El análisis de la superficie de exposición digital del sujeto revela el grado en que su información personal y credenciales se encuentran disponibles en fuentes públicas y de riesgo. A continuación se detalla la evaluación por cada categoría de exposición identificada:', { indent: 200 }));
+
+  const docxCatPresent = [...new Set(realResults.filter(r => r.severity !== 'info').map(r => r.category))];
+  for (const cat of docxCatPresent) {
+    const catCount = realResults.filter(r => r.category === cat && r.severity !== 'info').length;
+    if (catCount === 0) continue;
+    const surfaceAnalysis: Record<string, string> = {
+      credential_breach: `La detección de ${catCount} filtración(es) de credenciales indica que las credenciales del sujeto han sido comprometidas en brechas de seguridad conocidas. Esto implica que terceros malintencionados podrían tener acceso a combinaciones de usuario/contraseña, representando un vector de ataque directo para suplantación de identidad.`,
+      password_exposure: `Se identificaron ${catCount} instancia(s) de contraseñas expuestas. La exposición permite ataques de credential stuffing en múltiples servicios, comprometiendo todas las cuentas que compartan la misma contraseña.`,
+      personal_exposure: `La presencia de ${catCount} hallazgo(s) de exposición personal indica que datos sensibles del sujeto se encuentran accesibles públicamente. Esta información puede ser utilizada para phishing dirigido, ingeniería social, o extorsión.`,
+      social_media: `Se detectaron ${catCount} hallazgo(s) en redes sociales que revelan información del sujeto. La sobreexposición facilita la construcción de perfiles para ataques de ingeniería social.`,
+      data_broker: `La aparición en ${catCount} broker(s) de datos indica que la información del sujeto está siendo comercializada sin su consentimiento, ampliando la superficie de exposición.`,
+      dark_web_mention: `La detección de ${catCount} mención(es) en la dark web es particularmente preocupante. Los datos circulan en foros de actividades ilícitas y podrían ser utilizados para fraude.`,
+      paste_site: `La presencia en ${catCount} sitio(s) de paste indica que credenciales fueron publicadas en servicios de texto temporal, comúnmente utilizados para filtraciones masivas.`,
+      document_exposure: `Se identificaron ${catCount} documento(s) expuesto(s). La exposición de documentos oficiales permite fraude documental y suplantación ante entidades.`,
+      judicial: `La presencia de ${catCount} registro(s) judicial(es) indica información pública vinculada a procesos legales que podría ser utilizada para perjuicio reputacional.`,
+    };
+    const analysisText = surfaceAnalysis[cat] || `Se identificaron ${catCount} hallazgo(s) en la categoría ${catES(cat)}.`;
+    children.push(
+      bulletPara([
+        new TextRun({ text: `${catES(cat)}: `, bold: true, size: 17, font: 'Arial', color: C.navy }),
+        new TextRun({ text: analysisText, size: 16, font: 'Arial', color: C.textLight }),
+      ])
+    );
+  }
+
+  if (docxCatPresent.length === 0) {
+    children.push(bodyPara('No se identificaron categorías de exposición significativas en las fuentes consultadas.', { indent: 200 }));
+  }
+
+  // ════════════════════════════════════════
+  //  EVALUACIÓN DE IMPACTO
+  // ════════════════════════════════════════
+  children.push(sectionHeader('Evaluación de Impacto'));
+
+  children.push(bodyPara('A continuación se presenta una evaluación detallada del impacto potencial derivado de los hallazgos identificados en esta investigación OSINT:', { indent: 200 }));
+
+  children.push(subHeader('Riesgo de Suplantación de Identidad'));
+  children.push(bodyPara(critCount > 0
+    ? `El nivel de riesgo de suplantación de identidad es CRÍTICO. Con ${critCount} hallazgo(s) crítico(s), la probabilidad de que la información ya haya sido utilizada con fines fraudulentos es considerablemente alta. Se recomienda solicitar alertas de fraude en centrales de riesgo.`
+    : highCount > 0
+    ? `El riesgo de suplantación de identidad es SIGNIFICATIVO. Los hallazgos de severidad alta indican datos personales expuestos que facilitan la construcción de un perfil completo para suplantación.`
+    : `El riesgo de suplantación de identidad es MODERADO. La exposición detectada es limitada pero podría ser explotada si se combina con información adicional.`, { indent: 200 }));
+
+  children.push(subHeader('Compromiso de Credenciales'));
+  children.push(bodyPara(realResults.some(r => r.category === 'credential_breach' || r.category === 'password_exposure')
+    ? 'Se ha confirmado el compromiso de credenciales del sujeto. La filtración de combinaciones de usuario/contraseña representa un riesgo inmediato de acceso no autorizado. Los atacantes pueden utilizar credential stuffing para probar las credenciales en múltiples servicios.'
+    : 'No se detectaron credenciales filtradas en las fuentes consultadas. Sin embargo, la ausencia de evidencia no garantiza que las credenciales no hayan sido comprometidas en brechas no detectadas.', { indent: 200 }));
+
+  children.push(subHeader('Exposición de Datos Personales'));
+  children.push(bodyPara(`La exposición de datos personales del sujeto ${fullName} en fuentes públicas tiene implicaciones directas en su privacidad y seguridad. La información expuesta facilita ataques de ingeniería social, phishing dirigido, y puede ser utilizada para extorsión o acoso. La Ley 1581 de 2012 protege los datos personales en Colombia.`, { indent: 200 }));
+
+  children.push(subHeader('Impacto Reputacional y Profesional'));
+  children.push(bodyPara('La presencia de información del sujeto en fuentes de riesgo puede tener un impacto negativo en su reputación personal y profesional. Empleadores, socios comerciales, e instituciones financieras realizan verificaciones de antecedentes digitales que pueden influir negativamente en decisiones de empleo, crédito, o relaciones comerciales.', { indent: 200 }));
+
+  children.push(subHeader('Impacto Financiero Potencial'));
+  children.push(bodyPara('El impacto financiero derivado de la exposición detectada puede ser significativo. La suplantación de identidad puede resultar en apertura fraudulenta de cuentas, solicitudes de crédito no autorizadas, y transacciones financieras ilícitas. Se recomienda congelar el reporte de crédito y monitorear activamente las cuentas financieras.', { indent: 200 }));
 
   // Page break to page 6
   children.push(new Paragraph({ children: [new PageBreak()] }));
@@ -993,9 +1105,10 @@ export async function generateSocialDocxReport(data: {
   const children: Paragraph[] = [];
 
   // ════════════════════════════════════════
-  //  PÁGINA 1: PORTADA
+  //  PÁGINA 1: PORTADA PROFESIONAL
   // ════════════════════════════════════════
 
+  // Full-width navy header bar
   children.push(
     new Paragraph({
       spacing: { before: 0, after: 0 },
@@ -1012,25 +1125,24 @@ export async function generateSocialDocxReport(data: {
     })
   );
 
+  // Classification bar
   children.push(
     new Paragraph({
-      spacing: { before: 0, after: 100 },
-      shading: { type: ShadingType.SOLID, color: C.navy },
+      spacing: { before: 0, after: 200 },
+      shading: { type: ShadingType.SOLID, color: '7f1d1d' },
       children: [
         new TextRun({
-          text: '  ANALISIS DE PRESENCIA DIGITAL',
+          text: '  CLASIFICACIÓN: CONFIDENCIAL',
           bold: true,
-          size: 24,
+          size: 22,
           font: 'Arial',
-          color: C.teal,
+          color: 'fca5a5',
         }),
       ],
     })
   );
 
-  children.push(emptyPara({ before: 1200 }));
-
-  // Risk score bar
+  // Risk score with visual bar
   const riskBar = '█'.repeat(Math.ceil(riskScore / 10)) + '░'.repeat(10 - Math.ceil(riskScore / 10));
   children.push(
     new Paragraph({
@@ -1053,33 +1165,23 @@ export async function generateSocialDocxReport(data: {
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
+      spacing: { after: 300 },
       children: [
         new TextRun({ text: `${riskScore}/100`, bold: true, size: 36, font: 'Arial', color: riskColor }),
         new TextRun({ text: `  —  `, size: 24, font: 'Arial', color: C.textLight }),
-        new TextRun({ text: riskLevel, bold: true, size: 28, font: 'Arial', color: riskColor }),
+        new TextRun({ text: `NIVEL: ${riskLevel}`, bold: true, size: 28, font: 'Arial', color: riskColor }),
       ],
     })
   );
 
-  // Subject identification
+  // Subject information block with dark background
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
+      spacing: { before: 100, after: 80 },
+      shading: { type: ShadingType.SOLID, color: '1e293b' },
       children: [
-        new TextRun({ text: 'CONSULTA DE INVESTIGACION', bold: true, size: 18, font: 'Arial', color: C.navy }),
-      ],
-    })
-  );
-
-  children.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 20 },
-      children: [
-        new TextRun({ text: 'Consulta: ', bold: true, size: 20, font: 'Arial', color: C.textLight }),
-        new TextRun({ text: searchQuery, bold: true, size: 22, font: 'Arial', color: C.navy }),
+        new TextRun({ text: '  ANÁLISIS DE PRESENCIA DIGITAL', bold: true, size: 20, font: 'Arial', color: '94a3b8' }),
       ],
     })
   );
@@ -1088,9 +1190,22 @@ export async function generateSocialDocxReport(data: {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 20 },
+      shading: { type: ShadingType.SOLID, color: '0f172a' },
       children: [
-        new TextRun({ text: 'Modo: ', bold: true, size: 18, font: 'Arial', color: C.textLight }),
-        new TextRun({ text: modeLabel, size: 18, font: 'Arial', color: C.text }),
+        new TextRun({ text: '  CONSULTA: ', bold: true, size: 20, font: 'Arial', color: '94a3b8' }),
+        new TextRun({ text: searchQuery, bold: true, size: 24, font: 'Arial', color: C.white }),
+      ],
+    })
+  );
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
+      shading: { type: ShadingType.SOLID, color: '0f172a' },
+      children: [
+        new TextRun({ text: '  MODO: ', bold: true, size: 18, font: 'Arial', color: '94a3b8' }),
+        new TextRun({ text: modeLabel, size: 18, font: 'Arial', color: 'e2e8f0' }),
       ],
     })
   );
@@ -1120,17 +1235,19 @@ export async function generateSocialDocxReport(data: {
 
   children.push(emptyPara({ before: 600 }));
 
+  // Legal footer
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 40 },
+      shading: { type: ShadingType.SOLID, color: '7f1d1d' },
       children: [
         new TextRun({
-          text: 'CLASIFICACION: CONFIDENCIAL',
+          text: '  DOCUMENTO CONFIDENCIAL — USO RESTRINGIDO',
           bold: true,
-          size: 20,
+          size: 18,
           font: 'Arial',
-          color: C.redBright,
+          color: 'fca5a5',
         }),
       ],
     })

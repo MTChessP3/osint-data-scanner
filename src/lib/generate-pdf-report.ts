@@ -466,6 +466,20 @@ export async function generatePDFReport(data: {
     if (countLines.length === 0) countLines.push('• Sin hallazgos significativos');
     drawParagraph(doc, countLines.join('    '), { fontSize: 9 });
 
+    // Metodología subsection
+    doc.moveDown(0.2);
+    setFont(doc, true).fillColor(C.navy).fontSize(9)
+      .text('Metodología:', M.left, doc.y, { width: CW });
+    doc.moveDown(0.1);
+    drawParagraph(doc, 'La presente investigación se realizó utilizando técnicas de Inteligencia de Fuentes Abiertas (OSINT), empleando métodos de recolección pasiva y análisis de información públicamente accesible. Se utilizaron herramientas automatizadas de recolección de datos, motores de búsqueda especializados, y técnicas de correlación de información sin interactuar directamente con los sistemas del sujeto. La metodología sigue estándares internacionales de investigación digital respetando el marco legal colombiano vigente.', { fontSize: 8.5, color: C.textLight });
+
+    // Alcance de la Investigación subsection
+    doc.moveDown(0.1);
+    setFont(doc, true).fillColor(C.navy).fontSize(9)
+      .text('Alcance de la Investigación:', M.left, doc.y, { width: CW });
+    doc.moveDown(0.1);
+    drawParagraph(doc, `El alcance de esta investigación comprende la búsqueda y análisis de información del sujeto ${data.fullName} en fuentes de datos públicas, repositorios de credenciales filtradas, brokers de datos, registros judiciales públicos, y plataformas de redes sociales. Se consultaron ${uniqueSources.length} fuente${uniqueSources.length !== 1 ? 's' : ''} de inteligencia generando ${realResults.length} resultado${realResults.length !== 1 ? 's' : ''}. La investigación se limita a fuentes abiertas y no incluye técnicas de acceso no autorizado ni ingeniería social.`, { fontSize: 8.5, color: C.textLight });
+
     // ════════════════════════════════════════
     //  HALLAZGOS DETALLADOS
     // ════════════════════════════════════════
@@ -516,6 +530,32 @@ export async function generatePDFReport(data: {
           setFont(doc, false).fillColor(C.textLight).fontSize(7)
             .text(`Fuente: ${r.source}  |  Categoría: ${catES(r.category)}`, M.left + 10, doc.y, { width: CW - 14 });
 
+          // Impacto Potencial
+          checkPage(doc, 14);
+          const impactMap: Record<string, string> = {
+            credential_breach: 'Suplantación de identidad, acceso no autorizado a cuentas, fraude financiero.',
+            password_exposure: 'Acceso no autorizado a cuentas, robo de información, compromiso de servicios vinculados.',
+            personal_exposure: 'Phishing dirigido, acoso, robo de identidad, extorsión.',
+            social_media: 'Recolección de información para ingeniería social, acoso cibernético, suplantación.',
+            data_broker: 'Perfilamiento no autorizado, marketing invasivo, violación de privacidad.',
+            dark_web_mention: 'Venta de datos personales, fraude, suplantación de identidad masiva.',
+            paste_site: 'Acceso masivo a credenciales, ataques de fuerza bruta en otros servicios.',
+            document_exposure: 'Fraude documental, suplantación ante entidades, robo de identidad.',
+            judicial: 'Perjuicio reputacional, discriminación, extorsión.',
+          };
+          const impactText = impactMap[r.category] || 'Compromiso de la seguridad digital y privacidad del sujeto.';
+          setFont(doc, true).fillColor('#c0392b').fontSize(7)
+            .text('Impacto Potencial: ', M.left + 10, doc.y, { width: CW - 14, continued: true });
+          setFont(doc, false).fillColor(C.textLight).fontSize(7)
+            .text(impactText);
+
+          // Acción Recomendada
+          checkPage(doc, 14);
+          setFont(doc, true).fillColor('#27ae60').fontSize(7)
+            .text('Acción Recomendada: ', M.left + 10, doc.y, { width: CW - 14, continued: true });
+          setFont(doc, false).fillColor(C.textLight).fontSize(7)
+            .text(recFor(r.category));
+
           if (r.url) {
             checkPage(doc, 12);
             setFont(doc, false).fillColor(C.blue).fontSize(6.5)
@@ -530,6 +570,200 @@ export async function generatePDFReport(data: {
         }
       }
     }
+
+    // ════════════════════════════════════════
+    //  ANÁLISIS DE SUPERFICIE DE EXPOSICIÓN
+    // ════════════════════════════════════════
+    checkPage(doc, 80);
+    doc.moveDown(0.3);
+    drawSectionHeader(doc, 'ANÁLISIS DE SUPERFICIE DE EXPOSICIÓN');
+
+    drawParagraph(doc, 'El análisis de la superficie de exposición digital del sujeto revela el grado en que su información personal y credenciales se encuentran disponibles en fuentes públicas y de riesgo. A continuación se detalla la evaluación por cada categoría de exposición identificada:', { fontSize: 8.5 });
+
+    const categoriesPresent = [...new Set(limitedResults.filter(r => r.severity !== 'info').map(r => r.category))];
+    for (const cat of categoriesPresent) {
+      checkPage(doc, 30);
+      const catResults = limitedResults.filter(r => r.category === cat && r.severity !== 'info');
+      if (catResults.length === 0) continue;
+      const surfaceAnalysis: Record<string, string> = {
+        credential_breach: `La detección de ${catResults.length} filtración(es) de credenciales indica que las credenciales del sujeto han sido comprometidas en brechas de seguridad conocidas. Esto implica que terceros malintencionados podrían tener acceso a combinaciones de usuario/contraseña del sujeto, lo que representa un vector de ataque directo para suplantación de identidad y acceso no autorizado a cuentas.`,
+        password_exposure: `Se identificaron ${catResults.length} instancia(s) de contraseñas expuestas en fuentes públicas. La exposición de contraseñas permite ataques de reutilización de credenciales (credential stuffing) en múltiples servicios, comprometiendo potencialmente todas las cuentas del sujeto que compartan la misma contraseña.`,
+        personal_exposure: `La presencia de ${catResults.length} hallazgo(s) de exposición personal indica que datos sensibles del sujeto (direcciones, teléfonos, información familiar) se encuentran accesibles públicamente. Esta información puede ser utilizada para ataques de phishing dirigido, ingeniería social, o extorsión.`,
+        social_media: `Se detectaron ${catResults.length} hallazgo(s) en redes sociales que revelan información del sujeto. La sobreexposición en plataformas sociales facilita la construcción de perfiles detallados para ataques de ingeniería social y suplantación de identidad.`,
+        data_broker: `La aparición en ${catResults.length} broker(s) de datos indica que la información del sujeto está siendo comercializada sin su consentimiento. Los brokers de datos recopilan, agregan y venden información personal, ampliando significativamente la superficie de exposición.`,
+        dark_web_mention: `La detección de ${catResults.length} mención(es) en la dark web es particularmente preocupante, ya que indica que los datos del sujeto circulan en foros y mercados de actividades ilícitas, donde podrían ser utilizados para fraude o vendidos a terceros.`,
+        paste_site: `La presencia en ${catResults.length} sitio(s) de paste indica que credenciales o datos del sujeto fueron publicados en servicios de texto temporal, comúnmente utilizados para compartir filtraciones de datos masivas de forma anónima.`,
+        document_exposure: `Se identificaron ${catResults.length} documento(s) expuesto(s) del sujeto. La exposición de documentos oficiales como cédulas, certificados o contratos permite fraude documental y suplantación ante entidades públicas y privadas.`,
+        judicial: `La presencia de ${catResults.length} registro(s) judicial(es) indica información de carácter público vinculada a procesos legales. Si bien es información oficial, su disponibilidad en línea puede ser utilizada para perjuicio reputacional o discriminación.`,
+      };
+      const analysisText = surfaceAnalysis[cat] || `Se identificaron ${catResults.length} hallazgo(s) en la categoría ${catES(cat)} que contribuyen a la superficie de exposición digital del sujeto.`;
+      setFont(doc, true).fillColor(C.accent).fontSize(8.5)
+        .text(catES(cat), M.left, doc.y, { width: CW });
+      doc.moveDown(0.05);
+      drawParagraph(doc, analysisText, { fontSize: 8, indent: 8 });
+    }
+
+    if (categoriesPresent.length === 0) {
+      drawParagraph(doc, 'No se identificaron categorías de exposición significativas en las fuentes consultadas. La superficie de exposición digital del sujeto parece limitada según las fuentes automatizadas disponibles.', { fontSize: 8.5 });
+    }
+
+    // ════════════════════════════════════════
+    //  EVALUACIÓN DE IMPACTO
+    // ════════════════════════════════════════
+    checkPage(doc, 80);
+    doc.moveDown(0.3);
+    drawSectionHeader(doc, 'EVALUACIÓN DE IMPACTO');
+
+    drawParagraph(doc, 'A continuación se presenta una evaluación detallada del impacto potencial derivado de los hallazgos identificados en esta investigación OSINT. Cada área de impacto se analiza en función de la información expuesta y las consecuencias posibles para el sujeto.', { fontSize: 8.5 });
+
+    // Impact paragraph 1: Identity theft
+    checkPage(doc, 40);
+    setFont(doc, true).fillColor(C.navy).fontSize(8.5)
+      .text('Riesgo de Suplantación de Identidad', M.left, doc.y, { width: CW });
+    doc.moveDown(0.05);
+    drawParagraph(doc, crit > 0
+      ? `El nivel de riesgo de suplantación de identidad es CRÍTICO. La filtración de credenciales y datos personales detectados proporciona a actores malintencionados la información necesaria para hacerse pasar por el sujeto ante entidades financieras, plataformas digitales y servicios gubernamentales. Con ${crit} hallazgo(s) crítico(s) que incluyen exposición de datos sensibles, la probabilidad de que esta información ya haya sido utilizada con fines fraudulentos es considerablemente alta. Se recomienda solicitar alertas de fraude en centrales de riesgo y monitorear activamente cualquier actividad sospechosa.`
+      : high > 0
+      ? `El riesgo de suplantación de identidad es SIGNIFICATIVO. Los hallazgos de severidad alta indican que datos personales del sujeto están expuestos en múltiples fuentes, lo que facilita la construcción de un perfil completo para suplantación. Si bien no se detectaron credenciales críticas filtradas, la información disponible es suficiente para intentos de fraude.`
+      : `El riesgo de suplantación de identidad es MODERADO. La exposición detectada es limitada pero contribuye a un perfil digital que podría ser explotado si se combina con información adicional de otras fuentes.`, { fontSize: 8, indent: 8 });
+
+    // Impact paragraph 2: Credential compromise
+    checkPage(doc, 40);
+    setFont(doc, true).fillColor(C.navy).fontSize(8.5)
+      .text('Compromiso de Credenciales', M.left, doc.y, { width: CW });
+    doc.moveDown(0.05);
+    drawParagraph(doc, limitedResults.some(r => r.category === 'credential_breach' || r.category === 'password_exposure')
+      ? `Se ha confirmado el compromiso de credenciales del sujeto. La filtración de combinaciones de usuario/contraseña representa un riesgo inmediato de acceso no autorizado. Los atacantes pueden utilizar técnicas de credential stuffing para probar las credenciales comprometidas en múltiples servicios, aprovechando la práctica común de reutilizar contraseñas. Se estima que las credenciales filtradas podrían dar acceso a entre 3 y 15 servicios adicionales si el sujeto reutiliza contraseñas.`
+      : `No se detectaron credenciales filtradas en las fuentes consultadas. Sin embargo, la ausencia de evidencia de filtración no garantiza que las credenciales del sujeto no hayan sido comprometidas en brechas no detectadas o en mercados cerrados de la dark web.`, { fontSize: 8, indent: 8 });
+
+    // Impact paragraph 3: Personal data exposure
+    checkPage(doc, 40);
+    setFont(doc, true).fillColor(C.navy).fontSize(8.5)
+      .text('Exposición de Datos Personales', M.left, doc.y, { width: CW });
+    doc.moveDown(0.05);
+    drawParagraph(doc, `La exposición de datos personales del sujeto ${data.fullName} en fuentes públicas y de riesgo tiene implicaciones directas en su privacidad y seguridad. La información expuesta puede incluir datos de contacto, información familiar, ubicaciones, y datos de identificación. Esta exposición facilita ataques de ingeniería social, phishing dirigido (spear phishing), y puede ser utilizada para extorsión o acoso. La Ley 1581 de 2012 protege los datos personales en Colombia, y el sujeto tiene derecho a solicitar la eliminación de sus datos de bases de datos no autorizadas.`, { fontSize: 8, indent: 8 });
+
+    // Impact paragraph 4: Reputational impact
+    checkPage(doc, 40);
+    setFont(doc, true).fillColor(C.navy).fontSize(8.5)
+      .text('Impacto Reputacional y Profesional', M.left, doc.y, { width: CW });
+    doc.moveDown(0.05);
+    drawParagraph(doc, `La presencia de información del sujeto en fuentes de riesgo, particularmente en la dark web, sitios de paste, o asociada a registros judiciales, puede tener un impacto negativo en su reputación personal y profesional. Empleadores, socios comerciales, e instituciones financieras realizan frecuentemente verificaciones de antecedentes digitales. La información encontrada, incluso si es incorrecta o descontextualizada, puede influir negativamente en decisiones de empleo, crédito, o relaciones comerciales.`, { fontSize: 8, indent: 8 });
+
+    // Impact paragraph 5: Financial impact
+    checkPage(doc, 40);
+    setFont(doc, true).fillColor(C.navy).fontSize(8.5)
+      .text('Impacto Financiero Potencial', M.left, doc.y, { width: CW });
+    doc.moveDown(0.05);
+    drawParagraph(doc, `El impacto financiero derivado de la exposición detectada puede ser significativo. La suplantación de identidad puede resultar en apertura fraudulenta de cuentas, solicitudes de crédito no autorizadas, y transacciones financieras ilícitas. Adicionalmente, los costos de recuperación de identidad — incluyendo tiempo, recursos legales, y tarifas de servicios de monitoreo — pueden ser sustanciales. Se recomienda al sujeto congelar su reporte de crédito temporalmente y monitorear activamente sus cuentas financieras.`, { fontSize: 8, indent: 8 });
+
+    // ════════════════════════════════════════
+    //  CRONOLOGÍA DE EXPOSICIÓN
+    // ════════════════════════════════════════
+    checkPage(doc, 80);
+    doc.moveDown(0.3);
+    drawSectionHeader(doc, 'CRONOLOGÍA DE EXPOSICIÓN');
+
+    drawParagraph(doc, 'La siguiente cronología estima las fechas aproximadas en que las brechas y exposiciones detectadas pudieron haber ocurrido, basándose en la naturaleza de las fuentes consultadas y los datos encontrados:', { fontSize: 8.5 });
+
+    // Timeline entries
+    const timelineEntries: string[] = [];
+    if (limitedResults.some(r => r.category === 'credential_breach' || r.category === 'password_exposure')) {
+      timelineEntries.push('• Filtración de credenciales: Las brechas de credenciales detectadas corresponden típicamente a eventos de compromisos masivos que ocurrieron entre 1 y 5 años atrás. Los datos suelen circular inicialmente en foros cerrados antes de aparecer en fuentes públicas.');
+    }
+    if (limitedResults.some(r => r.category === 'data_broker')) {
+      timelineEntries.push('• Registro en brokers de datos: La presencia en bases de datos de brokers indica que la información del sujeto ha sido recopilada progresivamente durante los últimos 2 a 10 años mediante múltiples fuentes de datos públicos y transaccionales.');
+    }
+    if (limitedResults.some(r => r.category === 'dark_web_mention')) {
+      timelineEntries.push('• Menciones en Dark Web: Los datos detectados en la dark web generalmente aparecen semanas o meses después de la brecha original. La presencia actual indica exposición activa y potencialmente en curso.');
+    }
+    if (limitedResults.some(r => r.category === 'social_media')) {
+      timelineEntries.push('• Exposición en redes sociales: La información de redes sociales se acumula de forma continua durante toda la vida activa del usuario en cada plataforma. La exposición actual refleja años de actividad digital.');
+    }
+    if (limitedResults.some(r => r.category === 'paste_site')) {
+      timelineEntries.push('• Publicación en sitios de paste: Las filtraciones en sitios de paste típicamente siguen a brechas masivas recientes, con datos publicados dentro de las primeras 48-72 horas posteriores al compromiso.');
+    }
+    if (limitedResults.some(r => r.category === 'document_exposure')) {
+      timelineEntries.push('• Exposición documental: Los documentos expuestos suelen aparecer como resultado de filtraciones de bases de datos gubernamentales o empresariales, con fechas que pueden remontarse varios años.');
+    }
+    if (limitedResults.some(r => r.category === 'judicial')) {
+      timelineEntries.push('• Registros judiciales: Los registros judiciales públicos son permanentes y reflejan procesos que pueden tener cualquier antigüedad. Su disponibilidad en línea es una consecuencia de la digitalización de archivos judiciales.');
+    }
+    if (timelineEntries.length === 0) {
+      timelineEntries.push('• No se identificaron eventos de exposición específicos en las fuentes consultadas. La ausencia de resultados no implica ausencia de exposición previa.');
+    }
+    timelineEntries.push(`• Fecha de la investigación: ${today}. Los datos pueden haber cambiado desde su última actualización en las fuentes consultadas.`);
+    for (const entry of timelineEntries) {
+      checkPage(doc, 18);
+      drawParagraph(doc, entry, { fontSize: 8.5, indent: 8 });
+    }
+
+    // ════════════════════════════════════════
+    //  MATRIZ DE RIESGO
+    // ════════════════════════════════════════
+    checkPage(doc, 130);
+    doc.moveDown(0.3);
+    drawSectionHeader(doc, 'MATRIZ DE RIESGO');
+
+    drawParagraph(doc, 'La siguiente matriz visualiza la relación entre la probabilidad de explotación y el impacto potencial de los hallazgos identificados. Las celdas marcadas con ◆ indican la posición de los hallazgos del sujeto:', { fontSize: 8.5 });
+
+    doc.moveDown(0.3);
+    const matrixX = M.left + 50;
+    const matrixY = doc.y;
+    const cellW = 140;
+    const cellH = 28;
+
+    // Y-axis label
+    setFont(doc, true).fillColor(C.navy).fontSize(7)
+      .text('PROBABILIDAD', M.left, matrixY + cellH * 1, { width: 50, align: 'center' });
+
+    // Draw grid
+    const likelihoodLabels = ['Alta', 'Media', 'Baja'];
+    const impactLabels = ['Crítico', 'Significativo', 'Limitado'];
+    const matrixColors: string[][] = [
+      ['#c0392b', '#e67e22', '#f1c40f'],  // Alta prob
+      ['#e67e22', '#f1c40f', '#27ae60'],  // Media prob
+      ['#f1c40f', '#27ae60', '#27ae60'],  // Baja prob
+    ];
+
+    // X-axis labels
+    for (let j = 0; j < 3; j++) {
+      const cx = matrixX + j * cellW;
+      doc.fillColor(C.tableHeader).rect(cx, matrixY, cellW, 14).fill();
+      setFont(doc, true).fillColor(C.white).fontSize(7)
+        .text(impactLabels[j], cx + 2, matrixY + 3, { width: cellW - 4, align: 'center' });
+    }
+    // Impact label
+    setFont(doc, true).fillColor(C.navy).fontSize(7)
+      .text('IMPACTO →', matrixX, matrixY - 12, { width: cellW * 3, align: 'center' });
+
+    const matrixDataY = matrixY + 14;
+    for (let i = 0; i < 3; i++) {
+      const ry = matrixDataY + i * cellH;
+      // Row label
+      doc.fillColor(C.tableHeader).rect(matrixX - 50, ry, 50, cellH).fill();
+      setFont(doc, true).fillColor(C.white).fontSize(7)
+        .text(likelihoodLabels[i], matrixX - 48, ry + 10, { width: 46, align: 'center' });
+
+      for (let j = 0; j < 3; j++) {
+        const cx = matrixX + j * cellW;
+        doc.fillColor(matrixColors[i][j]).rect(cx, ry, cellW, cellH).fill();
+        doc.strokeColor('#ffffff').lineWidth(0.5).rect(cx, ry, cellW, cellH).stroke();
+
+        // Determine if findings fall in this cell
+        let markerText = '';
+        if (i === 0 && j === 0 && crit > 0) markerText = `◆ ${crit} Crítico(s)`;
+        else if (i === 0 && j === 1 && high > 0) markerText = `◆ ${high} Alto(s)`;
+        else if (i === 1 && j === 1 && med > 0) markerText = `◆ ${med} Medio(s)`;
+        else if (i === 1 && j === 2 && low > 0) markerText = `◆ ${low} Bajo(s)`;
+        else if (i === 2 && j === 2 && infoCount > 0) markerText = `◆ ${infoCount} Info`;
+
+        const textColor = (i === 0 && j === 0) || (i === 0 && j === 1) || (i === 1 && j === 0) ? C.white : '#2c3e50';
+        setFont(doc, markerText ? true : false).fillColor(markerText ? textColor : (textColor + '40')).fontSize(7)
+          .text(markerText || '—', cx + 2, ry + 10, { width: cellW - 4, align: 'center' });
+      }
+    }
+    doc.y = matrixDataY + 3 * cellH + 15;
 
     // ════════════════════════════════════════
     //  RECOMENDACIONES
@@ -1132,6 +1366,164 @@ export async function generateSocialPDFReport(data: {
       doc.strokeColor('#e0e0e0').lineWidth(0.3)
         .moveTo(M.left + 8, sepY).lineTo(PAGE_W - M.right, sepY).stroke();
       doc.y = sepY + 6;
+    }
+
+    // ── MAPA DE HUELLA DIGITAL ──
+    checkPage(doc, 100);
+    doc.moveDown(0.2);
+    drawSectionHeader(doc, 'MAPA DE HUELLA DIGITAL');
+
+    drawParagraph(doc, 'El siguiente mapa representa visualmente la presencia digital del sujeto en las plataformas investigadas. Los estados indican: Perfil (perfil confirmado), Mención (datos encontrados sin perfil), Sin datos (sin resultados), y No escaneado:', { fontSize: 8.5 });
+
+    // Draw footprint grid
+    const footprintPlatforms = scanResults.map(r => ({
+      name: r.platform,
+      status: r.profileFound ? 'perfil' as const : r.findings.length > 0 ? 'mencion' as const : 'sin_datos' as const,
+    }));
+    // Add a few common platforms if not already present
+    const allPlatformNames = new Set(footprintPlatforms.map(p => p.name));
+
+    doc.moveDown(0.2);
+    const fpCellW = 85;
+    const fpCellH = 32;
+    const fpCols = Math.min(5, Math.floor(CW / fpCellW));
+    let fpRow = 0;
+
+    for (let i = 0; i < footprintPlatforms.length; i++) {
+      if (i % fpCols === 0) {
+        fpRow++;
+        checkPage(doc, fpCellH + 10);
+      }
+      const col = i % fpCols;
+      const fpX = M.left + col * fpCellW;
+      const fpY = doc.y;
+
+      const statusColors: Record<string, string> = {
+        perfil: '#1b4332',
+        mencion: '#7c4a03',
+        sin_datos: '#6b2126',
+      };
+      const statusLabels: Record<string, string> = {
+        perfil: '● Perfil',
+        mencion: '◐ Mención',
+        sin_datos: '○ Sin datos',
+      };
+
+      const p = footprintPlatforms[i];
+      doc.fillColor(statusColors[p.status]).rect(fpX, fpY, fpCellW - 3, fpCellH - 2).fill();
+      setFont(doc, true).fillColor(C.white).fontSize(7)
+        .text(p.name, fpX + 3, fpY + 4, { width: fpCellW - 10 });
+      setFont(doc, false).fillColor('#e2e8f0').fontSize(6)
+        .text(statusLabels[p.status], fpX + 3, fpY + 16, { width: fpCellW - 10 });
+
+      // If last in row, advance Y
+      if (col === fpCols - 1 || i === footprintPlatforms.length - 1) {
+        doc.y = fpY + fpCellH;
+      }
+    }
+    doc.moveDown(0.3);
+
+    // ── ANÁLISIS DE CORRELACIÓN ──
+    checkPage(doc, 80);
+    doc.moveDown(0.2);
+    drawSectionHeader(doc, 'ANÁLISIS DE CORRELACIÓN');
+
+    drawParagraph(doc, 'El análisis de correlación evalúa si el mismo identificador (nombre de usuario, correo electrónico, o nombre) aparece en múltiples plataformas, lo que permite construir un perfil de identidad cruzada del sujeto:', { fontSize: 8.5 });
+
+    // Identity correlation analysis
+    const usernamesFound = scanResults.filter(r => r.username).map(r => r.username!);
+    const uniqueUsernames = [...new Set(usernamesFound)];
+    const platformsWithProfiles = scanResults.filter(r => r.profileFound);
+
+    checkPage(doc, 30);
+    setFont(doc, true).fillColor(C.navy).fontSize(8.5)
+      .text('Correlación de Identidad', M.left, doc.y, { width: CW });
+    doc.moveDown(0.05);
+
+    if (uniqueUsernames.length > 1) {
+      drawParagraph(doc, `Se detectaron ${uniqueUsernames.length} identificadores distintos en las plataformas investigadas: ${uniqueUsernames.map(u => `@${u}`).join(', ')}. La presencia de múltiples identificadores sugiere que el sujeto utiliza diferentes alias en distintas plataformas, lo que puede dificultar la correlación de identidad pero también indica una estrategia activa de gestión de identidad digital.`, { fontSize: 8, indent: 8 });
+    } else if (uniqueUsernames.length === 1) {
+      drawParagraph(doc, `Se detectó un único identificador @${uniqueUsernames[0]} en las plataformas investigadas. El uso del mismo nombre de usuario en múltiples plataformas facilita la correlación de identidad y aumenta la superficie de exposición digital, ya que cualquier persona puede rastrear la actividad del sujeto a través de múltiples servicios.`, { fontSize: 8, indent: 8 });
+    } else {
+      drawParagraph(doc, 'No se detectaron nombres de usuario consistentes entre las plataformas investigadas. Esto puede indicar que el sujeto utiliza identificadores diferentes en cada servicio, o que no se encontraron perfiles suficientes para realizar correlación.', { fontSize: 8, indent: 8 });
+    }
+
+    // Cross-platform presence analysis
+    checkPage(doc, 30);
+    setFont(doc, true).fillColor(C.navy).fontSize(8.5)
+      .text('Presencia Multiplataforma', M.left, doc.y, { width: CW });
+    doc.moveDown(0.05);
+
+    if (platformsWithProfiles.length >= 3) {
+      drawParagraph(doc, `El sujeto tiene presencia confirmada en ${platformsWithProfiles.length} plataformas: ${platformsWithProfiles.map(r => r.platform).join(', ')}. Esta presencia multiplataforma amplia indica un alto nivel de actividad digital y una superficie de exposición significativa. Cada plataforma adicional aumenta el riesgo de correlación de datos y facilita la construcción de un perfil completo del sujeto por parte de actores malintencionados.`, { fontSize: 8, indent: 8 });
+    } else if (platformsWithProfiles.length > 0) {
+      drawParagraph(doc, `El sujeto tiene presencia confirmada en ${platformsWithProfiles.length} plataforma(s): ${platformsWithProfiles.map(r => r.platform).join(', ')}. La presencia limitada reduce la superficie de exposición pero no elimina el riesgo de correlación si los datos disponibles son consistentes entre plataformas.`, { fontSize: 8, indent: 8 });
+    } else {
+      drawParagraph(doc, 'No se confirmó la presencia del sujeto en ninguna de las plataformas investigadas. Esto puede indicar que el sujeto mantiene un perfil digital bajo o que utiliza identificadores diferentes a los consultados.', { fontSize: 8, indent: 8 });
+    }
+
+    // Per-platform privacy analysis
+    checkPage(doc, 80);
+    doc.moveDown(0.2);
+    setFont(doc, true).fillColor(C.navy).fontSize(8.5)
+      .text('Análisis de Privacidad por Plataforma', M.left, doc.y, { width: CW });
+    doc.moveDown(0.1);
+
+    const platformPrivacyMap: Record<string, { activity: string; privacyRisk: string; recSettings: string; footprintScore: number }> = {
+      'Facebook': { activity: 'Plataforma de alta actividad social', privacyRisk: 'Alto — Perfil público por defecto, datos personales extensos', recSettings: 'Restringir perfil a privado, limitar búsquedas externas, desactivar etiquetado', footprintScore: 85 },
+      'Instagram': { activity: 'Plataforma visual de alta frecuencia', privacyRisk: 'Medio-Alto — Imágenes con metadatos, stories visibles', recSettings: 'Cuenta privada, desactivar actividad visible, limitar seguidores', footprintScore: 75 },
+      'Twitter/X': { activity: 'Plataforma de comunicación pública', privacyRisk: 'Alto — Contenido público por defecto, geolocalización', recSettings: 'Proteger tuits, desactivar ubicación, limitar información del perfil', footprintScore: 90 },
+      'LinkedIn': { activity: 'Red profesional activa', privacyRisk: 'Medio — Información profesional detallada, conexiones visibles', recSettings: 'Restringir perfil a conexiones, ocultar actividad, limitar datos de contacto', footprintScore: 70 },
+      'TikTok': { activity: 'Plataforma de contenido viral', privacyRisk: 'Medio-Alto — Contenido público, datos de uso extensivos', recSettings: 'Cuenta privada, desactivar descargas, limitar duets', footprintScore: 80 },
+      'GitHub': { activity: 'Plataforma de desarrollo técnico', privacyRisk: 'Medio — Repositorios públicos, contribuciones visibles, emails', recSettings: 'Ocultar email, repositorios privados, limitar actividad visible', footprintScore: 65 },
+      'Reddit': { activity: 'Foro de discusión anónima', privacyRisk: 'Medio — Historial de publicaciones, intereses revelados', recSettings: 'Usar username genérico, borrar historial periódicamente', footprintScore: 55 },
+      'Pinterest': { activity: 'Plataforma de contenido visual', privacyRisk: 'Bajo-Medio — Intereses visibles, tableros públicos', recSettings: 'Tableros privados, limitar perfil público', footprintScore: 45 },
+      'YouTube': { activity: 'Plataforma de video', privacyRisk: 'Medio — Canal público, listas de reproducción', recSettings: 'Canal privado, ocultar suscripciones, desactivar historial', footprintScore: 60 },
+      'Snapchat': { activity: 'Mensajería efímera', privacyRisk: 'Medio — Contactos visibles, ubicación', recSettings: 'Modo Ghost, contactos solo amigos, desactivar mapa', footprintScore: 50 },
+    };
+
+    for (const result of scanResults.filter(r => r.profileFound || r.findings.length > 0)) {
+      checkPage(doc, 30);
+      const privacy = platformPrivacyMap[result.platform];
+      const footprintScore = privacy?.footprintScore || (result.profileFound ? 60 : 30);
+
+      setFont(doc, true).fillColor(C.accent).fontSize(8)
+        .text(result.platform, M.left, doc.y, { width: CW });
+      doc.moveDown(0.05);
+
+      // Activity assessment
+      setFont(doc, true).fillColor(C.textLight).fontSize(7)
+        .text('Actividad: ', M.left + 8, doc.y, { width: CW - 16, continued: true });
+      setFont(doc, false).fillColor(C.text).fontSize(7)
+        .text(privacy?.activity || (result.profileFound ? 'Perfil activo detectado' : 'Actividad limitada o desconocida'));
+
+      // Privacy risk
+      checkPage(doc, 10);
+      setFont(doc, true).fillColor(C.textLight).fontSize(7)
+        .text('Riesgo de Privacidad: ', M.left + 8, doc.y, { width: CW - 16, continued: true });
+      setFont(doc, false).fillColor(privacy?.privacyRisk.startsWith('Alto') ? C.red : privacy?.privacyRisk.startsWith('Medio') ? C.orange : C.text).fontSize(7)
+        .text(privacy?.privacyRisk || (result.profileFound ? 'Medio — Perfil detectado con información visible' : 'Bajo — Sin perfil confirmado'));
+
+      // Recommended settings
+      checkPage(doc, 10);
+      setFont(doc, true).fillColor(C.textLight).fontSize(7)
+        .text('Configuración Recomendada: ', M.left + 8, doc.y, { width: CW - 16, continued: true });
+      setFont(doc, false).fillColor(C.text).fontSize(7)
+        .text(privacy?.recSettings || 'Revisar configuración de privacidad y limitar información pública');
+
+      // Digital footprint score
+      checkPage(doc, 14);
+      const scoreBarW = 80;
+      const scoreBarH = 6;
+      const scoreBarX = M.left + 8;
+      const scoreBarY = doc.y + 2;
+      doc.fillColor('#e0e0e0').rect(scoreBarX, scoreBarY, scoreBarW, scoreBarH).fill();
+      const scoreFillW = (footprintScore / 100) * scoreBarW;
+      const scoreColor = footprintScore >= 70 ? C.red : footprintScore >= 50 ? C.orange : C.green;
+      doc.fillColor(scoreColor).rect(scoreBarX, scoreBarY, scoreFillW, scoreBarH).fill();
+      setFont(doc, true).fillColor(C.navy).fontSize(7)
+        .text(`Huella Digital: ${footprintScore}/100`, scoreBarX + scoreBarW + 5, scoreBarY - 1, { width: 100 });
+      doc.y = scoreBarY + scoreBarH + 6;
     }
 
     // ── RECOMMENDATIONS (enhanced with per-platform) ──

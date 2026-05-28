@@ -2257,31 +2257,31 @@ export default function Home() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-5 gap-1.5">
                       {socialPlatforms.map(platform => {
                         const PlatformIcon = platform.icon;
                         const result = socialScanData?.results.find(r => r.platformId === platform.id);
                         const wasScanned = !!result;
                         let statusColor = 'bg-[#0b0f19] border-[#1e293b]';
                         let statusDot = 'bg-slate-700';
-                        let statusLabel = 'No escaneado';
+                        let statusLabel = '—';
                         let statusTextColor = 'text-slate-600';
 
                         if (wasScanned) {
                           if (result.profileFound) {
                             statusColor = `${platform.bgColor} border-green-800/40`;
                             statusDot = 'bg-green-500';
-                            statusLabel = 'Perfil encontrado';
+                            statusLabel = 'Perfil';
                             statusTextColor = 'text-green-400';
                           } else if (result.searchResultsCount > 0 || result.findings.length > 0) {
                             statusColor = `${platform.bgColor} border-amber-800/40`;
                             statusDot = 'bg-amber-500';
-                            statusLabel = `${result.findings.length} mención(es)`;
+                            statusLabel = `${result.findings.length} men.`;
                             statusTextColor = 'text-amber-400';
                           } else {
                             statusColor = 'bg-[#0b0f19] border-red-800/30';
                             statusDot = 'bg-red-500';
-                            statusLabel = 'Sin resultados';
+                            statusLabel = 'Sin datos';
                             statusTextColor = 'text-red-400';
                           }
                         }
@@ -2289,60 +2289,28 @@ export default function Home() {
                         return (
                           <div
                             key={platform.id}
-                            className={`relative flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all ${statusColor}`}
+                            className={`relative flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all ${statusColor}`}
                           >
-                            <div className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${statusDot} ${wasScanned && result?.profileFound ? 'animate-pulse' : ''}`} />
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                            <div className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${statusDot} ${wasScanned && result?.profileFound ? 'animate-pulse' : ''}`} />
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
                               wasScanned && result?.profileFound ? 'bg-[#0b0f19]' : 'bg-slate-800/30'
                             }`}>
-                              <PlatformIcon className={`w-4 h-4 ${
+                              <PlatformIcon className={`w-3.5 h-3.5 ${
                                 wasScanned && result?.profileFound ? platform.color : wasScanned ? 'text-slate-400' : 'text-slate-700'
                               }`} />
                             </div>
-                            <p className={`text-[9px] font-semibold text-center truncate w-full ${
+                            <p className={`text-[8px] font-semibold text-center truncate w-full leading-tight ${
                               wasScanned ? 'text-slate-300' : 'text-slate-600'
                             }`}>
                               {platform.name}
                             </p>
-                            <p className={`text-[7px] text-center font-medium ${statusTextColor}`}>
+                            <p className={`text-[7px] text-center font-medium leading-tight ${statusTextColor}`}>
                               {statusLabel}
                             </p>
                             {wasScanned && result?.username && (
-                              <Badge variant="outline" className="border-slate-600 text-slate-300 text-[7px] px-1 py-0 max-w-full truncate">
+                              <p className="text-[7px] text-slate-400 truncate w-full text-center" title={`@${result.username}`}>
                                 @{result.username}
-                              </Badge>
-                            )}
-                            {wasScanned && (
-                              <a
-                                href={`${platform.searchUrl}${encodeURIComponent(getSocialSearchValue() || fullName)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[7px] text-blue-400 hover:text-blue-300 flex items-center gap-0.5"
-                                onClick={e => e.stopPropagation()}
-                              >
-                                <ExternalLink className="w-2 h-2" /> Verificar
-                              </a>
-                            )}
-                            {getSocialSearchValue() && (
-                              <div className="flex gap-0.5">
-                                {searchEngines.slice(0, 4).map(engine => {
-                                  const q = buildPlatformSearchQuery(platform, engine);
-                                  const url = engine.buildUrl(q || getSocialSearchValue());
-                                  return (
-                                    <a
-                                      key={engine.id}
-                                      href={url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className={`text-[6px] px-1 py-0.5 rounded border ${engine.bgColor} ${engine.borderColor} ${engine.color} hover:opacity-80`}
-                                      onClick={e => e.stopPropagation()}
-                                      title={`Buscar en ${engine.name}`}
-                                    >
-                                      {engine.name.substring(0, 2).toUpperCase()}
-                                    </a>
-                                  );
-                                })}
-                              </div>
+                              </p>
                             )}
                             {socialScanLoading && selectedSocialPlatforms.has(platform.id) && !wasScanned && (
                               <div className="absolute inset-0 rounded-lg border-2 border-blue-500/20 animate-pulse" />
@@ -2365,8 +2333,8 @@ export default function Home() {
                       </Badge>
                     </div>
 
-                    <ScrollArea className="max-h-[600px]">
-                      <div className="space-y-3 pr-1">
+                    <ScrollArea className="max-h-[500px]">
+                      <div className="space-y-2 pr-1">
                         {socialScanData.results.map(result => {
                           const platformConfig = socialPlatforms.find(p => p.id === result.platformId);
                           const isExpanded = expandedSocialPlatform === result.platformId;
@@ -2380,56 +2348,52 @@ export default function Home() {
                                 result.profileFound ? `border-l-2 border-l-green-500` : hasCriticalFindings ? 'border-l-2 border-l-orange-500' : ''
                               }`}
                             >
-                              {/* Card Header */}
+                              {/* Card Header - Compact */}
                               <div
-                                className="p-4 flex items-center gap-3 cursor-pointer hover:bg-[#1a2235] transition-colors"
+                                className="px-3 py-2.5 flex items-center gap-2.5 cursor-pointer hover:bg-[#1a2235] transition-colors"
                                 onClick={() => setExpandedSocialPlatform(isExpanded ? null : result.platformId)}
                               >
                                 <div
-                                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                                   style={{ backgroundColor: `${platformConfig?.accentHex}10`, border: `1px solid ${platformConfig?.accentHex}25` }}
                                 >
-                                  <PlatformIcon className="w-5 h-5" style={{ color: platformConfig?.accentHex }} />
+                                  <PlatformIcon className="w-4 h-4" style={{ color: platformConfig?.accentHex }} />
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-sm font-semibold text-white">{result.platform}</p>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="text-xs font-semibold text-white">{result.platform}</p>
                                     {result.profileFound ? (
-                                      <Badge className="bg-green-900/30 text-green-400 text-[9px] gap-1 border border-green-800/30">
-                                        <CheckCircle2 className="w-3 h-3" /> Perfil Detectado
+                                      <Badge className="bg-green-900/30 text-green-400 text-[8px] gap-0.5 border border-green-800/30 py-0">
+                                        <CheckCircle2 className="w-2.5 h-2.5" /> Detectado
                                       </Badge>
                                     ) : result.findings.length > 0 ? (
-                                      <Badge className="bg-amber-900/30 text-amber-400 text-[9px] gap-1 border border-amber-800/30">
-                                        <Eye className="w-3 h-3" /> Menciones
+                                      <Badge className="bg-amber-900/30 text-amber-400 text-[8px] gap-0.5 border border-amber-800/30 py-0">
+                                        <Eye className="w-2.5 h-2.5" /> Menciones
                                       </Badge>
                                     ) : (
-                                      <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[9px]">
+                                      <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[8px] py-0">
                                         Sin hallazgos
                                       </Badge>
                                     )}
                                     {result.profileVerified && (
-                                      <Badge className="bg-green-900/20 text-green-300 text-[9px] gap-1 border border-green-800/30">
-                                        <ShieldCheck className="w-3 h-3" /> Verificado
+                                      <Badge className="bg-green-900/20 text-green-300 text-[8px] gap-0.5 border border-green-800/30 py-0">
+                                        <ShieldCheck className="w-2.5 h-2.5" /> Verificado
                                       </Badge>
                                     )}
                                     {result.username && (
-                                      <Badge
-                                        variant="outline"
-                                        className="text-[9px] px-1.5"
-                                        style={{ borderColor: `${platformConfig?.accentHex}40`, color: platformConfig?.accentHex }}
-                                      >
+                                      <span className="text-[8px]" style={{ color: platformConfig?.accentHex }}>
                                         @{result.username}
-                                      </Badge>
+                                      </span>
                                     )}
                                   </div>
-                                  <p className="text-xs text-slate-500 mt-0.5">
+                                  <p className="text-[10px] text-slate-500 mt-0.5">
                                     {result.findings.length} hallazgo{result.findings.length !== 1 ? 's' : ''} · {result.searchResultsCount} resultado{result.searchResultsCount !== 1 ? 's' : ''} web
                                   </p>
                                 </div>
 
-                                {/* Search Engine buttons per platform */}
-                                <div className="flex items-center gap-1">
+                                {/* Search Engine buttons per platform - compact */}
+                                <div className="hidden sm:flex items-center gap-0.5">
                                   {searchEngines.map(engine => {
                                     const q = platformConfig ? buildPlatformSearchQuery(platformConfig, engine) : getSocialSearchValue();
                                     const url = engine.buildUrl(q || getSocialSearchValue());
@@ -2439,31 +2403,31 @@ export default function Home() {
                                         href={url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`text-[9px] px-1.5 py-1 rounded-md border flex items-center gap-0.5 transition-all hover:bg-[#1a2235] ${engine.bgColor} ${engine.borderColor} ${engine.color}`}
+                                        className={`text-[8px] px-1 py-0.5 rounded border flex items-center gap-0.5 transition-all hover:bg-[#1a2235] ${engine.bgColor} ${engine.borderColor} ${engine.color}`}
                                         onClick={e => e.stopPropagation()}
                                         title={`Buscar en ${engine.name}`}
                                       >
-                                        <ExternalLink className="w-2.5 h-2.5" />
-                                        {engine.name.substring(0, 3)}
+                                        <ExternalLink className="w-2 h-2" />
+                                        {engine.name.substring(0, 2)}
                                       </a>
                                     );
                                   })}
                                 </div>
 
-                                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-600 shrink-0 ml-1" /> : <ChevronDown className="w-4 h-4 text-slate-600 shrink-0 ml-1" />}
+                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-600 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
                               </div>
 
                               {/* Expanded Content */}
                               {isExpanded && (
                                 <div className="border-t border-[#1e293b]">
                                   {result.profileUrl && (
-                                    <div className="px-4 py-2.5 bg-green-900/5 flex items-center gap-2 border-b border-[#1e293b]/50">
-                                      <div className="w-5 h-5 rounded-md bg-green-900/30 flex items-center justify-center shrink-0">
-                                        <Link2 className="w-3 h-3 text-green-400" />
+                                    <div className="px-3 py-2 bg-green-900/5 flex items-center gap-2 border-b border-[#1e293b]/50">
+                                      <div className="w-4 h-4 rounded-md bg-green-900/30 flex items-center justify-center shrink-0">
+                                        <Link2 className="w-2.5 h-2.5 text-green-400" />
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] text-green-400 font-medium">Perfil Encontrado</p>
-                                        <a href={result.profileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-green-300 hover:text-green-200 truncate block" onClick={e => e.stopPropagation()}>
+                                        <p className="text-[9px] text-green-400 font-medium">Perfil Encontrado</p>
+                                        <a href={result.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-300 hover:text-green-200 truncate block" onClick={e => e.stopPropagation()}>
                                           {result.profileUrl}
                                         </a>
                                       </div>
@@ -2471,10 +2435,10 @@ export default function Home() {
                                         href={result.profileUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-[10px] px-2 py-1 rounded-md bg-green-900/20 text-green-400 hover:bg-green-900/40 transition-colors shrink-0"
+                                        className="text-[9px] px-1.5 py-0.5 rounded-md bg-green-900/20 text-green-400 hover:bg-green-900/40 transition-colors shrink-0"
                                         onClick={e => e.stopPropagation()}
                                       >
-                                        Abrir <ExternalLink className="w-3 h-3 inline ml-0.5" />
+                                        Abrir <ExternalLink className="w-2.5 h-2.5 inline ml-0.5" />
                                       </a>
                                     </div>
                                   )}
@@ -2483,25 +2447,25 @@ export default function Home() {
                                     const config = severityBadgeConfig[finding.severity];
                                     const Icon = config.icon;
                                     return (
-                                      <div key={idx} className="px-4 py-3 border-b border-[#1e293b]/50 last:border-b-0 hover:bg-[#1a2235]/30 transition-colors">
-                                        <div className="flex items-start gap-2.5">
-                                          <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${config.color}`}>
-                                            <Icon className="w-3 h-3" />
+                                      <div key={idx} className="px-3 py-2 border-b border-[#1e293b]/50 last:border-b-0 hover:bg-[#1a2235]/30 transition-colors">
+                                        <div className="flex items-start gap-2">
+                                          <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 mt-0.5 ${config.color}`}>
+                                            <Icon className="w-2.5 h-2.5" />
                                           </div>
                                           <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-0.5">
-                                              <Badge className={`${config.color} text-[9px] shrink-0`}>{config.label}</Badge>
+                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                              <Badge className={`${config.color} text-[8px] py-0 shrink-0`}>{config.label}</Badge>
                                               {finding.category && (
-                                                <span className="text-[9px] text-slate-600 uppercase tracking-wider">{categoryLabels[finding.category] || finding.category}</span>
+                                                <span className="text-[8px] text-slate-600 uppercase tracking-wider">{categoryLabels[finding.category] || finding.category}</span>
                                               )}
                                             </div>
-                                            <p className="text-sm text-white break-words">{finding.title}</p>
+                                            <p className="text-xs text-white break-words">{finding.title}</p>
                                             {finding.description && (
-                                              <p className="text-sm text-slate-400 mt-1 break-words">{finding.description}</p>
+                                              <p className="text-[11px] text-slate-400 mt-0.5 break-words line-clamp-2">{finding.description}</p>
                                             )}
                                             {finding.url && (
-                                              <a href={finding.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 mt-1.5" onClick={e => e.stopPropagation()}>
-                                                <ExternalLink className="w-3 h-3" />Ver fuente
+                                              <a href={finding.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[10px] text-blue-400 hover:text-blue-300 mt-1" onClick={e => e.stopPropagation()}>
+                                                <ExternalLink className="w-2.5 h-2.5" />Ver fuente
                                               </a>
                                             )}
                                           </div>
@@ -2510,9 +2474,9 @@ export default function Home() {
                                     );
                                   })}
                                   {result.findings.length === 0 && (
-                                    <div className="px-4 py-6 text-center">
-                                      <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-                                      <p className="text-sm text-slate-500">Sin hallazgos para esta plataforma</p>
+                                    <div className="px-3 py-4 text-center">
+                                      <ShieldCheck className="w-6 h-6 mx-auto mb-1 text-slate-600" />
+                                      <p className="text-[11px] text-slate-500">Sin hallazgos para esta plataforma</p>
                                     </div>
                                   )}
                                 </div>
