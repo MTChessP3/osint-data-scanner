@@ -963,21 +963,42 @@ export default function Home() {
     try {
       const fileName = uploadFile.name.toLowerCase();
       const isXLSX = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+      const isLegacyXLS = fileName.endsWith('.xls');
 
       if (isXLSX) {
-        let processed = false;
-        let lastError: string = '';
-
-        // ATTEMPT 1: Client-side parsing
+        // ── ATTEMPT 1: Client-side parsing ──
         try {
           const XLSX = await import('xlsx');
           const arrayBuffer = await uploadFile.arrayBuffer();
-          const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+          const uint8 = new Uint8Array(arrayBuffer);
 
+          // Build read options: add extra options for .xls legacy format compatibility
+          const readOptions: Record<string, unknown> = { type: 'array' };
+          if (isLegacyXLS) {
+            readOptions.cellStyles = true;
+            readOptions.cellDates = true;
+            readOptions.cellNF = true;
+          }
+
+          const workbook = XLSX.read(uint8, readOptions as { type: 'array' });
+
+          // ── Check for encrypted file: all sheets empty after successful read ──
+          const hasEmptySheets = workbook.SheetNames.length > 0 &&
+            workbook.SheetNames.every(name => {
+              const ws = workbook.Sheets[name];
+              return !ws || !ws['!ref'] || ws['!ref'] === 'A1' || ws['!ref'].startsWith('A1:');
+            });
+
+          if (hasEmptySheets) {
+            throw new Error('ENCRYPTED_FILE');
+          }
+
+          // ── Read ALL sheets ──
           const sheets = workbook.SheetNames.map(name => {
             const ws = workbook.Sheets[name];
             let data: Record<string, string>[] = [];
 
+            // Method 1: sheet_to_json with header row
             try {
               const aoaData: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
               if (aoaData.length >= 2) {
@@ -996,6 +1017,7 @@ export default function Home() {
               }
             } catch { /* try next */ }
 
+            // Method 2: Raw key-value extraction
             if (data.length === 0) {
               try {
                 const rawData = XLSX.utils.sheet_to_json(ws, { defval: '', blankrows: false });
@@ -1009,6 +1031,7 @@ export default function Home() {
               } catch { /* try next */ }
             }
 
+            // Method 3: Manual cell-by-cell extraction
             if (data.length === 0 && ws['!ref']) {
               try {
                 const range = XLSX.utils.decode_range(ws['!ref']);
@@ -1038,9 +1061,10 @@ export default function Home() {
 
           const totalRows = sheets.reduce((sum, s) => sum + s.data.length, 0);
           if (totalRows === 0) {
-            throw new Error('El archivo parece estar vacío o no se pudieron leer los datos');
+            throw new Error('El archivo parece estar vacío o no se pudieron leer los datos de ninguna hoja.');
           }
 
+          // Send all sheets to server for processing (including comparative analysis for 2+ sheets)
           const res = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1052,89 +1076,87 @@ export default function Home() {
 
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
+            // Check if server detected encryption
+            if (errData.isEncrypted) {
+              throw new Error('ENCRYPTED_FILE');
+            }
             throw new Error(errData.error || 'Error al procesar archivo Excel en el servidor');
           }
 
-          const data = await res.json();
-          processed = true;
+          const uploadData = await res.json();
 
-          if (data.type === 'xlsx_multi_sheet') {
-            setSheetNames(data.sheetNames || []);
-            setBatchResults(data.results);
-            setRelationshipAnalysis(data.relationshipAnalysis || null);
-            setJointAnalysisId(data.jointAnalysisId || null);
-            setJointReportFileName(data.jointReportFileName || null);
+          if (uploadData.type === 'xlsx_multi_sheet') {
+            setSheetNames(uploadData.sheetNames || []);
+            setBatchResults(uploadData.results);
+            setRelationshipAnalysis(uploadData.relationshipAnalysis || null);
+            setJointAnalysisId(uploadData.jointAnalysisId || null);
+            setJointReportFileName(uploadData.jointReportFileName || null);
           } else {
-            setBatchResults(data.results);
+            setBatchResults(uploadData.results);
           }
-        } catch (clientError) {
-          lastError = clientError instanceof Error ? clientError.message : 'Error de parsing';
-          console.warn('Client-side XLSX parsing failed:', lastError);
-        }
 
-        // ATTEMPT 2: Server-side fallback via FormData
-        if (!processed) {
-          try {
-            const formData = new FormData();
-            formData.append('file', uploadFile);
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          fetchPastScans();
+          return; // Success — done
+        } catch (clientError) {
+          const errMsg = clientError instanceof Error ? clientError.message : 'Error desconocido';
+
+          // ── Early encrypted file detection ──
+          if (errMsg === 'ENCRYPTED_FILE' || /encrypt|EncryptionInfo|ECMA-376/i.test(errMsg)) {
             clearInterval(progressInterval);
             setUploadProgress(100);
-            if (!res.ok) {
-              const errData = await res.json().catch(() => ({}));
-              throw new Error(errData.error || 'Error al procesar archivo Excel en el servidor');
-            }
-            const data = await res.json();
-            processed = true;
-            if (data.type === 'xlsx_multi_sheet') {
-              setSheetNames(data.sheetNames || []);
-              setBatchResults(data.results);
-              setRelationshipAnalysis(data.relationshipAnalysis || null);
-              setJointAnalysisId(data.jointAnalysisId || null);
-              setJointReportFileName(data.jointReportFileName || null);
-            } else {
-              setBatchResults(data.results);
-            }
-          } catch (serverError) {
-            const serverMsg = serverError instanceof Error ? serverError.message : 'Error del servidor';
-            // ATTEMPT 3: Read as base64
-            try {
-              const arrayBuffer = await uploadFile.arrayBuffer();
-              const base64 = btoa(new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-              const res = await fetch('/api/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'xlsx', fileName: uploadFile.name, fileBase64: base64 }),
-              });
-              clearInterval(progressInterval);
-              setUploadProgress(100);
-              if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || 'Error al procesar archivo');
-              }
-              const data = await res.json();
-              processed = true;
-              if (data.type === 'xlsx_multi_sheet') {
-                setSheetNames(data.sheetNames || []);
-                setBatchResults(data.results);
-                setRelationshipAnalysis(data.relationshipAnalysis || null);
-                setJointAnalysisId(data.jointAnalysisId || null);
-                setJointReportFileName(data.jointReportFileName || null);
-              } else {
-                setBatchResults(data.results);
-              }
-            } catch (base64Error) {
+            throw new Error(
+              'El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
+            );
+          }
+
+          console.warn('Client-side XLSX parsing failed, falling back to server:', errMsg);
+        }
+
+        // ── ATTEMPT 2: Server-side fallback via FormData ──
+        try {
+          const formData = new FormData();
+          formData.append('file', uploadFile);
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            // Check if server detected encryption
+            if (errData.isEncrypted) {
               throw new Error(
-                `No se pudo leer el archivo Excel. Intentos fallidos:\n` +
-                `1. Lectura en navegador: ${lastError}\n` +
-                `2. Carga al servidor: ${serverMsg}\n` +
-                `3. Codificación base64: ${base64Error instanceof Error ? base64Error.message : 'falló'}\n\n` +
-                `Sugerencia: Abre el archivo en Excel y guárdalo como .xlsx (formato libro de Excel). Los archivos .xls antiguos no son compatibles.`
+                'El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
               );
             }
+            throw new Error(errData.error || 'Error al procesar archivo Excel en el servidor');
           }
+
+          const uploadData = await res.json();
+
+          if (uploadData.type === 'xlsx_multi_sheet') {
+            setSheetNames(uploadData.sheetNames || []);
+            setBatchResults(uploadData.results);
+            setRelationshipAnalysis(uploadData.relationshipAnalysis || null);
+            setJointAnalysisId(uploadData.jointAnalysisId || null);
+            setJointReportFileName(uploadData.jointReportFileName || null);
+          } else {
+            setBatchResults(uploadData.results);
+          }
+
+          fetchPastScans();
+        } catch (serverError) {
+          // Single clear error message — no multi-attempt list
+          const msg = serverError instanceof Error ? serverError.message : 'Error desconocido';
+          if (msg.includes('protegido con contraseña') || msg.includes('ENCRYPTED')) {
+            throw serverError;
+          }
+          throw new Error(
+            'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado ni protegido con contraseña. ' +
+            'Si es un archivo .xls antiguo, ábrelo en Excel y guárdalo como .xlsx.'
+          );
         }
       } else {
+        // CSV or other format
         const formData = new FormData();
         formData.append('file', uploadFile);
         const res = await fetch('/api/upload', { method: 'POST', body: formData });
@@ -1146,9 +1168,8 @@ export default function Home() {
         }
         const data = await res.json();
         setBatchResults(data.results);
+        fetchPastScans();
       }
-
-      fetchPastScans();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
@@ -1928,7 +1949,7 @@ export default function Home() {
                           </p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                         <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Perfiles Encontrados', items: socialScanData.results.filter(r => r.profileFound).map(r => ({ title: r.platform, description: r.profileFound ? `Perfil detectado${r.username ? ': @' + r.username : ''}${r.profileVerified ? ' (Verificado)' : ''}` : 'Sin perfil', platform: r.platform })) })}>
                           <p className="text-2xl font-bold text-blue-400">{socialScanData.summary.profilesFound}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Perfiles Encontrados</p>
@@ -1994,9 +2015,9 @@ export default function Home() {
               </Card>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left Column: Search Form + Platform Selector */}
-              <div className="lg:col-span-1 space-y-4">
+              <div className="lg:col-span-4 space-y-4">
                 <Card className="bg-[#111827] border-[#1e293b]">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
@@ -2192,21 +2213,21 @@ export default function Home() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-2 gap-2">
                       {socialPlatforms.map(platform => {
                         const isSelected = selectedSocialPlatforms.has(platform.id);
                         const PlatformIcon = platform.icon;
                         return (
                           <div
                             key={platform.id}
-                            className={`group flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                            className={`group flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all min-h-[42px] ${
                               isSelected
                                 ? `${platform.bgColor} ${platform.borderColor}`
                                 : 'bg-[#0b0f19] border-[#1e293b] opacity-50 hover:opacity-80 hover:border-slate-600'
                             }`}
                             onClick={() => toggleSocialPlatform(platform.id)}
                           >
-                            <div className={`w-7 h-7 rounded-md flex items-center justify-center ${
+                            <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
                               isSelected ? 'bg-[#0b0f19]' : 'bg-slate-800/30'
                             }`}>
                               <PlatformIcon className={`w-3.5 h-3.5 ${
@@ -2214,7 +2235,7 @@ export default function Home() {
                               }`} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className={`text-[10px] font-semibold truncate ${
+                              <p className={`text-[11px] font-semibold truncate ${
                                 isSelected ? 'text-white' : 'text-slate-500'
                               }`}>
                                 {platform.name}
@@ -2236,7 +2257,7 @@ export default function Home() {
               </div>
 
               {/* Right Column: Digital Footprint Map + Results */}
-              <div className="lg:col-span-2 space-y-4">
+              <div className="lg:col-span-8 space-y-4">
 
                 {/* Digital Footprint Map */}
                 <Card className="bg-[#111827] border-[#1e293b]">
@@ -2257,7 +2278,7 @@ export default function Home() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-5 gap-1.5">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                       {socialPlatforms.map(platform => {
                         const PlatformIcon = platform.icon;
                         const result = socialScanData?.results.find(r => r.platformId === platform.id);
@@ -2289,22 +2310,22 @@ export default function Home() {
                         return (
                           <div
                             key={platform.id}
-                            className={`relative flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all ${statusColor}`}
+                            className={`relative flex flex-col items-center gap-1 p-2 rounded-lg border transition-all min-h-[68px] ${statusColor}`}
                           >
                             <div className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${statusDot} ${wasScanned && result?.profileFound ? 'animate-pulse' : ''}`} />
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                               wasScanned && result?.profileFound ? 'bg-[#0b0f19]' : 'bg-slate-800/30'
                             }`}>
-                              <PlatformIcon className={`w-3.5 h-3.5 ${
+                              <PlatformIcon className={`w-4 h-4 ${
                                 wasScanned && result?.profileFound ? platform.color : wasScanned ? 'text-slate-400' : 'text-slate-700'
                               }`} />
                             </div>
-                            <p className={`text-[8px] font-semibold text-center truncate w-full leading-tight ${
+                            <p className={`text-[9px] font-semibold text-center truncate w-full leading-tight ${
                               wasScanned ? 'text-slate-300' : 'text-slate-600'
                             }`}>
                               {platform.name}
                             </p>
-                            <p className={`text-[7px] text-center font-medium leading-tight ${statusTextColor}`}>
+                            <p className={`text-[8px] text-center font-medium leading-tight ${statusTextColor}`}>
                               {statusLabel}
                             </p>
                             {wasScanned && result?.username && (
@@ -2333,8 +2354,8 @@ export default function Home() {
                       </Badge>
                     </div>
 
-                    <ScrollArea className="max-h-[500px]">
-                      <div className="space-y-2 pr-1">
+                    <ScrollArea className="max-h-[600px]">
+                      <div className="space-y-3 pr-2">
                         {socialScanData.results.map(result => {
                           const platformConfig = socialPlatforms.find(p => p.id === result.platformId);
                           const isExpanded = expandedSocialPlatform === result.platformId;

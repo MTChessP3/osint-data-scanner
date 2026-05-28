@@ -92,12 +92,21 @@ async function handleParsedXLSX(body: {
     return NextResponse.json({ error: 'No se encontraron hojas en el archivo' }, { status: 400 });
   }
 
-  // If 2+ sheets → relationship analysis + comparative report
-  if (sheets.length >= 2) {
-    const sheet1 = sheets[0];
-    const sheet2 = sheets[1];
+  // Filter to sheets that actually have data
+  const nonEmptySheets = sheets.filter(s => s.data && s.data.length > 0);
+  if (nonEmptySheets.length === 0) {
+    return NextResponse.json(
+      { error: 'Todas las hojas del archivo están vacías. Verifica que el archivo contenga datos.', isEncrypted: false },
+      { status: 400 }
+    );
+  }
 
-    // Run relationship analysis
+  // If 2+ non-empty sheets → relationship analysis + comparative report
+  if (nonEmptySheets.length >= 2) {
+    const sheet1 = nonEmptySheets[0];
+    const sheet2 = nonEmptySheets[1];
+
+    // Run relationship analysis between primary pair
     const analysis = analyzeRelationships(
       sheet1.data,
       sheet2.data,
@@ -105,32 +114,33 @@ async function handleParsedXLSX(body: {
       sheet2.name
     );
 
-    // Create scans for each sheet's data
-    const results1 = createResultsFromSheetData(sheet1.data, sheet1.name);
-    const results2 = createResultsFromSheetData(sheet2.data, sheet2.name);
+    // Create scans for ALL non-empty sheets (not just the first two)
+    const allSheetResults: Array<{ sheetName: string; rowCount: number; scanId: string }> = [];
+    for (const sheet of nonEmptySheets) {
+      const sheetResults = createResultsFromSheetData(sheet.data, sheet.name);
+      const scan = createScan({
+        fullName: `Hoja: ${sheet.name}`,
+        scanType: 'data_intelligence',
+      });
+      addScanResults(scan.id, sheetResults);
+      allSheetResults.push({ sheetName: sheet.name, rowCount: sheet.data.length, scanId: scan.id });
+    }
 
-    const scan1 = createScan({
-      fullName: `Hoja: ${sheet1.name}`,
-      scanType: 'data_intelligence',
-    });
-    addScanResults(scan1.id, results1);
-
-    const scan2 = createScan({
-      fullName: `Hoja: ${sheet2.name}`,
-      scanType: 'data_intelligence',
-    });
-    addScanResults(scan2.id, results2);
-
-    // Generate joint analysis PDF
+    // Generate joint analysis PDF for the primary pair
     let jointAnalysisId: string | null = null;
     let jointReportFileName: string | null = null;
+
+    const results1 = createResultsFromSheetData(sheet1.data, sheet1.name);
+    const results2 = createResultsFromSheetData(sheet2.data, sheet2.name);
+    const scan1 = allSheetResults[0];
+    const scan2 = allSheetResults[1];
 
     try {
       const pdfBuffer = await generateJointPDF(
         analysis,
         [
-          { name: sheet1.name, scanId: scan1.id },
-          { name: sheet2.name, scanId: scan2.id },
+          { name: sheet1.name, scanId: scan1.scanId },
+          { name: sheet2.name, scanId: scan2.scanId },
         ],
         results1,
         results2
@@ -146,8 +156,8 @@ async function handleParsedXLSX(body: {
       createJointAnalysis({
         analysis,
         individualScans: [
-          { name: sheet1.name, scanId: scan1.id },
-          { name: sheet2.name, scanId: scan2.id },
+          { name: sheet1.name, scanId: scan1.scanId },
+          { name: sheet2.name, scanId: scan2.scanId },
         ],
         fileName: jointReportFileName,
       });
@@ -157,11 +167,8 @@ async function handleParsedXLSX(body: {
 
     return NextResponse.json({
       type: 'xlsx_multi_sheet',
-      sheetNames,
-      results: [
-        { sheetName: sheet1.name, rowCount: sheet1.data.length, scanId: scan1.id },
-        { sheetName: sheet2.name, rowCount: sheet2.data.length, scanId: scan2.id },
-      ],
+      sheetNames: nonEmptySheets.map(s => s.name),
+      results: allSheetResults,
       relationshipAnalysis: {
         sheet1Name: analysis.sheet1Name,
         sheet2Name: analysis.sheet2Name,
@@ -177,8 +184,8 @@ async function handleParsedXLSX(body: {
     });
   }
 
-  // Single sheet → just scan the data
-  const sheet = sheets[0];
+  // Single non-empty sheet → just scan the data
+  const sheet = nonEmptySheets[0];
   const results = createResultsFromSheetData(sheet.data, sheet.name);
   const scan = createScan({
     fullName: `Hoja: ${sheet.name}`,
@@ -198,10 +205,22 @@ async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResp
   try {
     const { sheets, sheetNames } = parseXLSXWithSheets(buffer);
 
+    // Verify sheets actually contain data
+    const nonEmptySheets = sheets.filter(s => s.data.length > 0);
+    if (nonEmptySheets.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'El archivo Excel no contiene datos legibles. Puede estar vacío, dañado o protegido con contraseña.',
+          isEncrypted: true,
+        },
+        { status: 400 }
+      );
+    }
+
     // Convert to the same format as pre-parsed and reuse handler
     const body = {
       type: 'xlsx' as const,
-      sheets: sheets.map(s => ({ name: s.name, data: s.data })),
+      sheets: nonEmptySheets.map(s => ({ name: s.name, data: s.data })),
       sheetNames,
     };
 
@@ -210,12 +229,12 @@ async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResp
     console.error('[Upload API] XLSX parse error:', parseError);
 
     const errorMsg = parseError instanceof Error ? parseError.message : 'Error desconocido';
-    const isEncrypted = errorMsg.includes('Encrypted') || errorMsg.includes('EncryptionInfo');
+    const isEncrypted = /encrypt|EncryptionInfo|ECMA-376|protegido con contraseña/i.test(errorMsg);
 
     return NextResponse.json(
       {
         error: isEncrypted
-          ? 'El archivo Excel está protegido con contraseña. Retire la protección y vuelva a intentarlo.'
+          ? 'El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
           : `No se pudo leer el archivo Excel: ${errorMsg}`,
         details: errorMsg,
         isEncrypted,

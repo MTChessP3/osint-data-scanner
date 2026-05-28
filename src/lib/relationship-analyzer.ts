@@ -339,56 +339,115 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       ? new Uint8Array(buffer)
       : new Uint8Array(buffer.buffer || buffer);
 
+  // Options for better .xls compatibility and cell handling
+  const readOptions = { cellNF: true, cellStyles: true, cellDates: true };
+
   // Method 1: Uint8Array with type 'array' — most compatible across environments
   try {
-    workbook = XLSX.read(uint8, { type: 'array' });
+    workbook = XLSX.read(uint8, { type: 'array', ...readOptions });
+    // Check for encrypted file: workbook reads but all sheets are empty
+    if (isEncryptedWorkbook(workbook)) {
+      throw new Error('ECMA-376 Encrypted file missing /EncryptionInfo — el archivo está protegido con contraseña');
+    }
     if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
       return buildSheetsFromWorkbook(workbook);
     }
     errors.push('array: workbook vacío');
   } catch (e) {
-    errors.push(`array: ${e instanceof Error ? e.message : String(e)}`);
+    const msg = e instanceof Error ? e.message : String(e);
+    // Early exit for encrypted files — no point trying other methods
+    if (/encrypt|EncryptionInfo|ECMA-376/i.test(msg)) {
+      throw new Error('El archivo está protegido con contraseña. Retire la protección y vuelva a intentarlo.');
+    }
+    errors.push(`array: ${msg}`);
   }
 
   // Method 2: Buffer with type 'buffer'
   try {
     const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
-    workbook = XLSX.read(buf, { type: 'buffer' });
+    workbook = XLSX.read(buf, { type: 'buffer', ...readOptions });
+    if (isEncryptedWorkbook(workbook)) {
+      throw new Error('ECMA-376 Encrypted file — el archivo está protegido con contraseña');
+    }
     if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
       return buildSheetsFromWorkbook(workbook);
     }
     errors.push('buffer: workbook vacío');
   } catch (e) {
-    errors.push(`buffer: ${e instanceof Error ? e.message : String(e)}`);
-  }
-
-  // Method 3: Base64 string
-  try {
-    const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
-    const base64 = buf.toString('base64');
-    workbook = XLSX.read(base64, { type: 'base64' });
-    if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
-      return buildSheetsFromWorkbook(workbook);
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/encrypt|EncryptionInfo|ECMA-376/i.test(msg)) {
+      throw new Error('El archivo está protegido con contraseña. Retire la protección y vuelva a intentarlo.');
     }
-    errors.push('base64: workbook vacío');
-  } catch (e) {
-    errors.push(`base64: ${e instanceof Error ? e.message : String(e)}`);
+    errors.push(`buffer: ${msg}`);
   }
 
-  // Method 4: Binary string
+  // Method 3: Binary string (best for legacy .xls)
   try {
     const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
     const binary = buf.toString('binary');
-    workbook = XLSX.read(binary, { type: 'binary' });
+    workbook = XLSX.read(binary, { type: 'binary', ...readOptions });
+    if (isEncryptedWorkbook(workbook)) {
+      throw new Error('ECMA-376 Encrypted file — el archivo está protegido con contraseña');
+    }
     if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
       return buildSheetsFromWorkbook(workbook);
     }
     errors.push('binary: workbook vacío');
   } catch (e) {
-    errors.push(`binary: ${e instanceof Error ? e.message : String(e)}`);
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/encrypt|EncryptionInfo|ECMA-376/i.test(msg)) {
+      throw new Error('El archivo está protegido con contraseña. Retire la protección y vuelva a intentarlo.');
+    }
+    errors.push(`binary: ${msg}`);
   }
 
-  throw new Error(`No se pudo leer el archivo Excel. Intentos: [${errors.join(' | ')}]`);
+  // Method 4: Base64 string
+  try {
+    const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
+    const base64 = buf.toString('base64');
+    workbook = XLSX.read(base64, { type: 'base64', ...readOptions });
+    if (isEncryptedWorkbook(workbook)) {
+      throw new Error('ECMA-376 Encrypted file — el archivo está protegido con contraseña');
+    }
+    if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
+      return buildSheetsFromWorkbook(workbook);
+    }
+    errors.push('base64: workbook vacío');
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/encrypt|EncryptionInfo|ECMA-376/i.test(msg)) {
+      throw new Error('El archivo está protegido con contraseña. Retire la protección y vuelva a intentarlo.');
+    }
+    errors.push(`base64: ${msg}`);
+  }
+
+  throw new Error(
+    'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado ni protegido con contraseña. ' +
+    'Si es un archivo .xls antiguo, ábrelo en Excel y guárdalo como .xlsx.'
+  );
+}
+
+// ── Check if workbook appears to be encrypted (reads successfully but all sheets are empty) ──
+function isEncryptedWorkbook(workbook: XLSX.WorkBook): boolean {
+  if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+    return false;
+  }
+  // An encrypted file often has SheetNames but every sheet has no data (just A1 or empty ref)
+  return workbook.SheetNames.every(name => {
+    const ws = workbook.Sheets[name];
+    if (!ws) return true;
+    if (!ws['!ref']) return true;
+    // If the only cell is A1 with no value, or ref is just "A1", it's likely encrypted
+    const ref = ws['!ref'];
+    if (ref === 'A1' || ref === '') return true;
+    // Check if there are any actual cell values
+    const range = XLSX.utils.decode_range(ref);
+    if (range.e.r === 0 && range.e.c === 0) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: 0 })];
+      return !cell || !cell.v;
+    }
+    return false;
+  });
 }
 
 function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
