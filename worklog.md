@@ -21,3 +21,27 @@ Stage Summary:
 - Social media layout balanced and more compact
 - DOCX cover pages use reliable formatting that renders correctly in Word
 - Build passes cleanly
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Application crash and Excel upload ECMA-376 false positive
+
+Work Log:
+- Cloned repo and diagnosed the client-side crash
+- Found that client-side `import('xlsx')` was likely causing the Application error on Vercel
+- Created error.tsx boundary to prevent full app crash
+- Rewrote page.tsx handleFileUpload to always use server-side parsing (removed fragile client-side xlsx import)
+- Rewrote parseXLSXWithSheets() in relationship-analyzer.ts:
+  - Removed isEncryptedWorkbook() which gave false positives for valid .xls files
+  - Added isLegacyXLS() detection via OLE2 magic bytes
+  - Use minimal read options for .xls (no cellStyles/cellNF/cellDates)
+  - Only flag as encrypted if xlsx library itself throws encryption error
+  - Try buffer, array, binary, base64 methods systematically
+- Updated upload route to not prematurely flag files as encrypted
+- Built successfully, tested locally, pushed to GitHub
+- Verified Vercel deployment returns 200
+
+Stage Summary:
+- Application crash fix: Added error.tsx + removed client-side xlsx import
+- Excel upload fix: Removed isEncryptedWorkbook false positive, added proper .xls support
+- Deployed to Vercel successfully
