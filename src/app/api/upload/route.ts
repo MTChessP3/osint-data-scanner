@@ -115,7 +115,16 @@ async function handleParsedXLSX(body: {
     );
 
     // Create scans for ALL non-empty sheets (not just the first two)
-    const allSheetResults: Array<{ sheetName: string; rowCount: number; scanId: string }> = [];
+    const allSheetResults: Array<{
+      sheetName: string;
+      rowCount: number;
+      scanId: string;
+      fullName: string;
+      totalResults: number;
+      reportGenerated: boolean;
+      reportFileName: string | null;
+      summary: { critical: number; high: number; medium: number; low: number; info: number };
+    }> = [];
     for (const sheet of nonEmptySheets) {
       const sheetResults = createResultsFromSheetData(sheet.data, sheet.name);
       const scan = createScan({
@@ -123,7 +132,23 @@ async function handleParsedXLSX(body: {
         scanType: 'data_intelligence',
       });
       addScanResults(scan.id, sheetResults);
-      allSheetResults.push({ sheetName: sheet.name, rowCount: sheet.data.length, scanId: scan.id });
+      const summary = {
+        critical: sheetResults.filter(r => r.severity === 'critical').length,
+        high: sheetResults.filter(r => r.severity === 'high').length,
+        medium: sheetResults.filter(r => r.severity === 'medium').length,
+        low: sheetResults.filter(r => r.severity === 'low').length,
+        info: sheetResults.filter(r => r.severity === 'info').length,
+      };
+      allSheetResults.push({
+        sheetName: sheet.name,
+        rowCount: sheet.data.length,
+        scanId: scan.id,
+        fullName: `Hoja: ${sheet.name}`,
+        totalResults: sheetResults.length,
+        reportGenerated: false,
+        reportFileName: null,
+        summary,
+      });
     }
 
     // Generate joint analysis PDF for the primary pair
@@ -192,11 +217,27 @@ async function handleParsedXLSX(body: {
     scanType: 'data_intelligence',
   });
   addScanResults(scan.id, results);
+  const summary = {
+    critical: results.filter(r => r.severity === 'critical').length,
+    high: results.filter(r => r.severity === 'high').length,
+    medium: results.filter(r => r.severity === 'medium').length,
+    low: results.filter(r => r.severity === 'low').length,
+    info: results.filter(r => r.severity === 'info').length,
+  };
 
   return NextResponse.json({
     type: 'xlsx_single_sheet',
     sheetNames,
-    results: [{ sheetName: sheet.name, rowCount: sheet.data.length, scanId: scan.id }],
+    results: [{
+      sheetName: sheet.name,
+      rowCount: sheet.data.length,
+      scanId: scan.id,
+      fullName: `Hoja: ${sheet.name}`,
+      totalResults: results.length,
+      reportGenerated: false,
+      reportFileName: null,
+      summary,
+    }],
   });
 }
 
@@ -229,14 +270,16 @@ async function handleRawXLSX(buffer: Buffer, fileName: string): Promise<NextResp
     console.error('[Upload API] XLSX parse error:', parseError);
 
     const errorMsg = parseError instanceof Error ? parseError.message : 'Error desconocido';
-    // Only flag as encrypted if the error message explicitly mentions password/encryption
-    const isEncrypted = /protegido con contrasena|password.?protected|file is encrypted|unsupported encryption/i.test(errorMsg);
+    // Only flag as encrypted if the error has our distinctive [ENCRYPTED] prefix
+    // (set by parseXLSXWithSheets when the library itself detects encryption).
+    // NEVER flag based on generic error messages that mention "contrasena" to avoid false positives.
+    const isEncrypted = errorMsg.startsWith('[ENCRYPTED]');
 
     return NextResponse.json(
       {
         error: isEncrypted
           ? 'El archivo esta protegido con contrasena. Abre el archivo en Excel, elimina la proteccion y guardalo como .xlsx.'
-          : `No se pudo leer el archivo Excel: ${errorMsg}. Verifica que el archivo no este danado. Si es .xls, intenta guardarlo como .xlsx.`,
+          : `No se pudo leer el archivo Excel: ${errorMsg}`,
         details: errorMsg,
         isEncrypted,
       },
@@ -280,10 +323,26 @@ async function handleCSV(buffer: Buffer, fileName: string): Promise<NextResponse
       scanType: 'data_intelligence',
     });
     addScanResults(scan.id, results);
+    const csvSummary = {
+      critical: results.filter(r => r.severity === 'critical').length,
+      high: results.filter(r => r.severity === 'high').length,
+      medium: results.filter(r => r.severity === 'medium').length,
+      low: results.filter(r => r.severity === 'low').length,
+      info: results.filter(r => r.severity === 'info').length,
+    };
 
     return NextResponse.json({
       type: 'csv',
-      results: [{ sheetName: fileName, rowCount: data.length, scanId: scan.id }],
+      results: [{
+        sheetName: fileName,
+        rowCount: data.length,
+        scanId: scan.id,
+        fullName: `CSV: ${fileName}`,
+        totalResults: results.length,
+        reportGenerated: false,
+        reportFileName: null,
+        summary: csvSummary,
+      }],
     });
   }
 }

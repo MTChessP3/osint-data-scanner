@@ -1000,13 +1000,11 @@ export default function Home() {
           fetchPastScans();
         } catch (serverError) {
           const msg = serverError instanceof Error ? serverError.message : 'Error desconocido';
-          if (msg.includes('protegido con contrasena') || msg.includes('protegido con contraseña') || msg.includes('ENCRYPTED')) {
-            throw serverError;
+          // Only re-throw as "encrypted" if the server explicitly flagged it with [ENCRYPTED]
+          if (msg.includes('[ENCRYPTED]') || msg.includes('protegido con contraseña')) {
+            throw new Error('El archivo está protegido con contraseña. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.');
           }
-          throw new Error(
-            'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado. ' +
-            'Si el problema persiste, intenta guardar el archivo como .xlsx desde Excel.'
-          );
+          throw new Error(msg || 'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado.');
         }
       } else {
         // CSV or other format
@@ -1412,7 +1410,8 @@ export default function Home() {
                         <ScrollArea className="max-h-48">
                           <div className="space-y-2">
                             {batchResults.map((result, idx) => {
-                              const totalRisk = Math.min(100, result.summary.critical * 30 + result.summary.high * 15 + result.summary.medium * 5 + result.summary.low * 2);
+                              const s = result.summary || { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+                              const totalRisk = Math.min(100, s.critical * 30 + s.high * 15 + s.medium * 5 + s.low * 2);
                               const rLabel = totalRisk >= 70 ? 'CRITICO' : totalRisk >= 40 ? 'ALTO' : totalRisk >= 15 ? 'MODERADO' : 'BAJO';
                               const rColor = totalRisk >= 70 ? 'text-red-400' : totalRisk >= 40 ? 'text-orange-400' : totalRisk >= 15 ? 'text-amber-400' : 'text-green-400';
 
@@ -1420,9 +1419,9 @@ export default function Home() {
                                 <div key={idx} className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b]">
                                   <div className="flex items-center justify-between">
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium text-white">{result.fullName}</p>
+                                      <p className="text-xs font-medium text-white">{result.fullName || result.sheetName || `Resultado ${idx + 1}`}</p>
                                       <div className="flex items-center gap-2 mt-1">
-                                        <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-[10px]">{result.totalResults} hallazgos</Badge>
+                                        <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-[10px]">{result.totalResults || result.rowCount || 0} hallazgos</Badge>
                                         <span className={`text-[10px] font-bold ${rColor}`}>{rLabel}</span>
                                       </div>
                                     </div>

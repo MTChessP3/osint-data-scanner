@@ -324,21 +324,34 @@ function generateLinkDescription(
   }
 }
 
-// ── Detect if file is a legacy .xls (BIFF) format by magic bytes ──
-function isLegacyXLS(buffer: Buffer | Uint8Array): boolean {
-  if (buffer.length < 8) return false;
+// ── Detect file format by magic bytes ──
+function detectFileFormat(buffer: Buffer | Uint8Array): 'ole2' | 'xml_spreadsheet' | 'zip' | 'unknown' {
+  if (buffer.length < 8) return 'unknown';
   const uint8 = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer.buffer || buffer);
   // BIFF5-8 starts with D0 CF 11 E0 A1 B1 1A E1 (OLE2 Compound Document)
-  return (
+  if (
     uint8[0] === 0xD0 && uint8[1] === 0xCF && uint8[2] === 0x11 &&
     uint8[3] === 0xE0 && uint8[4] === 0xA1 && uint8[5] === 0xB1 &&
     uint8[6] === 0x1A && uint8[7] === 0xE1
-  );
+  ) {
+    return 'ole2';
+  }
+  // ZIP (xlsx is a ZIP container) starts with 50 4B 03 04
+  if (uint8[0] === 0x50 && uint8[1] === 0x4B && uint8[2] === 0x03 && uint8[3] === 0x04) {
+    return 'zip';
+  }
+  // XML Spreadsheet 2003 starts with <?xml or BOM + <?xml
+  const text = Buffer.from(uint8.slice(0, 100)).toString('utf8');
+  if (text.includes('<?xml') || text.includes('<?XML')) {
+    return 'xml_spreadsheet';
+  }
+  return 'unknown';
 }
 
 // ── Parse XLSX file with multiple sheets ──
-// REWRITTEN: Removed isEncryptedWorkbook() which caused false positives.
-// Now tries each method and checks if actual data was extracted.
+// REWRITTEN: Robust handling for .xls (BIFF), .xlsx (ZIP), and XML Spreadsheet formats.
+// NEVER includes "protegido con contrasena" in error messages to avoid false positives
+// in the upload route's encrypted-file detection regex.
 export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): {
   sheets: { name: string; data: Record<string, string>[] }[];
   sheetNames: string[];
@@ -351,13 +364,7 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       : new Uint8Array(buffer.buffer || buffer);
 
   const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(uint8);
-  const isXLS = isLegacyXLS(uint8);
-
-  // Read options: use different strategies based on file format
-  // For .xls: NO cellStyles/cellNF/cellDates which can cause issues with legacy BIFF
-  // For .xlsx: use full options
-  const xlsxReadOptions = { cellNF: true, cellDates: true };
-  const xlsReadOptions = {};  // Minimal options for legacy .xls
+  const format = detectFileFormat(uint8);
 
   // Try different read methods — most compatible first
   const readMethods: Array<{ type: string; label: string; getData: () => unknown }> = [
@@ -371,9 +378,17 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
 
   for (const method of readMethods) {
     try {
-      const readOptions = isXLS
-        ? { type: method.type as 'buffer' | 'array' | 'binary' | 'base64', ...xlsReadOptions }
-        : { type: method.type as 'buffer' | 'array' | 'binary' | 'base64', ...xlsxReadOptions };
+      // For OLE2 (.xls) files, use minimal options to avoid parsing issues
+      // For ZIP (.xlsx) files, use full options
+      // For XML Spreadsheet, use string-based reading
+      let readOptions: Record<string, unknown>;
+      if (format === 'ole2') {
+        readOptions = { type: method.type, cellNF: false, cellStyles: false, sheetStubs: false };
+      } else if (format === 'xml_spreadsheet') {
+        readOptions = { type: method.type, cellNF: false, cellStyles: false };
+      } else {
+        readOptions = { type: method.type, cellNF: true, cellDates: true };
+      }
 
       const workbook = XLSX.read(method.getData(), readOptions);
 
@@ -382,44 +397,39 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
         continue;
       }
 
-      // Build sheets from workbook — DO NOT use isEncryptedWorkbook check here
-      // because that check gives false positives for valid .xls files where
-      // SheetJS might not fully parse all cells in certain read modes.
-      // Instead, we try to extract data and only flag encrypted if we get
-      // zero data from ALL methods.
       const result = buildSheetsFromWorkbook(workbook);
       const nonEmptySheets = result.sheets.filter(s => s.data.length > 0);
 
       if (nonEmptySheets.length > 0) {
-        // We got data — file is NOT encrypted
         return result;
       }
 
       // All sheets came back empty with this method
-      errors.push(`${method.label}: todas las hojas vacias`);
+      errors.push(`${method.label}: todas las hojas vacias (hojas: ${workbook.SheetNames.join(', ')})`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       // Only throw for genuine encryption errors from the library itself
-      // The library itself will throw with "password" or "encryption" keywords
       if (/unsupported encryption|password.*protected|file is encrypted/i.test(msg)) {
-        throw new Error('El archivo esta protegido con contrasena. Retire la proteccion y vuelva a intentarlo.');
+        // Use a distinctive prefix so the upload route can identify real encryption
+        throw new Error('[ENCRYPTED] El archivo tiene cifrado y no puede ser leido. Retire la proteccion y vuelva a intentarlo.');
       }
       errors.push(`${method.label}: ${msg}`);
     }
   }
 
   // If we get here, all methods failed or returned empty data
-  // For .xls files, this often means the file is encrypted (SheetJS can't read encrypted BIFF)
-  // For .xlsx files, this could also mean encryption or corruption
-  if (isXLS) {
+  // Do NOT mention "protegido con contrasena" in generic error to avoid false positives
+  if (format === 'ole2') {
     throw new Error(
-      'No se pudo leer el archivo .xls. Puede estar protegido con contrasena o usar un formato no soportado. ' +
-      'Intenta abrirlo en Excel y guardarlo como .xlsx.'
+      'No se pudo extraer datos del archivo .xls (formato BIFF). ' +
+      'El archivo puede usar caracteristicas no soportadas o tener proteccion de hoja. ' +
+      'Recomendacion: abre el archivo en Excel y guardalo como .xlsx. ' +
+      'Detalles: ' + errors.join(' | ')
     );
   }
 
   throw new Error(
-    'No se pudo leer el archivo Excel. Verifica que el archivo no este danado ni protegido con contrasena. ' +
+    'No se pudo leer el archivo Excel. Verifica que el archivo no este danado. ' +
     'Detalles tecnicos: ' + errors.join(' | ')
   );
 }
@@ -432,7 +442,7 @@ function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
     const ws = workbook.Sheets[name];
     let data: Record<string, string>[] = [];
 
-    // Method 1: sheet_to_json with raw values (most reliable)
+    // Method 1: sheet_to_json with header row (most common approach)
     try {
       const rawData = XLSX.utils.sheet_to_json(ws, { defval: '', blankrows: false });
       if (rawData && rawData.length > 0) {
@@ -448,10 +458,10 @@ function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
       console.error(`sheet_to_json method 1 failed for ${name}:`, e);
     }
 
-    // Method 2: If method 1 returns empty, try with header row extraction
+    // Method 2: If method 1 returns empty, try with header row extraction (raw: false for string values)
     if (data.length === 0) {
       try {
-        const aoaData: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+        const aoaData: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false, raw: false });
         if (aoaData && aoaData.length >= 2) {
           const headers = aoaData[0].map((h: unknown) => h != null ? String(h).trim() : '');
           for (let i = 1; i < aoaData.length; i++) {
@@ -460,7 +470,7 @@ function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
             headers.forEach((header, idx) => {
               const val = aoaData[i][idx];
               const strVal = val != null ? String(val).trim() : '';
-              row[header] = strVal;
+              row[header || `Columna_${idx + 1}`] = strVal;
               if (strVal) hasData = true;
             });
             if (hasData) data.push(row);
@@ -471,7 +481,30 @@ function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
       }
     }
 
-    // Method 3: Manual cell-by-cell extraction as last resort
+    // Method 3: Try raw: true with header: 1 (for .xls files where raw parsing works better)
+    if (data.length === 0) {
+      try {
+        const aoaData: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false, raw: true });
+        if (aoaData && aoaData.length >= 2) {
+          const headers = aoaData[0].map((h: unknown) => h != null ? String(h).trim() : '');
+          for (let i = 1; i < aoaData.length; i++) {
+            const row: Record<string, string> = {};
+            let hasData = false;
+            headers.forEach((header, idx) => {
+              const val = aoaData[i][idx];
+              const strVal = val != null ? String(val).trim() : '';
+              row[header || `Columna_${idx + 1}`] = strVal;
+              if (strVal) hasData = true;
+            });
+            if (hasData) data.push(row);
+          }
+        }
+      } catch (e) {
+        console.error(`sheet_to_json method 3 failed for ${name}:`, e);
+      }
+    }
+
+    // Method 4: Manual cell-by-cell extraction as last resort
     if (data.length === 0 && ws['!ref']) {
       try {
         const range = XLSX.utils.decode_range(ws['!ref']);
@@ -497,6 +530,39 @@ function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
         }
       } catch (e) {
         console.error(`Manual cell extraction failed for ${name}:`, e);
+      }
+    }
+
+    // Method 5: Dense mode — check ws['!data'] array (some .xls files use this format)
+    if (data.length === 0 && (ws as Record<string, unknown>)['!data']) {
+      try {
+        const denseData = (ws as Record<string, unknown>)['!data'] as unknown[][];
+        if (denseData && denseData.length >= 2) {
+          const headers = denseData[0].map((h: unknown) => {
+            if (h && typeof h === 'object' && 'v' in (h as Record<string, unknown>)) {
+              return String((h as Record<string, unknown>)['v']).trim();
+            }
+            return h != null ? String(h).trim() : '';
+          });
+          for (let i = 1; i < denseData.length; i++) {
+            const row: Record<string, string> = {};
+            let hasData = false;
+            headers.forEach((header, idx) => {
+              const cell = denseData[i][idx];
+              let strVal = '';
+              if (cell && typeof cell === 'object' && 'v' in (cell as Record<string, unknown>)) {
+                strVal = String((cell as Record<string, unknown>)['v']).trim();
+              } else if (cell != null) {
+                strVal = String(cell).trim();
+              }
+              row[header || `Columna_${idx + 1}`] = strVal;
+              if (strVal) hasData = true;
+            });
+            if (hasData) data.push(row);
+          }
+        }
+      } catch (e) {
+        console.error(`Dense mode extraction failed for ${name}:`, e);
       }
     }
 
