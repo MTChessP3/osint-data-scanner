@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth } from '@/lib/auth';
 
 const SYSTEM_PROMPT = 'Eres SOFIA (Sistema de Orientación para la Investigación de Fuentes Abiertas), un asistente de IA especializado en OSINT integrado en el portal OSINT Data Scanner.\n\n' +
 'PERSONALIDAD:\n' +
@@ -193,6 +194,11 @@ function generateFallbackResponse(userMessage: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { messages, deepseekKey } = body;
 

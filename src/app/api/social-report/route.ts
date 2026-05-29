@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth } from '@/lib/auth';
 import { generateSocialPDFReport } from '@/lib/generate-pdf-report';
 import { generateSocialDocxReport } from '@/lib/generate-report';
 import { addReport } from '@/lib/memory-store';
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { searchMode, searchQuery, results, summary, scanId, format } = body;
 

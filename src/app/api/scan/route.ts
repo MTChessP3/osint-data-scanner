@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth } from '@/lib/auth';
 import { runFullScan, OSINTResult } from '@/lib/osint-scanner';
 import { generateOSINTReport, generateReportFileName } from '@/lib/generate-report';
 import { generateIndividualPDF, generatePDFFileName } from '@/lib/generate-pdf-report';
@@ -12,6 +13,11 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     // Initialize ZAI config with timeout protection
     await Promise.race([
       initZAIConfig(),
@@ -100,6 +106,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const scanId = url.searchParams.get('scanId');
 

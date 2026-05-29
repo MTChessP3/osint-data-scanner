@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth } from '@/lib/auth';
 import { deleteScan, getScan } from '@/lib/memory-store';
 
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const scanId = url.searchParams.get('scanId');
 

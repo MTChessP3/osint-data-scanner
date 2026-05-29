@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth } from '@/lib/auth';
 import { getJointAnalysis } from '@/lib/memory-store';
 import { generateJointPDF, generateJointPDFFileName } from '@/lib/generate-pdf-report';
 import { generateJointDocxReport } from '@/lib/generate-report';
@@ -9,6 +10,11 @@ export const jointBuffers = new Map<string, { buffer: Buffer; format: 'pdf' | 'd
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { analysisId, format, analysis, individualScans } = body;
 
@@ -106,6 +112,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const analysisId = url.searchParams.get('analysisId');
     const download = url.searchParams.get('download') === 'true';

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth } from '@/lib/auth';
 import { runSocialMediaScan, SOCIAL_PLATFORMS, SocialScanResponse } from '@/lib/social-media-scanner';
 import { initZAIConfig } from '@/lib/zai-config';
 import { createScan, addScanResults, updateScanStatus } from '@/lib/memory-store';
@@ -10,6 +11,11 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     // Initialize ZAI config (non-blocking, with timeout)
     await Promise.race([
       initZAIConfig(),
@@ -184,7 +190,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await verifyAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
   // Return available platforms
   const platforms = SOCIAL_PLATFORMS.map(p => ({
     id: p.id,

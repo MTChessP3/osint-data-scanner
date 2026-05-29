@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Shield, Search, AlertTriangle, Eye, Globe, Database,
   ChevronDown, ChevronUp, ExternalLink, Loader2, Trash2,
@@ -9,7 +9,7 @@ import {
   CheckCircle2, XCircle, FileDown, Users, AlertOctagon, Link2,
   Building2, Heart, Briefcase, MapPin, Network, FileDigit, GitBranch,
   MessageCircle, Send, Bot, X, Sparkles, Settings, Check, Wifi, WifiOff,
-  Music2, Camera, Play, AtSign, Pin
+  Music2, Camera, Play, AtSign, Pin, LogOut, Fingerprint
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -330,6 +330,32 @@ function RiskGauge({ score, label, color }: { score: number; label: string; colo
 // ══════════════════════════════════════════════════════════
 
 export default function Home() {
+  // ── Auth session state ──
+  const [authUser, setAuthUser] = useState<{ username: string; role: string } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const logoutCalled = useRef(false);
+
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated && data.user) {
+          setAuthUser(data.user);
+        }
+        setAuthLoading(false);
+      })
+      .catch(() => setAuthLoading(false));
+  }, []);
+
+  async function handleLogout() {
+    if (logoutCalled.current) return;
+    logoutCalled.current = true;
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch { /* ignore */ }
+    window.location.href = '/login';
+  }
+
   // ── Scan states ──
   const [fullName, setFullName] = useState('');
   const [cedula, setCedula] = useState('');
@@ -1187,6 +1213,33 @@ export default function Home() {
               onClick={() => { setSettingsOpen(true); setTestKeyStatus('idle'); }}
             >
               <Settings className="w-4 h-4" />
+            </Button>
+
+            {/* User session & MFA indicator */}
+            {authUser && (
+              <>
+                <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#111827] border border-[#1e293b]">
+                  <User className="w-3 h-3 text-cyan-400" />
+                  <span className="text-[10px] text-slate-400 font-medium">{authUser.username}</span>
+                  <Badge className="bg-cyan-900/40 text-cyan-300 text-[8px] px-1 py-0 h-4">
+                    {authUser.role}
+                  </Badge>
+                </div>
+                <a href="/setup-mfa" className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-[#1a2235] rounded-lg transition-colors" title="Configurar MFA">
+                  <Fingerprint className="w-4 h-4" />
+                </a>
+              </>
+            )}
+
+            {/* Logout button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg"
+              onClick={handleLogout}
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>

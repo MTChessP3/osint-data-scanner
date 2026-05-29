@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth } from '@/lib/auth';
 import { getScan, getReportByScanId, addReport } from '@/lib/memory-store';
 import { generateOSINTReport, generateReportFileName } from '@/lib/generate-report';
 import { generateIndividualPDF, generatePDFFileName } from '@/lib/generate-pdf-report';
@@ -8,6 +9,11 @@ import { reportBuffers, reportFormats } from '../scan/route';
 // This solves the Vercel serverless cold-start issue where in-memory store is empty
 export async function POST(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { scanId, fullName, cedula, email, phone, results, format = 'pdf' } = body;
 
@@ -96,6 +102,11 @@ export async function POST(request: NextRequest) {
 // GET handler — tries memory store first, then falls back
 export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const scanId = url.searchParams.get('scanId');
     const download = url.searchParams.get('download') === 'true';
