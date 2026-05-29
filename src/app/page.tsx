@@ -331,7 +331,7 @@ function RiskGauge({ score, label, color }: { score: number; label: string; colo
 
 export default function Home() {
   // ── Auth session state ──
-  const [authUser, setAuthUser] = useState<{ username: string; role: string } | null>(null);
+  const [authUser, setAuthUser] = useState<{ username: string; email?: string; role: string } | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const logoutCalled = useRef(false);
 
@@ -1219,13 +1219,13 @@ export default function Home() {
             {authUser && (
               <>
                 <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#111827] border border-[#1e293b]">
-                  <User className="w-3 h-3 text-cyan-400" />
-                  <span className="text-[10px] text-slate-400 font-medium">{authUser.username}</span>
-                  <Badge className="bg-cyan-900/40 text-cyan-300 text-[8px] px-1 py-0 h-4">
+                  <Mail className="w-3 h-3 text-amber-400" />
+                  <span className="text-[10px] text-slate-400 font-medium">{authUser.email || authUser.username}</span>
+                  <Badge className="bg-amber-900/40 text-amber-300 text-[8px] px-1 py-0 h-4">
                     {authUser.role}
                   </Badge>
                 </div>
-                <a href="/setup-mfa" className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-cyan-400 hover:bg-[#1a2235] rounded-lg transition-colors" title="Configurar MFA">
+                <a href="/setup-mfa" className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:bg-[#1a2235] rounded-lg transition-colors" title="Configurar MFA">
                   <Fingerprint className="w-4 h-4" />
                 </a>
               </>

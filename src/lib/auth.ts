@@ -7,6 +7,7 @@ import { NobleCryptoPlugin, ScureBase32Plugin } from 'otplib';
 
 export interface AuthUser {
   username: string;
+  email: string;           // primary login identifier
   passwordHash: string;
   totpSecret: string;       // empty = MFA not configured
   role: 'admin' | 'analyst' | 'viewer';
@@ -56,6 +57,7 @@ function parseUsers(): AuthUser[] {
     // Default admin user if no users configured
     return [{
       username: 'admin',
+      email: 'admin@osint-scanner.com',
       passwordHash: '$2b$10$e0oaErwXhRtHToX6xX1qaeR8JawP0B6VHxEZ0rznMdmHnymfHFlbO', // "admin123"
       totpSecret: '',
       role: 'admin',
@@ -72,9 +74,10 @@ function parseUsers(): AuthUser[] {
 
 // ─── User Management ─────────────────────────────────────────────────────────
 
-export function findUser(username: string): AuthUser | undefined {
+export function findUser(identifier: string): AuthUser | undefined {
   const users = parseUsers();
-  return users.find(u => u.username === username);
+  // Search by username OR email
+  return users.find(u => u.username === identifier || u.email === identifier);
 }
 
 export async function verifyPassword(user: AuthUser, password: string): Promise<boolean> {

@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, QrCode, Copy, CheckCircle2, AlertTriangle, ArrowLeft, KeyRound, ExternalLink } from 'lucide-react';
+import { Shield, QrCode, Copy, CheckCircle2, AlertTriangle, ArrowLeft, KeyRound } from 'lucide-react';
 
 export default function SetupMfaPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
@@ -93,7 +92,6 @@ export default function SetupMfaPage() {
         setTimeout(() => setCopiedConfig(false), 2000);
       }
     } catch {
-      // Fallback
       const el = document.createElement('textarea');
       el.value = text;
       document.body.appendChild(el);
@@ -105,36 +103,37 @@ export default function SetupMfaPage() {
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#1a1f36' }}>
+        <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(245,158,11,0.3)', borderTopColor: '#f59e0b' }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+    <div className="min-h-screen p-6" style={{ background: '#1a1f36' }}>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <button
             onClick={() => router.push('/')}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+            className="p-2 rounded-lg transition-colors text-slate-400 hover:text-white"
+            style={{ hoverBackground: '#252b44' }}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Shield className="w-5 h-5 text-cyan-400" />
-              Configuración de MFA
-            </h1>
-            <p className="text-sm text-slate-400 mt-0.5">
-              Autenticación Multifactor con TOTP
-            </p>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#f59e0b' }}>
+              <KeyRound className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">Configuración de MFA</h1>
+              <p className="text-sm text-slate-400">Autenticación Multifactor con TOTP</p>
+            </div>
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+          <div className="mb-6 flex items-center gap-2 p-3 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -142,10 +141,10 @@ export default function SetupMfaPage() {
 
         {/* Success state */}
         {mfaActivated ? (
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-emerald-500/30 rounded-2xl p-8">
+          <div className="rounded-2xl p-8" style={{ background: '#252b44', border: '1px solid rgba(34,197,94,0.3)' }}>
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-4">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ background: 'rgba(34,197,94,0.1)', border: '2px solid rgba(34,197,94,0.3)' }}>
+                <CheckCircle2 className="w-8 h-8 text-green-400" />
               </div>
               <h2 className="text-lg font-bold text-white">MFA Activado Exitosamente</h2>
               <p className="text-sm text-slate-400 mt-1">
@@ -153,36 +152,33 @@ export default function SetupMfaPage() {
               </p>
             </div>
 
-            <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-5 mb-6">
-              <h3 className="text-sm font-medium text-amber-400 mb-3 flex items-center gap-2">
+            <div className="rounded-xl p-5 mb-6" style={{ background: '#1a1f36', border: '1px solid #374151' }}>
+              <h3 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: '#f59e0b' }}>
                 <AlertTriangle className="w-4 h-4" />
                 IMPORTANTE: Guardar configuración en Vercel
               </h3>
               <p className="text-sm text-slate-300 mb-4">
                 Para que MFA persista entre despliegues, actualice la variable de entorno{' '}
-                <code className="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-400 text-xs">AUTH_USERS</code>{' '}
+                <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: '#252b44', color: '#f59e0b' }}>AUTH_USERS</code>{' '}
                 en la configuración de Vercel con el siguiente valor:
               </p>
 
               <div className="relative">
-                <pre className="bg-slate-950 border border-slate-700/50 rounded-lg p-4 text-xs text-slate-300 overflow-x-auto max-h-64 overflow-y-auto">
+                <pre className="rounded-lg p-4 text-xs text-slate-300 overflow-x-auto max-h-64 overflow-y-auto" style={{ background: '#0f1225', border: '1px solid #1e293b' }}>
                   {updatedConfig}
                 </pre>
                 <button
                   onClick={() => copyToClipboard(updatedConfig, 'config')}
-                  className="absolute top-2 right-2 p-1.5 bg-slate-800 hover:bg-slate-700 rounded-md transition-colors"
+                  className="absolute top-2 right-2 p-1.5 rounded-md transition-colors"
+                  style={{ background: '#252b44' }}
                 >
-                  {copiedConfig ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  ) : (
-                    <Copy className="w-4 h-4 text-slate-400" />
-                  )}
+                  {copiedConfig ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
                 </button>
               </div>
 
               <div className="mt-4 space-y-2 text-xs text-slate-400">
                 <p>1. Vaya a Vercel Dashboard → Settings → Environment Variables</p>
-                <p>2. Busque o cree la variable <code className="text-cyan-400">AUTH_USERS</code></p>
+                <p>2. Busque o cree la variable <code style={{ color: '#f59e0b' }}>AUTH_USERS</code></p>
                 <p>3. Pegue el JSON anterior como valor</p>
                 <p>4. Redeploy la aplicación para que tome efecto</p>
               </div>
@@ -190,7 +186,8 @@ export default function SetupMfaPage() {
 
             <button
               onClick={() => router.push('/')}
-              className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-600 hover:from-cyan-400 hover:to-emerald-500 text-white font-medium rounded-lg transition-all"
+              className="w-full py-2.5 text-white font-semibold rounded-lg shadow-lg transition-all"
+              style={{ background: '#f59e0b' }}
             >
               Volver al Dashboard
             </button>
@@ -198,9 +195,9 @@ export default function SetupMfaPage() {
         ) : (
           <div className="space-y-6">
             {/* Step 1: Generate */}
-            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8">
+            <div className="rounded-2xl p-8" style={{ background: '#252b44' }}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 bg-cyan-500/10 border border-cyan-500/20 rounded-lg flex items-center justify-center text-sm font-bold text-cyan-400">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
                   1
                 </div>
                 <h2 className="text-lg font-semibold text-white">Generar Código QR</h2>
@@ -215,7 +212,8 @@ export default function SetupMfaPage() {
                 <button
                   onClick={handleGenerate}
                   disabled={generating}
-                  className="w-full py-3 bg-gradient-to-r from-cyan-500 to-emerald-600 hover:from-cyan-400 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-600 text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                  style={{ background: generating ? '#92400e' : '#f59e0b' }}
                 >
                   {generating ? (
                     <>
@@ -237,27 +235,22 @@ export default function SetupMfaPage() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-4">
+                  <div className="rounded-lg p-4" style={{ background: '#1a1f36', border: '1px solid #374151' }}>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs font-medium text-slate-400">Clave Secreta (manual)</label>
                       <button
                         onClick={() => copyToClipboard(secret, 'secret')}
-                        className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                        className="flex items-center gap-1 text-xs transition-colors"
+                        style={{ color: '#f59e0b' }}
                       >
                         {copiedSecret ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Copiado</span>
-                          </>
+                          <><CheckCircle2 className="w-3.5 h-3.5" /><span>Copiado</span></>
                         ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Copiar</span>
-                          </>
+                          <><Copy className="w-3.5 h-3.5" /><span>Copiar</span></>
                         )}
                       </button>
                     </div>
-                    <code className="text-sm text-amber-400 font-mono break-all">{secret}</code>
+                    <code className="text-sm font-mono break-all" style={{ color: '#f59e0b' }}>{secret}</code>
                   </div>
 
                   <div className="text-xs text-slate-500 space-y-1">
@@ -271,9 +264,9 @@ export default function SetupMfaPage() {
 
             {/* Step 2: Verify */}
             {qrCodeDataUrl && (
-              <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8">
+              <div className="rounded-2xl p-8" style={{ background: '#252b44' }}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 bg-cyan-500/10 border border-cyan-500/20 rounded-lg flex items-center justify-center text-sm font-bold text-cyan-400">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
                     2
                   </div>
                   <h2 className="text-lg font-semibold text-white">Verificar y Activar</h2>
@@ -285,7 +278,7 @@ export default function SetupMfaPage() {
 
                 <div className="space-y-4">
                   <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="text"
                       value={verifyCode}
@@ -293,18 +286,19 @@ export default function SetupMfaPage() {
                         const val = e.target.value.replace(/[^0-9\s]/g, '').slice(0, 7);
                         setVerifyCode(val);
                       }}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-600/50 rounded-lg text-white text-center text-xl tracking-[0.5em] font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
+                      className="w-full pl-10 pr-4 py-3 rounded-lg text-white text-center text-xl tracking-[0.5em] font-mono placeholder-slate-500 focus:outline-none focus:ring-2 transition-all"
+                      style={{ background: '#1a1f36', border: '1px solid #374151' }}
                       placeholder="000000"
                       autoFocus
                       inputMode="numeric"
-                      pattern="[0-9\s]*"
                     />
                   </div>
 
                   <button
                     onClick={handleVerifyAndActivate}
                     disabled={verifying || verifyCode.replace(/\s/g, '').length < 6}
-                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-400 hover:to-cyan-500 disabled:from-slate-600 disabled:to-slate-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    style={{ background: verifying ? '#92400e' : '#f59e0b' }}
                   >
                     {verifying ? (
                       <>
@@ -323,12 +317,12 @@ export default function SetupMfaPage() {
             )}
 
             {/* Info box */}
-            <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-5">
+            <div className="rounded-xl p-5" style={{ background: '#252b44', border: '1px solid #374151' }}>
               <h3 className="text-sm font-medium text-slate-300 mb-3">¿Qué es MFA/TOTP?</h3>
               <div className="text-xs text-slate-400 space-y-2">
                 <p>
                   La autenticación multifactor (MFA) agrega una capa adicional de seguridad a su cuenta. 
-                  Además de su usuario y contraseña, necesitará un código de 6 dígitos que cambia cada 30 segundos.
+                  Además de su correo y contraseña, necesitará un código de 6 dígitos que cambia cada 30 segundos.
                 </p>
                 <p>
                   TOTP (Time-based One-Time Password) es el estándar utilizado por Google Authenticator, 

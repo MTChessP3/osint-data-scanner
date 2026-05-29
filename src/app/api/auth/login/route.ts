@@ -14,16 +14,17 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, password } = body;
+    const { email, password } = body;
 
-    if (!username || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'Usuario y contraseña son requeridos' },
+        { error: 'Correo electrónico y contraseña son requeridos' },
         { status: 400 }
       );
     }
 
-    const user = findUser(username);
+    // Find user by email or username
+    const user = findUser(email);
     if (!user) {
       // Don't reveal whether user exists
       return NextResponse.json(
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       const mfaToken = await createMfaTempToken(user.username, user.role);
       const response = NextResponse.json({
         requiresMfa: true,
-        message: 'Se requiere verificación MFA',
+        message: 'Se requiere verificación de doble factor',
       });
       response.cookies.set(
         getMfaCookieName(),
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       requiresMfa: false,
       user: {
         username: user.username,
+        email: user.email,
         role: user.role,
         displayName: user.displayName,
         mfaConfigured: false,

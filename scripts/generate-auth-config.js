@@ -5,7 +5,6 @@
  */
 
 const bcrypt = require('bcryptjs');
-const { generateSecret } = require('otplib');
 const crypto = require('crypto');
 
 async function main() {
@@ -16,23 +15,22 @@ async function main() {
   const adminPassword = 'Admin2025!OSINT';
   const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
   
-  // Generate TOTP secret for admin (optional - leave empty to set up later)
-  const adminTotpSecret = ''; // Leave empty to set up MFA after first login
-  
-  // Analyst user example
+  // Analyst user
   const analystPassword = 'Analyst2025!OSINT';
   const analystPasswordHash = await bcrypt.hash(analystPassword, 10);
   
   const users = [
     {
       username: 'admin',
+      email: 'admin@osint-scanner.com',
       passwordHash: adminPasswordHash,
-      totpSecret: adminTotpSecret,
+      totpSecret: '',
       role: 'admin',
       displayName: 'Administrador'
     },
     {
       username: 'analista',
+      email: 'analista@osint-scanner.com',
       passwordHash: analystPasswordHash,
       totpSecret: '',
       role: 'analyst',
@@ -50,9 +48,9 @@ async function main() {
   console.log('2. AUTH_USERS (JSON array of users):');
   console.log(`   ${JSON.stringify(users)}`);
   console.log();
-  console.log('3. CREDENCIALES DE ACCESO:');
-  console.log(`   Usuario: admin     Contraseña: ${adminPassword}`);
-  console.log(`   Usuario: analista  Contraseña: ${analystPassword}`);
+  console.log('3. CREDENCIALES DE ACCESO (Login por correo electrónico):');
+  console.log(`   Correo: admin@osint-scanner.com     Clave: ${adminPassword}`);
+  console.log(`   Correo: analista@osint-scanner.com   Clave: ${analystPassword}`);
   console.log();
   console.log('═══════════════════════════════════════════════════════════════');
   console.log('  INSTRUCCIONES PARA VERCEL:');
