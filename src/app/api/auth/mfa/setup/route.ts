@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  verifyAuth,
+  getAnyValidToken,
   setupMfa,
   verifyTotp,
   findUser,
+  updateUserMfaSecret,
+  createSessionToken,
+  getSessionCookieName,
+  getEnrollmentCookieName,
+  getCookieOptions,
+  getEnrollmentCookieOptions,
 } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    // Must be authenticated to set up MFA
-    const auth = await verifyAuth(request);
-    if (!auth.authenticated || !auth.session) {
+    // Must have some valid token (session, mfa, or enrollment)
+    const tokenPayload = await getAnyValidToken(request);
+    if (!tokenPayload) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: 'No autorizado. Inicie sesión o regístrese primero.' },
         { status: 401 }
       );
     }
@@ -22,21 +28,22 @@ export async function POST(request: NextRequest) {
 
     if (action === 'generate') {
       // Generate new TOTP secret and QR code
-      const user = findUser(auth.session.username);
-      const displayName = user?.displayName || auth.session.username;
+      const user = findUser(tokenPayload.email || tokenPayload.username);
+      const displayName = user?.displayName || tokenPayload.email || tokenPayload.username;
+      const email = tokenPayload.email || user?.email || tokenPayload.username;
 
-      const result = await setupMfa(auth.session.username, displayName);
+      const result = await setupMfa(email, displayName);
 
       return NextResponse.json({
         secret: result.secret,
         otpauthUrl: result.otpauthUrl,
         qrCodeDataUrl: result.qrCodeDataUrl,
-        message: 'Escanea este código QR con tu aplicación autenticadora (Google Authenticator, Authy, etc.). Luego verifica con un código para activar MFA. IMPORTANTE: Guarda el secreto en la variable AUTH_USERS de entorno para que persista.',
+        message: 'Escanea este código QR con tu aplicación autenticadora (Google Authenticator, Authy, etc.) y luego verifica con un código para completar el enrolamiento.',
       });
     }
 
-    if (action === 'verify-and-activate') {
-      // Verify the TOTP code and return the secret to be stored
+    if (action === 'verify-and-enroll') {
+      // Verify the TOTP code and activate MFA for the user
       const { code, secret } = body;
       if (!code || !secret) {
         return NextResponse.json(
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const isValid = verifyTotp(secret, code);
+      const isValid = await verifyTotp(secret, code);
       if (!isValid) {
         return NextResponse.json(
           { error: 'Código inválido. Intente nuevamente.' },
@@ -53,41 +60,56 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Return the configuration that needs to be saved
-      // Since Vercel is read-only, we tell the user to update the env var
-      const user = findUser(auth.session.username);
-      const currentUsers = process.env.AUTH_USERS 
-        ? JSON.parse(process.env.AUTH_USERS) 
-        : [];
-
-      const updatedUsers = currentUsers.map((u: any) => {
-        if (u.username === auth.session.username) {
-          return { ...u, totpSecret: secret };
-        }
-        return u;
-      });
-
-      // If user wasn't in the env var (default user), add them
-      if (!currentUsers.find((u: any) => u.username === auth.session.username)) {
-        updatedUsers.push({
-          username: auth.session.username,
-          passwordHash: user?.passwordHash || '',
-          totpSecret: secret,
-          role: auth.session.role,
-          displayName: user?.displayName || auth.session.username,
-        });
+      // Save the TOTP secret to the user store
+      const email = tokenPayload.email || tokenPayload.username;
+      const saved = updateUserMfaSecret(email, secret);
+      if (!saved) {
+        return NextResponse.json(
+          { error: 'No se pudo guardar la configuración MFA. Intente nuevamente.' },
+          { status: 500 }
+        );
       }
 
-      return NextResponse.json({
+      // MFA enrollment complete — create full session
+      const user = findUser(email);
+      const sessionToken = await createSessionToken(
+        user!.username,
+        user!.email,
+        user!.role,
+        true,
+        true
+      );
+
+      const response = NextResponse.json({
         success: true,
-        activated: true,
-        updatedConfig: JSON.stringify(updatedUsers, null, 2),
-        instructions: `MFA verificado exitosamente. Para que el cambio persista, actualiza la variable de entorno AUTH_USERS en Vercel con el siguiente valor JSON, y redeploya la aplicación.`,
+        enrolled: true,
+        message: 'Autenticación de doble factor configurada exitosamente',
+        user: {
+          username: user!.username,
+          email: user!.email,
+          displayName: user!.displayName,
+          role: user!.role,
+        },
       });
+
+      // Set full session cookie
+      response.cookies.set(
+        getSessionCookieName(),
+        sessionToken,
+        getCookieOptions()
+      );
+
+      // Clear enrollment cookie
+      response.cookies.set(getEnrollmentCookieName(), '', {
+        ...getEnrollmentCookieOptions(),
+        maxAge: 0,
+      });
+
+      return response;
     }
 
     return NextResponse.json(
-      { error: 'Acción no reconocida. Use "generate" o "verify-and-activate".' },
+      { error: 'Acción no reconocida. Use "generate" o "verify-and-enroll".' },
       { status: 400 }
     );
   } catch (error: any) {

@@ -1,23 +1,25 @@
 import { SignJWT, jwtVerify } from 'jose';
-import bcrypt from 'bcryptjs';
-import { generateSecret, generate as otplibGenerate, verify as otplibVerify, generateURI } from 'otplib';
+import { generateSecret, verify as otplibVerify, generateURI } from 'otplib';
 import { NobleCryptoPlugin, ScureBase32Plugin } from 'otplib';
+import {
+  findUser as findUserFromStore,
+  isMfaConfigured as isMfaConfiguredInStore,
+  verifyPassword,
+  updateUserMfaSecret,
+  AuthUser,
+} from '@/lib/user-store';
+
+// Re-export AuthUser from user-store
+export type { AuthUser } from '@/lib/user-store';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export interface AuthUser {
-  username: string;
-  email: string;           // primary login identifier
-  passwordHash: string;
-  totpSecret: string;       // empty = MFA not configured
-  role: 'admin' | 'analyst' | 'viewer';
-  displayName: string;
-}
-
 export interface SessionPayload {
   username: string;
+  email: string;
   role: string;
   mfaVerified: boolean;
+  mfaEnrolled: boolean;  // whether user has completed MFA enrollment
   iat: number;
   exp: number;
 }
@@ -32,8 +34,10 @@ export interface MfaSetupResult {
 
 const SESSION_COOKIE_NAME = 'osint_session';
 const MFA_COOKIE_NAME = 'osint_mfa_temp';
+const ENROLLMENT_COOKIE_NAME = 'osint_enrollment';
 const SESSION_DURATION = '8h';
 const MFA_TEMP_DURATION = '5m';
+const ENROLLMENT_DURATION = '10m'; // time to complete MFA enrollment after registration
 const ISSUER = 'OSINT-DataScanner';
 
 // ─── TOTP Plugin Instances ───────────────────────────────────────────────────
@@ -51,42 +55,13 @@ function getSecretKey(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-function parseUsers(): AuthUser[] {
-  const raw = process.env.AUTH_USERS;
-  if (!raw) {
-    // Default admin user if no users configured
-    return [{
-      username: 'admin',
-      email: 'admin@osint-scanner.com',
-      passwordHash: '$2b$10$e0oaErwXhRtHToX6xX1qaeR8JawP0B6VHxEZ0rznMdmHnymfHFlbO', // "admin123"
-      totpSecret: '',
-      role: 'admin',
-      displayName: 'Administrador',
-    }];
-  }
-  try {
-    return JSON.parse(raw);
-  } catch {
-    console.error('Failed to parse AUTH_USERS env variable');
-    return [];
-  }
-}
+// ─── User Management (delegated to user-store) ──────────────────────────────
 
-// ─── User Management ─────────────────────────────────────────────────────────
+export const findUser = findUserFromStore;
+export const isMfaConfigured = isMfaConfiguredInStore;
+export { verifyPassword, updateUserMfaSecret };
 
-export function findUser(identifier: string): AuthUser | undefined {
-  const users = parseUsers();
-  // Search by username OR email
-  return users.find(u => u.username === identifier || u.email === identifier);
-}
-
-export async function verifyPassword(user: AuthUser, password: string): Promise<boolean> {
-  return bcrypt.compare(password, user.passwordHash);
-}
-
-export function isMfaConfigured(user: AuthUser): boolean {
-  return !!user.totpSecret && user.totpSecret.length > 0;
-}
+// ─── TOTP Verification ──────────────────────────────────────────────────────
 
 export async function verifyTotp(secret: string, token: string): Promise<boolean> {
   try {
@@ -96,7 +71,7 @@ export async function verifyTotp(secret: string, token: string): Promise<boolean
       type: 'totp',
       crypto: cryptoPlugin,
       base32: base32Plugin,
-      epochTolerance: [1, 1], // Allow ±1 time step (30s drift)
+      epochTolerance: [1, 1],
     });
     return result.valid;
   } catch {
@@ -104,18 +79,16 @@ export async function verifyTotp(secret: string, token: string): Promise<boolean
   }
 }
 
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10);
-}
-
 // ─── JWT Session Management ──────────────────────────────────────────────────
 
 export async function createSessionToken(
   username: string,
+  email: string,
   role: string,
-  mfaVerified: boolean
+  mfaVerified: boolean,
+  mfaEnrolled: boolean
 ): Promise<string> {
-  return new SignJWT({ username, role, mfaVerified })
+  return new SignJWT({ username, email, role, mfaVerified, mfaEnrolled })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(SESSION_DURATION)
@@ -123,11 +96,29 @@ export async function createSessionToken(
     .sign(getSecretKey());
 }
 
-export async function createMfaTempToken(username: string, role: string): Promise<string> {
-  return new SignJWT({ username, role, mfaVerified: false })
+export async function createMfaTempToken(
+  username: string,
+  email: string,
+  role: string
+): Promise<string> {
+  return new SignJWT({ username, email, role, mfaVerified: false, mfaEnrolled: true })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(MFA_TEMP_DURATION)
+    .setIssuer(ISSUER)
+    .sign(getSecretKey());
+}
+
+export async function createEnrollmentToken(
+  username: string,
+  email: string,
+  role: string
+): Promise<string> {
+  // Token for users who need to complete MFA enrollment
+  return new SignJWT({ username, email, role, mfaVerified: false, mfaEnrolled: false })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(ENROLLMENT_DURATION)
     .setIssuer(ISSUER)
     .sign(getSecretKey());
 }
@@ -153,53 +144,54 @@ export function getMfaCookieName(): string {
   return MFA_COOKIE_NAME;
 }
 
-export function getCookieOptions(): {
-  httpOnly: boolean;
-  secure: boolean;
-  sameSite: 'lax' | 'strict';
-  path: string;
-  maxAge: number;
-} {
+export function getEnrollmentCookieName(): string {
+  return ENROLLMENT_COOKIE_NAME;
+}
+
+export function getCookieOptions() {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/',
-    maxAge: 8 * 60 * 60, // 8 hours
+    maxAge: 8 * 60 * 60,
   };
 }
 
-export function getMfaCookieOptions(): {
-  httpOnly: boolean;
-  secure: boolean;
-  sameSite: 'lax' | 'strict';
-  path: string;
-  maxAge: number;
-} {
+export function getMfaCookieOptions() {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/',
-    maxAge: 5 * 60, // 5 minutes
+    maxAge: 5 * 60,
   };
 }
 
-// ─── MFA Setup ───────────────────────────────────────────────────────────────
+export function getEnrollmentCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 10 * 60,
+  };
+}
+
+// ─── MFA Setup / Enrollment ─────────────────────────────────────────────────
 
 export async function setupMfa(
-  username: string,
-  _displayName: string
+  email: string,
+  displayName: string
 ): Promise<MfaSetupResult> {
   const secret = generateSecret();
   const otpauthUrl = generateURI({
     secret,
     type: 'totp',
-    label: username,
+    label: email,
     issuer: ISSUER,
   });
 
-  // Generate QR code
   const QRCode = await import('qrcode');
   const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl, {
     width: 256,
@@ -222,7 +214,6 @@ export async function verifyAuth(request: Request): Promise<{
     return { authenticated: false, session: null, error: 'No session found' };
   }
 
-  // Parse cookies
   const cookies = Object.fromEntries(
     cookieHeader.split('; ').map(c => {
       const [key, ...vals] = c.split('=');
@@ -247,46 +238,40 @@ export async function verifyAuth(request: Request): Promise<{
   return { authenticated: true, session };
 }
 
-// ─── Middleware Auth Check (Edge-compatible) ─────────────────────────────────
+// ─── Parse cookies helper ────────────────────────────────────────────────────
 
-export async function verifyAuthEdge(request: Request): Promise<{
-  authenticated: boolean;
-  session: SessionPayload | null;
-}> {
-  const cookieHeader = request.headers.get('cookie');
-  if (!cookieHeader) {
-    return { authenticated: false, session: null };
-  }
-
-  const cookies = Object.fromEntries(
+export function parseCookies(request: Request): Record<string, string> {
+  const cookieHeader = request.headers.get('cookie') || '';
+  return Object.fromEntries(
     cookieHeader.split('; ').map(c => {
       const [key, ...vals] = c.split('=');
       return [key, vals.join('=')];
     })
   );
+}
 
-  const sessionToken = cookies[SESSION_COOKIE_NAME];
-  if (!sessionToken) {
-    // Check for MFA temp token (user is in the middle of MFA flow)
-    const mfaToken = cookies[MFA_COOKIE_NAME];
-    if (mfaToken) {
-      const mfaSession = await verifySessionToken(mfaToken);
-      if (mfaSession && !mfaSession.mfaVerified) {
-        // Redirect to MFA verification
-        return { authenticated: false, session: { ...mfaSession, mfaVerified: false, iat: 0, exp: 0 } };
-      }
-    }
-    return { authenticated: false, session: null };
+// ─── Get any valid token from request (session, mfa, or enrollment) ─────────
+
+export async function getAnyValidToken(request: Request): Promise<SessionPayload | null> {
+  const cookies = parseCookies(request);
+  
+  // Try full session first
+  if (cookies[SESSION_COOKIE_NAME]) {
+    const session = await verifySessionToken(cookies[SESSION_COOKIE_NAME]);
+    if (session) return session;
   }
-
-  const session = await verifySessionToken(sessionToken);
-  if (!session) {
-    return { authenticated: false, session: null };
+  
+  // Try MFA temp token
+  if (cookies[MFA_COOKIE_NAME]) {
+    const session = await verifySessionToken(cookies[MFA_COOKIE_NAME]);
+    if (session) return session;
   }
-
-  if (!session.mfaVerified) {
-    return { authenticated: false, session };
+  
+  // Try enrollment token
+  if (cookies[ENROLLMENT_COOKIE_NAME]) {
+    const session = await verifySessionToken(cookies[ENROLLMENT_COOKIE_NAME]);
+    if (session) return session;
   }
-
-  return { authenticated: true, session };
+  
+  return null;
 }

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user and verify TOTP code
-    const user = findUser(mfaSession.username);
+    const user = findUser(mfaSession.email || mfaSession.username);
     if (!user || !user.totpSecret) {
       return NextResponse.json(
         { error: 'Usuario no encontrado o MFA no configurado' },
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = verifyTotp(user.totpSecret, code);
+    const isValid = await verifyTotp(user.totpSecret, code);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Código MFA inválido. Intente nuevamente.' },
@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
     // MFA verified — create full session
     const sessionToken = await createSessionToken(
       user.username,
+      user.email,
       user.role,
+      true,
       true
     );
 
@@ -68,13 +70,13 @@ export async function POST(request: NextRequest) {
       success: true,
       user: {
         username: user.username,
+        email: user.email,
         role: user.role,
         displayName: user.displayName,
         mfaConfigured: true,
       },
     });
 
-    // Set session cookie
     response.cookies.set(
       getSessionCookieName(),
       sessionToken,

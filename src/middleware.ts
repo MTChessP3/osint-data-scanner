@@ -3,25 +3,28 @@ import { jwtVerify } from 'jose';
 
 const SESSION_COOKIE_NAME = 'osint_session';
 const MFA_COOKIE_NAME = 'osint_mfa_temp';
+const ENROLLMENT_COOKIE_NAME = 'osint_enrollment';
 const ISSUER = 'OSINT-DataScanner';
 
-// Routes that don't require authentication
+// Routes that don't require any authentication
 const PUBLIC_ROUTES = [
   '/login',
+  '/register',
   '/api/auth/login',
+  '/api/auth/register',
   '/api/auth/mfa/verify',
 ];
 
-// Routes accessible during MFA flow (temp token)
-const MFA_FLOW_ROUTES = [
-  '/api/auth/mfa/verify',
-  '/login',
+// Routes accessible with enrollment token (MFA enrollment flow)
+const ENROLLMENT_ROUTES = [
+  '/enroll-mfa',
+  '/api/auth/mfa/setup',
+  '/api/auth/session',
 ];
 
 function getSecretKey(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
-    // If AUTH_SECRET is not set, allow all access (setup mode)
     return new TextEncoder().encode('default-secret-change-me');
   }
   return new TextEncoder().encode(secret);
@@ -45,7 +48,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
-    pathname.includes('.') && !pathname.startsWith('/api/')
+    (pathname.includes('.') && !pathname.startsWith('/api/'))
   ) {
     return NextResponse.next();
   }
@@ -71,28 +74,51 @@ export async function middleware(request: NextRequest) {
 
   const sessionToken = cookies[SESSION_COOKIE_NAME];
   const mfaToken = cookies[MFA_COOKIE_NAME];
+  const enrollmentToken = cookies[ENROLLMENT_COOKIE_NAME];
 
-  // Check for valid session
+  // Check for valid full session (authenticated + MFA verified)
   if (sessionToken) {
     const session = await verifyToken(sessionToken);
-    if (session && session.mfaVerified) {
-      // Fully authenticated — allow access
+    if (session && session.mfaVerified && session.mfaEnrolled) {
+      // Fully authenticated — allow access to everything
       return NextResponse.next();
     }
   }
 
-  // Check for MFA temp token (user is in MFA verification flow)
+  // Check for enrollment token (user registered but needs to complete MFA)
+  if (enrollmentToken) {
+    const enrollmentSession = await verifyToken(enrollmentToken);
+    if (enrollmentSession && !enrollmentSession.mfaEnrolled) {
+      // User is in enrollment flow — only allow enrollment routes
+      if (ENROLLMENT_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+        return NextResponse.next();
+      }
+      // Redirect other pages to enrollment
+      if (!pathname.startsWith('/api/')) {
+        const enrollUrl = new URL('/enroll-mfa', request.url);
+        return NextResponse.redirect(enrollUrl);
+      }
+      return NextResponse.json(
+        { error: 'MFA enrollment required' },
+        { status: 401 }
+      );
+    }
+  }
+
+  // Check for MFA temp token (user logged in, needs to enter MFA code)
   if (mfaToken) {
     const mfaSession = await verifyToken(mfaToken);
-    if (mfaSession && !mfaSession.mfaVerified) {
-      // User needs to complete MFA — redirect to login MFA step
+    if (mfaSession && !mfaSession.mfaVerified && mfaSession.mfaEnrolled) {
+      // User needs to complete MFA verification
+      if (pathname === '/login' || pathname === '/api/auth/mfa/verify' || pathname === '/api/auth/session') {
+        return NextResponse.next();
+      }
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(
           { error: 'MFA verification required' },
           { status: 401 }
         );
       }
-      // Redirect to login page (it will show MFA step)
       const loginUrl = new URL('/login', request.url);
       return NextResponse.redirect(loginUrl);
     }
@@ -113,12 +139,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico (favicon)
-     */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

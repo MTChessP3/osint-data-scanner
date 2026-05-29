@@ -5,10 +5,13 @@ import {
   isMfaConfigured,
   createSessionToken,
   createMfaTempToken,
+  createEnrollmentToken,
   getSessionCookieName,
   getMfaCookieName,
+  getEnrollmentCookieName,
   getCookieOptions,
   getMfaCookieOptions,
+  getEnrollmentCookieOptions,
 } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -23,10 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by email or username
     const user = findUser(email);
     if (!user) {
-      // Don't reveal whether user exists
       return NextResponse.json(
         { error: 'Credenciales inválidas' },
         { status: 401 }
@@ -43,8 +44,8 @@ export async function POST(request: NextRequest) {
 
     // Check if MFA is configured for this user
     if (isMfaConfigured(user)) {
-      // Create temporary MFA token (5 min validity)
-      const mfaToken = await createMfaTempToken(user.username, user.role);
+      // MFA configured — create temp token for MFA verification
+      const mfaToken = await createMfaTempToken(user.username, user.email, user.role);
       const response = NextResponse.json({
         requiresMfa: true,
         message: 'Se requiere verificación de doble factor',
@@ -57,27 +58,20 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    // No MFA configured — create full session
-    const sessionToken = await createSessionToken(
+    // MFA NOT configured — user must enroll in MFA before accessing the app
+    const enrollmentToken = await createEnrollmentToken(
       user.username,
-      user.role,
-      true
+      user.email,
+      user.role
     );
     const response = NextResponse.json({
-      success: true,
-      requiresMfa: false,
-      user: {
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        displayName: user.displayName,
-        mfaConfigured: false,
-      },
+      requiresMfaEnrollment: true,
+      message: 'Debe configurar la autenticación de doble factor antes de continuar',
     });
     response.cookies.set(
-      getSessionCookieName(),
-      sessionToken,
-      getCookieOptions()
+      getEnrollmentCookieName(),
+      enrollmentToken,
+      getEnrollmentCookieOptions()
     );
     return response;
   } catch (error: any) {
