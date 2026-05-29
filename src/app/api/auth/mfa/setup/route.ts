@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const isValid = await verifyTotp(secret, code);
+      const isValid = verifyTotp(secret, code);
       if (!isValid) {
         return NextResponse.json(
           { error: 'Código inválido. Intente nuevamente.' },

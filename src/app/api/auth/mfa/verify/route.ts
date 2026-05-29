@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = await verifyTotp(user.totpSecret, code);
+    const isValid = verifyTotp(user.totpSecret, code);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Código MFA inválido. Intente nuevamente.' },

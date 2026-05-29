@@ -1,6 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose';
-import { generateSecret, verify as otplibVerify, generateURI } from 'otplib';
-import { NobleCryptoPlugin, ScureBase32Plugin } from 'otplib';
+import crypto from 'crypto';
 import {
   findUser as findUserFromStore,
   isMfaConfigured as isMfaConfiguredInStore,
@@ -19,7 +18,7 @@ export interface SessionPayload {
   email: string;
   role: string;
   mfaVerified: boolean;
-  mfaEnrolled: boolean;  // whether user has completed MFA enrollment
+  mfaEnrolled: boolean;
   iat: number;
   exp: number;
 }
@@ -37,13 +36,89 @@ const MFA_COOKIE_NAME = 'osint_mfa_temp';
 const ENROLLMENT_COOKIE_NAME = 'osint_enrollment';
 const SESSION_DURATION = '8h';
 const MFA_TEMP_DURATION = '5m';
-const ENROLLMENT_DURATION = '10m'; // time to complete MFA enrollment after registration
+const ENROLLMENT_DURATION = '30m'; // Increased to 30 min for MFA enrollment
 const ISSUER = 'OSINT-DataScanner';
 
-// ─── TOTP Plugin Instances ───────────────────────────────────────────────────
+// ─── TOTP Implementation (native Node.js crypto) ────────────────────────────
 
-const cryptoPlugin = new NobleCryptoPlugin();
-const base32Plugin = new ScureBase32Plugin();
+function base32Encode(buffer: Buffer): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const byte of buffer) {
+    bits += byte.toString(2).padStart(8, '0');
+  }
+  let result = '';
+  for (let i = 0; i < bits.length; i += 5) {
+    const chunk = bits.substring(i, i + 5);
+    if (chunk.length < 5) break;
+    result += alphabet[parseInt(chunk, 2)];
+  }
+  return result;
+}
+
+function base32Decode(str: string): Buffer {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  str = str.toUpperCase().replace(/=+$/, '');
+  let bits = '';
+  for (const char of str) {
+    const val = alphabet.indexOf(char);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, '0');
+  }
+  const bytes: number[] = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(parseInt(bits.substring(i, i + 8), 2));
+  }
+  return Buffer.from(bytes);
+}
+
+function generateTotpSecret(): string {
+  const bytes = crypto.randomBytes(20);
+  return base32Encode(bytes);
+}
+
+function totpCounter(time: number, period: number = 30): number {
+  return Math.floor(time / period);
+}
+
+function totpCode(secret: string, counter: number, digits: number = 6): string {
+  const decodedSecret = base32Decode(secret);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+  const hmac = crypto.createHmac('sha1', decodedSecret);
+  hmac.update(counterBuffer);
+  const hmacResult = hmac.digest();
+  const offset = hmacResult[hmacResult.length - 1] & 0x0f;
+  const code = ((hmacResult[offset] & 0x7f) << 24 |
+    (hmacResult[offset + 1] & 0xff) << 16 |
+    (hmacResult[offset + 2] & 0xff) << 8 |
+    (hmacResult[offset + 3] & 0xff)) % Math.pow(10, digits);
+  return code.toString().padStart(digits, '0');
+}
+
+function verifyTotpCode(secret: string, token: string, window: number = 1): boolean {
+  const now = Math.floor(Date.now() / 1000);
+  const currentCounter = totpCounter(now);
+  for (let i = -window; i <= window; i++) {
+    const counter = currentCounter + i;
+    const expectedCode = totpCode(secret, counter);
+    if (expectedCode === token) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function buildOtpauthUrl(secret: string, email: string, issuer: string): string {
+  const params = new URLSearchParams({
+    secret,
+    issuer,
+    algorithm: 'SHA1',
+    digits: '6',
+    period: '30',
+  });
+  return `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(email)}?${params.toString()}`;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -61,20 +136,13 @@ export const findUser = findUserFromStore;
 export const isMfaConfigured = isMfaConfiguredInStore;
 export { verifyPassword, updateUserMfaSecret };
 
-// ─── TOTP Verification ──────────────────────────────────────────────────────
+// ─── TOTP Verification (public API) ─────────────────────────────────────────
 
-export async function verifyTotp(secret: string, token: string): Promise<boolean> {
+export function verifyTotp(secret: string, token: string): boolean {
   try {
-    const result = await otplibVerify({
-      secret,
-      token,
-      type: 'totp',
-      crypto: cryptoPlugin,
-      base32: base32Plugin,
-      epochTolerance: [1, 1],
-    });
-    return result.valid;
-  } catch {
+    return verifyTotpCode(secret, token, 1);
+  } catch (error) {
+    console.error('[Auth] TOTP verification error:', error);
     return false;
   }
 }
@@ -114,7 +182,6 @@ export async function createEnrollmentToken(
   email: string,
   role: string
 ): Promise<string> {
-  // Token for users who need to complete MFA enrollment
   return new SignJWT({ username, email, role, mfaVerified: false, mfaEnrolled: false })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -174,7 +241,7 @@ export function getEnrollmentCookieOptions() {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
     path: '/',
-    maxAge: 10 * 60,
+    maxAge: 30 * 60, // 30 minutes
   };
 }
 
@@ -184,13 +251,8 @@ export async function setupMfa(
   email: string,
   displayName: string
 ): Promise<MfaSetupResult> {
-  const secret = generateSecret();
-  const otpauthUrl = generateURI({
-    secret,
-    type: 'totp',
-    label: email,
-    issuer: ISSUER,
-  });
+  const secret = generateTotpSecret();
+  const otpauthUrl = buildOtpauthUrl(secret, email, ISSUER);
 
   const QRCode = await import('qrcode');
   const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl, {
