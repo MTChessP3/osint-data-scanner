@@ -5,9 +5,6 @@
  */
 
 import * as XLSX from 'xlsx';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
 import { OSINTResult } from './osint-scanner';
 
 export interface RelationshipLink {
@@ -485,29 +482,7 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
     }
   }
 
-  // ── FINAL OLE2 FALLBACK: Write to temp file and read with readFile ──
-  if (format === 'ole2') {
-    try {
-      const tmpDir = os.tmpdir();
-      const tmpFile = path.join(tmpDir, `osint_upload_${Date.now()}.xls`);
-      fs.writeFileSync(tmpFile, buf);
-      const fileWb = XLSX.readFile(tmpFile, { sheetStubs: true, bookSheets: true, cellStyles: false, cellNF: false, cellDates: true });
-      // Clean up temp file
-      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
 
-      if (fileWb && fileWb.SheetNames.length > 0) {
-        const fileResult = buildSheetsFromWorkbook(fileWb);
-        const fileNonEmpty = fileResult.sheets.filter(s => s.data.length > 0);
-        if (fileNonEmpty.length > 0) {
-          return fileResult;
-        }
-        errors.push('readFile: hojas leidas pero sin datos extraibles');
-      }
-    } catch (tmpErr) {
-      const tmpMsg = tmpErr instanceof Error ? tmpErr.message : String(tmpErr);
-      errors.push(`readFile_fallback: ${tmpMsg}`);
-    }
-  }
 
   // If we get here, all methods failed or returned empty data
   // Check if ALL methods consistently reported encryption (not just sheet protection)
