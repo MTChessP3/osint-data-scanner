@@ -1,10 +1,10 @@
 /**
- * OSINT Scanner v6.0 — Real Data Integration
+ * OSINT Scanner v7.0 — Real Data Integration + Email Validator
  * - HIBP API v3 direct calls (breachedaccount + pasteaccount)
  * - AI analysis: DeepSeek (primary) → ZAI SDK (fallback) → rule-based (last resort)
  * - Web page content extraction for enriched findings
  * - Direct URL verification (HEAD requests) for profile existence
- * - 16 motores clasificados por categoría
+ * - 16 motores clasificados por categoría + Email Validator (email-validator.com)
  */
 
 // ── DeepSeek API Configuration ──
@@ -942,6 +942,15 @@ export const ENGINE_CATEGORIES = [
     engines: [
       'Policía Nacional Colombia',
       'Aleph / OCCRP',
+    ],
+  },
+  {
+    id: 'email-validation',
+    label: 'Validación de Correo',
+    icon: 'Mail',
+    color: 'amber',
+    engines: [
+      'Email Validator',
     ],
   },
 ] as const;
@@ -1972,7 +1981,180 @@ async function scanDehashed(fullName: string, email?: string, cedula?: string): 
 }
 
 // ══════════════════════════════════════════════════════
-//  ORQUESTADOR DE ESCANEO COMPLETO (16 motores)
+//  17. Email Validator — Validación de correo via email-validator.com
+// ══════════════════════════════════════════════════════
+
+async function scanEmailValidatorEngine(fullName: string, email: string): Promise<OSINTResult[]> {
+  const results: OSINTResult[] = [];
+  const url = `https://email-validator.com/es/validate?email=${encodeURIComponent(email)}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'es,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      console.warn(`[OSINT] Email Validator: HTTP ${response.status}`);
+      return [{
+        source: 'Email Validator',
+        category: 'email_validation',
+        severity: 'info',
+        title: `No se pudo validar el correo: ${email}`,
+        description: `El servicio de validación retornó HTTP ${response.status}. No fue posible verificar el correo.`,
+      }];
+    }
+
+    const html = await response.text();
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, '\n')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&#160;/g, ' ')
+      .replace(/&amp;/g, '&');
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    // Check if validation data exists
+    if (!lines.some(l => l.includes('Validacion de correo') || l.includes('Validation for'))) {
+      return [{
+        source: 'Email Validator',
+        category: 'email_validation',
+        severity: 'info',
+        title: `Sin datos de validación para: ${email}`,
+        description: 'El servicio no retornó datos de validación.',
+      }];
+    }
+
+    // Helper: find value after label
+    const findAfter = (label: string): string => {
+      for (let i = 0; i < lines.length - 1; i++) {
+        if (lines[i].toLowerCase() === label.toLowerCase()) return lines[i + 1] || '';
+      }
+      return '';
+    };
+
+    // Parse key fields
+    const isValid = lines.some(l => l.includes('direccion de correo es valida') || l.includes('email address is valid'));
+    const isSuspicious = lines.some(l => l.toLowerCase().includes('sospechoso') || l.toLowerCase().includes('suspicious'));
+    const isDisposable = lines.some(l => l.includes('desechable detectado') || l.includes('disposable detected') || l.includes('Correo desechable'));
+    const provider = findAfter('Proveedor') || findAfter('Provider');
+    const providerType = findAfter('Tipo') || findAfter('Type');
+    const providerDomain = findAfter('Dominio del proveedor') || findAfter('Provider domain');
+    const syntaxStatus = findAfter('Comprobacion de sintaxis') || findAfter('Syntax check');
+    const domainAccess = findAfter('Accesibilidad del dominio') || findAfter('Domain accessibility');
+    const mxPresent = lines.some(l => l.includes('MX') && (l.includes('Presente') || l.includes('Present')));
+    const spfPresent = lines.some(l => l.includes('SPF') && (l.includes('Presente') || l.includes('Present')));
+    const dmarcPresent = lines.some(l => l.includes('DMARC') && (l.includes('Presente') || l.includes('Present')));
+    const bimiPresent = lines.some(l => l.includes('BIMI') && (l.includes('Presente') || l.includes('Present')));
+    const disposableDomain = findAfter('Dominio desechable detectado') || findAfter('Disposable domain detected');
+
+    // Collect MX records
+    const mxRecords: string[] = [];
+    let inMx = false;
+    for (const line of lines) {
+      if (line.includes('Registros MX') || line.includes('MX records')) { inMx = true; continue; }
+      if (inMx) {
+        if (line.includes('Presente') || line.includes('Present') || line.includes('SPF') || line.includes('A ') || line.includes('AAAA') || line.includes('DMARC')) break;
+        if (line.includes('(')) mxRecords.push(line);
+      }
+    }
+
+    // 1. Overall validation result
+    if (isDisposable || isSuspicious) {
+      results.push({
+        source: 'Email Validator',
+        category: 'disposable_email',
+        severity: 'critical',
+        title: `Correo sospechoso/desechable: ${email}`,
+        description: `La dirección "${email}" fue identificada como correo sospechoso o desechable. Proveedor: ${provider} (${providerType}). Dominio desechable: ${disposableDomain || providerDomain}. Este tipo de correos se usan frecuentemente para registros falsos, evasión de verificaciones o actividades fraudulentas. Se recomienda no confiar en esta dirección para comunicaciones oficiales o verificaciones de identidad.`,
+        url: `https://email-validator.com/es/validate?email=${encodeURIComponent(email)}`,
+        dataFound: `Estado: Sospechoso | Desechable: Sí | Proveedor: ${provider} | Tipo: ${providerType} | Dominio: ${disposableDomain || providerDomain}`,
+      });
+    } else if (!isValid) {
+      results.push({
+        source: 'Email Validator',
+        category: 'email_invalid',
+        severity: 'high',
+        title: `Correo inválido: ${email}`,
+        description: `La dirección de correo "${email}" no superó las comprobaciones de validación. La sintaxis o el dominio no son válidos, lo que indica que el correo no existe o no puede recibir mensajes.`,
+        url: `https://email-validator.com/es/validate?email=${encodeURIComponent(email)}`,
+        dataFound: `Estado: Inválido | Sintaxis: ${syntaxStatus} | Dominio: ${domainAccess}`,
+      });
+    } else {
+      results.push({
+        source: 'Email Validator',
+        category: 'email_validation',
+        severity: 'info',
+        title: `Correo válido: ${email}`,
+        description: `La dirección de correo "${email}" superó las comprobaciones de sintaxis y dominio. Proveedor: ${provider} (${providerType}). No se detectaron señales de correo desechable.`,
+        url: `https://email-validator.com/es/validate?email=${encodeURIComponent(email)}`,
+        dataFound: `Estado: Válido | Sintaxis: ${syntaxStatus} | Dominio: ${domainAccess} | Proveedor: ${provider} (${providerType})`,
+      });
+    }
+
+    // 2. DNS security analysis
+    const dnsIssues: string[] = [];
+    if (!mxPresent) dnsIssues.push('Sin registros MX');
+    if (!spfPresent) dnsIssues.push('Sin SPF');
+    if (!dmarcPresent) dnsIssues.push('Sin DMARC');
+
+    if (dnsIssues.length > 0 && isValid && !isDisposable) {
+      results.push({
+        source: 'Email Validator',
+        category: 'dns_security',
+        severity: dnsIssues.length >= 2 ? 'high' : 'medium',
+        title: `Configuración DNS débil: ${providerDomain}`,
+        description: `El dominio "${providerDomain}" presenta deficiencias DNS: ${dnsIssues.join(', ')}. ${!spfPresent ? 'Sin SPF, cualquier servidor puede enviar correos en nombre de este dominio. ' : ''}${!dmarcPresent ? 'Sin DMARC, no hay protección contra suplantación. ' : ''}${!mxPresent ? 'Sin MX, el dominio no puede recibir correos. ' : ''}`,
+        url: `https://email-validator.com/es/validate?email=${encodeURIComponent(email)}`,
+        dataFound: `MX: ${mxPresent ? 'Presente' : 'Ausente'} | SPF: ${spfPresent ? 'Presente' : 'Ausente'} | DMARC: ${dmarcPresent ? 'Presente' : 'Ausente'} | BIMI: ${bimiPresent ? 'Presente' : 'Ausente'} | MX Records: ${mxRecords.join('; ') || 'Ninguno'}`,
+      });
+    } else if (mxPresent && spfPresent && dmarcPresent && isValid) {
+      results.push({
+        source: 'Email Validator',
+        category: 'dns_security',
+        severity: 'info',
+        title: `Configuración DNS completa: ${providerDomain}`,
+        description: `El dominio "${providerDomain}" cuenta con configuración DNS robusta: MX (${mxRecords.length} registros), SPF y DMARC presentes. Esto indica un proveedor legítimo y bien configurado.`,
+        url: `https://email-validator.com/es/validate?email=${encodeURIComponent(email)}`,
+        dataFound: `MX: ${mxRecords.join('; ')} | SPF: Presente | DMARC: Presente${bimiPresent ? ' | BIMI: Presente' : ''}`,
+      });
+    }
+
+    // 3. Provider type detail (if disposable)
+    if (providerType && providerType.toLowerCase().includes('desechable')) {
+      results.push({
+        source: 'Email Validator',
+        category: 'email_provider',
+        severity: 'high',
+        title: `Proveedor desechable: ${provider}`,
+        description: `El correo pertenece al proveedor "${provider}", clasificado como "${providerType}". Los proveedores desechables ofrecen direcciones temporales que se autodestruyen, usados para evadir verificaciones de identidad, crear cuentas falsas o realizar actividades maliciosas sin rastro.`,
+        url: `https://email-validator.com/es/validate?email=${encodeURIComponent(email)}`,
+        dataFound: `Proveedor: ${provider} | Tipo: ${providerType} | Dominio: ${providerDomain}`,
+      });
+    }
+
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : 'Error desconocido';
+    console.warn(`[OSINT] Email Validator error for ${email}:`, errMsg);
+    results.push({
+      source: 'Email Validator',
+      category: 'email_validation',
+      severity: 'info',
+      title: `Error al validar correo: ${email}`,
+      description: `No se pudo completar la validación: ${errMsg}`,
+    });
+  }
+
+  return results;
+}
+
+// ══════════════════════════════════════════════════════
+//  ORQUESTADOR DE ESCANEO COMPLETO (17 motores)
 // ══════════════════════════════════════════════════════
 
 export async function runFullScan(params: {
@@ -2056,6 +2238,11 @@ export async function runFullScan(params: {
     scanPromises.push(scanAlephOCCRP(fullName, cedula));
   }
 
+  // ── Validación de Correo (1) ──
+  if (email && shouldRun('Email Validator')) {
+    scanPromises.push(scanEmailValidatorEngine(fullName, email));
+  }
+
   // Run all in parallel
   const batchResults = await Promise.allSettled(scanPromises);
 
@@ -2092,7 +2279,7 @@ export async function runFullScan(params: {
     deduped.push(r);
   }
 
-  const engineCount = selectedEngines && selectedEngines.length > 0 ? selectedEngines.length : 16;
+  const engineCount = selectedEngines && selectedEngines.length > 0 ? selectedEngines.length : 17;
   console.log(`[OSINT] Scan complete: ${deduped.length} unique results from ${engineCount} engines`);
 
   // Use AI for final analysis if key is available (DeepSeek or ZAI SDK)

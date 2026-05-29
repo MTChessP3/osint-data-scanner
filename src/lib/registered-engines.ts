@@ -29,6 +29,9 @@ import {
   type OSINTResult,
 } from './osint-scanner';
 
+// ── Importar el motor de validación de correos ──
+import { scanEmailValidator } from './engines/email-validator-engine';
+
 // ══════════════════════════════════════════════════════
 //  CATEGORÍAS
 // ══════════════════════════════════════════════════════
@@ -40,6 +43,7 @@ const ENGINE_CATEGORIES: EngineCategoryDefinition[] = [
   { id: 'search', label: 'Búsqueda Avanzada', icon: 'Search', color: 'emerald', order: 4 },
   { id: 'identity', label: 'Identidad y Datos', icon: 'Database', color: 'purple', order: 5 },
   { id: 'judicial', label: 'Judicial y Oficial', icon: 'Shield', color: 'teal', order: 6 },
+  { id: 'email-validation', label: 'Validación de Correo', icon: 'Mail', color: 'amber', order: 7 },
 ];
 
 // ══════════════════════════════════════════════════════
@@ -394,6 +398,23 @@ const ENGINE_DEFINITIONS: EngineDefinition[] = [
       });
       return results;
     },
+  },
+
+  // ── Validación de Correo ──
+  {
+    id: 'email-validator',
+    name: 'Email Validator',
+    description: 'Validación de correo: sintaxis, DNS, desechables, SPF/DMARC',
+    categoryId: 'email-validation',
+    defaultSeverity: 'info',
+    defaultCategory: 'email_validation',
+    requirements: { email: true },
+    icon: 'Mail',
+    color: 'amber',
+    order: 1,
+    version: '1.0.0',
+    tags: ['email', 'validation', 'dns', 'mx', 'spf', 'dmarc', 'disposable'],
+    scan: scanEmailValidator,
   },
 ];
 

@@ -241,6 +241,14 @@ const engineCategories = [
       { name: 'Aleph / OCCRP', desc: 'Documentos de investigación', icon: FileDigit },
     ],
   },
+  {
+    id: 'email-validation',
+    label: 'Validación de Correo',
+    color: 'amber',
+    engines: [
+      { name: 'Email Validator', desc: 'Sintaxis, DNS, desechables, SPF/DMARC', icon: Mail },
+    ],
+  },
 ];
 
 // ── Helper: get all engine names ──
