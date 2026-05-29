@@ -32,6 +32,9 @@ import {
 // ── Importar el motor de validación de correos ──
 import { scanEmailValidator } from './engines/email-validator-engine';
 
+// ── Importar el motor de búsqueda Telegram vía xtea.io ──
+import { scanTelegramXTEA } from './engines/telegram-xtea-engine';
+
 // ══════════════════════════════════════════════════════
 //  CATEGORÍAS
 // ══════════════════════════════════════════════════════
@@ -397,6 +400,26 @@ const ENGINE_DEFINITIONS: EngineDefinition[] = [
         selectedEngines: ['Aleph / OCCRP'],
       });
       return results;
+    },
+  },
+
+  // ── Redes Sociales: Telegram ──
+  {
+    id: 'telegram-xtea',
+    name: 'Telegram XTEA',
+    description: 'Búsqueda Telegram vía xtea.io (canales, grupos, bots, perfiles)',
+    categoryId: 'social',
+    defaultSeverity: 'medium',
+    defaultCategory: 'telegram_search',
+    requirements: {},
+    icon: 'Send',
+    color: 'cyan',
+    order: 3,
+    version: '1.0.0',
+    tags: ['telegram', 'xtea', 'channels', 'groups', 'bots', 'social', 'nickname'],
+    scan: async (subject) => {
+      // The engine uses nickname if available, otherwise email username or name
+      return scanTelegramXTEA(subject);
     },
   },
 

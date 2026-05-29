@@ -911,6 +911,7 @@ export const ENGINE_CATEGORIES = [
     engines: [
       'Social Media Scan',
       'DeepFind Profile Analyzer',
+      'Telegram XTEA',
     ],
   },
   {
@@ -1981,7 +1982,30 @@ async function scanDehashed(fullName: string, email?: string, cedula?: string): 
 }
 
 // ══════════════════════════════════════════════════════
-//  17. Email Validator — Validación de correo via email-validator.com
+//  17. Telegram XTEA — Búsqueda en Telegram vía xtea.io
+// ══════════════════════════════════════════════════════
+
+async function scanTelegramXTEAEngine(fullName: string, email?: string): Promise<OSINTResult[]> {
+  try {
+    const { scanTelegramXTEA } = await import('./engines/telegram-xtea-engine');
+    return await scanTelegramXTEA({
+      fullName,
+      email: email || undefined,
+    });
+  } catch (error) {
+    console.warn('[OSINT] Telegram XTEA engine failed:', error instanceof Error ? error.message : 'unknown');
+    return [{
+      source: 'Telegram XTEA',
+      category: 'telegram_search',
+      severity: 'info',
+      title: `Búsqueda en Telegram no disponible para "${fullName}"`,
+      description: `No se pudo completar la búsqueda en Telegram vía xtea.io. Error: ${error instanceof Error ? error.message : 'Desconocido'}. Se recomienda verificar manualmente en https://xtea.io/ts_en.html`,
+    }];
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  18. Email Validator — Validación de correo via email-validator.com
 // ══════════════════════════════════════════════════════
 
 async function scanEmailValidatorEngine(fullName: string, email: string): Promise<OSINTResult[]> {
@@ -2211,6 +2235,11 @@ export async function runFullScan(params: {
     scanPromises.push(scanDeepFindProfile(fullName, email));
   }
 
+  // ── Telegram XTEA (1) ──
+  if (shouldRun('Telegram XTEA')) {
+    scanPromises.push(scanTelegramXTEAEngine(fullName, email));
+  }
+
   // ── Búsqueda Avanzada (2) ──
   if (shouldRun('Google Dorking')) {
     scanPromises.push(googleDorkSearch(fullName, email, phone, cedula));
@@ -2279,7 +2308,7 @@ export async function runFullScan(params: {
     deduped.push(r);
   }
 
-  const engineCount = selectedEngines && selectedEngines.length > 0 ? selectedEngines.length : 17;
+  const engineCount = selectedEngines && selectedEngines.length > 0 ? selectedEngines.length : 18;
   console.log(`[OSINT] Scan complete: ${deduped.length} unique results from ${engineCount} engines`);
 
   // Use AI for final analysis if key is available (DeepSeek or ZAI SDK)

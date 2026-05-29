@@ -211,6 +211,7 @@ const engineCategories = [
     engines: [
       { name: 'Social Media Scan', desc: 'Perfiles en redes sociales', icon: Globe },
       { name: 'DeepFind Profile Analyzer', desc: 'Análisis de perfil en redes', icon: User },
+      { name: 'Telegram XTEA', desc: 'Telegram vía xtea.io (canales, grupos, bots)', icon: Send },
     ],
   },
   {
