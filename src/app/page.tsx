@@ -418,6 +418,11 @@ export default function Home() {
     items: Array<{ title: string; description: string; source?: string; platform?: string }>;
   }>({ open: false, title: '', items: [] });
 
+  // ── Delete confirmation states ──
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; scanId: string | null; scanName: string; deleteAll: boolean }>({
+    open: false, scanId: null, scanName: '', deleteAll: false,
+  });
+
   // ── Chat states ──
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
@@ -552,13 +557,28 @@ export default function Home() {
     }
   }
 
-  // ── Delete scan ──
-  async function handleDeleteScan(scanId: string) {
+  // ── Delete scan (with confirmation) ──
+  function confirmDeleteScan(scanId: string, scanName: string) {
+    setDeleteConfirm({ open: true, scanId, scanName, deleteAll: false });
+  }
+
+  function confirmDeleteAll() {
+    setDeleteConfirm({ open: true, scanId: null, scanName: '', deleteAll: true });
+  }
+
+  async function executeDelete() {
     try {
-      await fetch(`/api/scan?scanId=${scanId}`, { method: 'DELETE' });
-      fetchPastScans();
-      if (scanData?.scanId === scanId) setScanData(null);
+      if (deleteConfirm.deleteAll) {
+        await fetch('/api/scan?all=true', { method: 'DELETE' });
+        setPastScans([]);
+        setScanData(null);
+      } else if (deleteConfirm.scanId) {
+        await fetch(`/api/scan?scanId=${deleteConfirm.scanId}`, { method: 'DELETE' });
+        fetchPastScans();
+        if (scanData?.scanId === deleteConfirm.scanId) setScanData(null);
+      }
     } catch { /* ignore */ }
+    setDeleteConfirm({ open: false, scanId: null, scanName: '', deleteAll: false });
   }
 
   // ── View past scan ──
@@ -2556,6 +2576,13 @@ export default function Home() {
               </Card>
             ) : (
               <div className="space-y-3">
+                {/* ── Delete All Button ── */}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-400">{pastScans.length} escaneo(s) en el historial</p>
+                  <Button size="sm" variant="outline" className="border-red-900/50 text-red-400 hover:text-red-300 hover:bg-red-950/30" onClick={confirmDeleteAll}>
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />Eliminar todo
+                  </Button>
+                </div>
                 {pastScans.map(scan => {
                   const criticals = scan.results.filter(r => r.severity === 'critical').length;
                   const isSocial = scan.scanType === 'social_media';
@@ -2621,7 +2648,7 @@ export default function Home() {
                               </Button>
                             </>
                           )}
-                          <Button size="sm" variant="outline" className="border-[#1e293b] text-red-400 hover:text-red-300 hover:bg-[#1a2235]" onClick={() => handleDeleteScan(scan.id)}>
+                          <Button size="sm" variant="outline" className="border-[#1e293b] text-red-400 hover:text-red-300 hover:bg-[#1a2235]" onClick={() => confirmDeleteScan(scan.id, scan.fullName)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -2634,6 +2661,32 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <Dialog open={deleteConfirm.open} onOpenChange={(open) => { if (!open) setDeleteConfirm({ open: false, scanId: null, scanName: '', deleteAll: false }); }}>
+        <DialogContent className="bg-[#111827] border-[#1e293b] text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertOctagon className="w-5 h-5 text-red-400" />
+              {deleteConfirm.deleteAll ? 'Eliminar todo el historial' : 'Eliminar escaneo'}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {deleteConfirm.deleteAll
+                ? `¿Estás seguro de que deseas eliminar los ${pastScans.length} escaneos del historial? Esta acción no se puede deshacer.`
+                : `¿Estás seguro de que deseas eliminar el escaneo de "${deleteConfirm.scanName}"? Esta acción no se puede deshacer.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => setDeleteConfirm({ open: false, scanId: null, scanName: '', deleteAll: false })}>
+              Cancelar
+            </Button>
+            <Button className="bg-red-700 hover:bg-red-800 text-white" onClick={executeDelete}>
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              {deleteConfirm.deleteAll ? 'Eliminar todo' : 'Eliminar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── AI CHATBOT ── */}
       {chatOpen && (

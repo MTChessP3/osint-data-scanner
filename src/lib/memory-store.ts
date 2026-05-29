@@ -180,6 +180,12 @@ export function deleteScan(id: string): boolean {
   return scans.delete(id);
 }
 
+export function deleteAllScans(): number {
+  const count = scans.size;
+  scans.clear();
+  return count;
+}
+
 export function getReportByScanId(scanId: string): ReportRecord | null {
   const record = scans.get(scanId);
   if (!record || record.reports.length === 0) return null;

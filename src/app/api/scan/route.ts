@@ -4,7 +4,7 @@ import { runFullScan, OSINTResult } from '@/lib/osint-scanner';
 import { generateOSINTReport, generateReportFileName } from '@/lib/generate-report';
 import { generateIndividualPDF, generatePDFFileName } from '@/lib/generate-pdf-report';
 import {
-  createScan, updateScanStatus, addScanResults, addReport, getAllScans, getScan
+  createScan, updateScanStatus, addScanResults, addReport, getAllScans, getScan, deleteScan, deleteAllScans
 } from '@/lib/memory-store';
 import { initZAIConfig } from '@/lib/zai-config';
 
@@ -127,6 +127,39 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json({ error: 'Error al obtener escaneos' }, { status: 500 });
+  }
+}
+
+// ── DELETE: Delete a single scan or all scans ──
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const url = new URL(request.url);
+    const scanId = url.searchParams.get('scanId');
+    const deleteAll = url.searchParams.get('all') === 'true';
+
+    if (deleteAll) {
+      const count = deleteAllScans();
+      return NextResponse.json({ success: true, deletedCount: count });
+    }
+
+    if (!scanId) {
+      return NextResponse.json({ error: 'scanId es requerido o use ?all=true' }, { status: 400 });
+    }
+
+    const deleted = deleteScan(scanId);
+    if (!deleted) {
+      return NextResponse.json({ error: 'Escaneo no encontrado' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete error:', error);
+    return NextResponse.json({ error: 'Error al eliminar' }, { status: 500 });
   }
 }
 
