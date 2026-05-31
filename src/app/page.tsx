@@ -3163,7 +3163,7 @@ export default function Home() {
                     <ol className="text-xs text-slate-500 space-y-1.5 list-decimal list-inside">
                       <li>Crear un bot en Telegram: abre @BotFather, escribe <code className="bg-slate-800 px-1 rounded text-cyan-400">/newbot</code>, sigue las instrucciones</li>
                       <li>Copia el token que te da BotFather (formato: <code className="bg-slate-800 px-1 rounded text-cyan-400">123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>)</li>
-                      <li>Obtén tu Chat ID: envía <code className="bg-slate-800 px-1 rounded text-cyan-400">/start</code> a tu bot, luego visita <code className="bg-slate-800 px-1 rounded text-cyan-400 break-all">https://api.telegram.org/bot{TOKEN}/getUpdates</code> y busca <code className="bg-slate-800 px-1 rounded text-cyan-400">chat.id</code></li>
+                      <li>Obtén tu Chat ID: envía <code className="bg-slate-800 px-1 rounded text-cyan-400">/start</code> a tu bot, luego visita <code className="bg-slate-800 px-1 rounded text-cyan-400 break-all">{'https://api.telegram.org/bot{TOKEN}/getUpdates'}</code> y busca <code className="bg-slate-800 px-1 rounded text-cyan-400">chat.id</code></li>
                       <li>En Vercel: ve a tu proyecto → Settings → Environment Variables y agrega:
                         <div className="mt-1 ml-4 space-y-1">
                           <div className="flex items-center gap-1"><span className={`text-[10px] ${telegramHasBotToken ? 'text-emerald-400' : 'text-red-400'}`}>{telegramHasBotToken ? '✓' : '✗'}</span> <code className="bg-slate-800 px-1 rounded text-amber-400 text-[10px]">TELEGRAM_BOT_TOKEN</code> = tu_token</div>
