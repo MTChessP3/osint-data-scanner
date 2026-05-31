@@ -2321,6 +2321,17 @@ export async function runFullScan(params: {
     } catch { /* non-critical */ }
   }
 
+  // ── Alert Interceptor: Check for keyword matches ──
+  if (deduped.length > 0) {
+    try {
+      const { interceptAndAlert } = await import('./engines/alert-interceptor');
+      await interceptAndAlert(deduped, { scanId: undefined, fullName, email, cedula, phone });
+    } catch (alertError) {
+      console.warn('[OSINT] Alert interceptor error:', alertError);
+      // Non-critical — don't fail the scan
+    }
+  }
+
   return deduped;
 }
 

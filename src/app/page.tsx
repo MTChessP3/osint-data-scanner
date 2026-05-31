@@ -9,7 +9,7 @@ import {
   CheckCircle2, XCircle, FileDown, Users, AlertOctagon, Link2,
   Building2, Heart, Briefcase, MapPin, Network, FileDigit, GitBranch,
   MessageCircle, Send, Bot, X, Sparkles, Settings, Check, Wifi, WifiOff,
-  Music2, Camera, Play, AtSign, Pin, LogOut, Fingerprint
+  Music2, Camera, Play, AtSign, Pin, LogOut, Fingerprint, Bell, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -439,6 +439,15 @@ export default function Home() {
     open: false, scanId: null, scanName: '', deleteAll: false,
   });
 
+  // ── Alert states ──
+  const [alertKeywords, setAlertKeywords] = useState<string[]>([]);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [telegramConfigured, setTelegramConfigured] = useState(false);
+  const [telegramHasBotToken, setTelegramHasBotToken] = useState(false);
+  const [telegramHasChatId, setTelegramHasChatId] = useState(false);
+  const [alertLoading, setAlertLoading] = useState(false);
+  const [alertHistory, setAlertHistory] = useState<Array<{ keyword: string; sourceType: string; sourceName: string; timestamp: string; telegramSent: boolean }>>([]);
+
   // ── Chat states ──
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
@@ -456,8 +465,80 @@ export default function Home() {
   const cycleCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const engineTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
 
+  // ── Fetch alert configuration ──
+  async function fetchAlertConfig() {
+    try {
+      const res = await fetch('/api/alerts');
+      if (res.ok) {
+        const data = await res.json();
+        setAlertKeywords(data.keywords || []);
+        setTelegramConfigured(data.telegram?.configured || false);
+        setTelegramHasBotToken(data.telegram?.hasBotToken || false);
+        setTelegramHasChatId(data.telegram?.hasChatId || false);
+        setAlertHistory(data.alertHistory || []);
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function handleAddKeyword() {
+    if (!newKeyword.trim()) return;
+    setAlertLoading(true);
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_keyword', keyword: newKeyword.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAlertKeywords(data.keywords);
+        setNewKeyword('');
+      }
+    } catch { /* ignore */ }
+    setAlertLoading(false);
+  }
+
+  async function handleRemoveKeyword(keyword: string) {
+    setAlertLoading(true);
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove_keyword', keyword }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAlertKeywords(data.keywords);
+      }
+    } catch { /* ignore */ }
+    setAlertLoading(false);
+  }
+
+  async function handleTestAlert() {
+    setAlertLoading(true);
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test_alert' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ Alerta de prueba enviada exitosamente');
+        } else {
+          alert(`❌ Error: ${data.error || data.message || 'No se pudo enviar la alerta'}`);
+        }
+      }
+    } catch {
+      alert('❌ Error de conexión al enviar alerta de prueba');
+    }
+    setAlertLoading(false);
+  }
+
   useEffect(() => {
     fetchPastScans();
+    fetchAlertConfig();
   }, []);
 
   // ── Scan Cycle Automation: Cleanup on unmount ──
@@ -1555,6 +1636,10 @@ export default function Home() {
             <TabsTrigger value="history" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400">
               <Clock className="w-4 h-4 mr-2" />
               Historial ({pastScans.length})
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400">
+              <Bell className="w-4 h-4 mr-2" />
+              Alertas
             </TabsTrigger>
           </TabsList>
 
@@ -2913,6 +2998,288 @@ export default function Home() {
                 })}
               </div>
             )}
+          </TabsContent>
+
+          {/* ────────────────────────────────────────────
+              ALERTS TAB — Telegram Bot Alert Configuration
+          ──────────────────────────────────────────── */}
+          <TabsContent value="alerts" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+              {/* ── Telegram Config Status Card ── */}
+              <Card className="bg-[#111827] border-[#1e293b]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-white text-base">
+                    <Send className="w-5 h-5 text-cyan-400" />
+                    Configuración Telegram Bot
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 text-xs">
+                    Estado de la conexión con el bot de alertas de Telegram
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Status indicator */}
+                  <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+                    telegramConfigured
+                      ? 'bg-emerald-950/20 border-emerald-800/30'
+                      : 'bg-red-950/20 border-red-800/30'
+                  }`}>
+                    {telegramConfigured ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+                    )}
+                    <div>
+                      <p className={`text-sm font-medium ${telegramConfigured ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {telegramConfigured ? 'Telegram Bot Configurado' : 'Telegram Bot No Configurado'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {telegramConfigured
+                          ? 'Las alertas se enviarán automáticamente cuando se detecten palabras clave'
+                          : 'Configura las variables de entorno para habilitar las alertas'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Config details */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                      <div className="flex items-center gap-2">
+                        {telegramHasBotToken ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-400" />
+                        )}
+                        <span className="text-sm text-slate-300">TELEGRAM_BOT_TOKEN</span>
+                      </div>
+                      <span className={`text-xs ${telegramHasBotToken ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {telegramHasBotToken ? 'Configurado' : 'No configurado'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                      <div className="flex items-center gap-2">
+                        {telegramHasChatId ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-400" />
+                        )}
+                        <span className="text-sm text-slate-300">TELEGRAM_CHAT_ID</span>
+                      </div>
+                      <span className={`text-xs ${telegramHasChatId ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {telegramHasChatId ? 'Configurado' : 'No configurado'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Test Alert Button */}
+                  <Button
+                    onClick={handleTestAlert}
+                    disabled={!telegramConfigured || alertLoading}
+                    className="w-full bg-cyan-700 hover:bg-cyan-800 text-white disabled:opacity-50"
+                  >
+                    {alertLoading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4 mr-2" />
+                    )}
+                    Enviar Alerta de Prueba
+                  </Button>
+
+                  {/* Setup instructions */}
+                  {!telegramConfigured && (
+                    <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                      <p className="text-xs text-slate-400 font-medium mb-2">Instrucciones de configuración:</p>
+                      <ol className="text-xs text-slate-500 space-y-1 list-decimal list-inside">
+                        <li>Crear un bot en Telegram vía @BotFather</li>
+                        <li>Obtener el token del bot</li>
+                        <li>Obtener el Chat ID (enviar /start al bot, luego consultar /getUpdates)</li>
+                        <li>Configurar variables de entorno TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID</li>
+                      </ol>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ── Keyword Blacklist Card ── */}
+              <Card className="bg-[#111827] border-[#1e293b]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-white text-base">
+                    <AlertTriangle className="w-5 h-5 text-amber-400" />
+                    Lista Negra de Palabras Clave
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 text-xs">
+                    Palabras clave que activan alertas automáticas al detectarse en resultados OSINT
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Add keyword input */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nueva palabra clave..."
+                      value={newKeyword}
+                      onChange={e => setNewKeyword(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddKeyword(); }}
+                      className="bg-[#0b0f19] border-[#1e293b] text-white placeholder:text-slate-600 text-sm focus:border-amber-600"
+                      disabled={alertLoading}
+                    />
+                    <Button
+                      onClick={handleAddKeyword}
+                      disabled={!newKeyword.trim() || alertLoading}
+                      className="bg-amber-700 hover:bg-amber-800 text-white shrink-0"
+                    >
+                      {alertLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Agregar'}
+                    </Button>
+                  </div>
+
+                  {/* Keywords list */}
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {alertKeywords.length === 0 ? (
+                      <p className="text-xs text-slate-500 text-center py-4">No hay palabras clave configuradas</p>
+                    ) : (
+                      alertKeywords.map((keyword, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b] group hover:border-amber-800/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="text-sm text-slate-200 font-mono">{keyword}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 hover:bg-red-900/20 h-7 w-7 p-0"
+                            onClick={() => handleRemoveKeyword(keyword)}
+                            disabled={alertLoading}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Keyword count */}
+                  <div className="flex items-center justify-between pt-2 border-t border-[#1e293b]">
+                    <span className="text-xs text-slate-500">
+                      {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave activa{alertKeywords.length !== 1 ? 's' : ''}
+                    </span>
+                    <Badge variant="outline" className="text-amber-400 border-amber-800/50 text-[10px]">
+                      Coincidencia sin mayúsculas/minúsculas
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* ── Alert History Card ── */}
+            <Card className="bg-[#111827] border-[#1e293b]">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-white text-base">
+                      <Bell className="w-5 h-5 text-blue-400" />
+                      Historial de Alertas
+                    </CardTitle>
+                    <CardDescription className="text-slate-400 text-xs">
+                      Últimas alertas disparadas por el interceptor de palabras clave
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]"
+                    onClick={() => fetchAlertConfig()}
+                  >
+                    <ScanLine className="w-3.5 h-3.5 mr-1.5" />
+                    Actualizar
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {alertHistory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Bell className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No se han disparado alertas todavía</p>
+                    <p className="text-xs text-slate-600 mt-1">Las alertas se activarán automáticamente cuando un escaneo OSINT detecte una palabra clave de la lista negra</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {alertHistory.map((alert, idx) => {
+                      const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
+                        : alert.sourceType === 'group' || alert.sourceType === 'chat' ? 'CHAT/GROUP'
+                        : alert.sourceType === 'bot' ? 'BOT'
+                        : alert.sourceType === 'user' ? 'USUARIO'
+                        : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
+                      const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
+                        : alert.sourceType === 'group' || alert.sourceType === 'chat' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
+                        : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
+                        : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                      return (
+                        <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                          <div className="shrink-0">
+                            {alert.telegramSent ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-400" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-mono text-amber-400 font-medium">{alert.keyword}</span>
+                              <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
+                                {sourceBadge}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 truncate mt-0.5">{alert.sourceName}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-[10px] text-slate-600">
+                              {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ── How It Works Card ── */}
+            <Card className="bg-[#111827] border-[#1e293b]">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-white text-base">
+                  <Info className="w-5 h-5 text-slate-400" />
+                  Cómo Funciona
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-900/30 text-amber-400 text-xs font-bold">1</span>
+                      <span className="text-sm font-medium text-slate-200">Detección</span>
+                    </div>
+                    <p className="text-xs text-slate-500">El interceptor analiza todos los resultados OSINT buscando coincidencias con las palabras clave configuradas</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-cyan-900/30 text-cyan-400 text-xs font-bold">2</span>
+                      <span className="text-sm font-medium text-slate-200">Clasificación</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Se extrae metadata de la fuente (canal, grupo, web) y se determina la severidad del hallazgo</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-900/30 text-emerald-400 text-xs font-bold">3</span>
+                      <span className="text-sm font-medium text-slate-200">Alerta</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Se envía una alerta formateada a Telegram con toda la información del hallazgo y la fuente</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
