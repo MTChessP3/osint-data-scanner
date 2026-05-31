@@ -1466,6 +1466,33 @@ export default function Home() {
                 </p>
               </div>
             </div>
+
+            {/* Required Environment Variables Guide */}
+            <div className="p-3 rounded-lg bg-amber-950/15 border border-amber-800/30">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <p className="text-xs font-medium text-amber-300">Variables de Entorno Requeridas (Vercel)</p>
+              </div>
+              <p className="text-[10px] text-slate-500 mb-2">Configura estas variables en Vercel → Settings → Environment Variables para que todas las funciones operen:</p>
+              <div className="space-y-1.5">
+                {[
+                  { name: 'AUTH_SECRET', desc: 'Clave de cifrado para autenticación (obligatoria)', required: true },
+                  { name: 'DEEPSEEK_API_KEY', desc: 'Clave API de DeepSeek para IA y chat', required: true },
+                  { name: 'TELEGRAM_BOT_TOKEN', desc: 'Token del bot de Telegram para alertas', required: false },
+                  { name: 'TELEGRAM_CHAT_ID', desc: 'Chat ID para enviar alertas de Telegram', required: false },
+                ].map(v => (
+                  <div key={v.name} className="flex items-start gap-2 p-1.5 bg-[#0b0f19] rounded border border-[#1e293b]">
+                    <Badge className={`text-[8px] px-1 py-0 h-4 shrink-0 ${v.required ? 'bg-red-900/40 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
+                      {v.required ? 'OBLIGATORIA' : 'OPCIONAL'}
+                    </Badge>
+                    <div>
+                      <code className="text-[10px] text-amber-400">{v.name}</code>
+                      <p className="text-[9px] text-slate-500">{v.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1588,25 +1615,46 @@ export default function Home() {
                       )}
                     </Button>
 
-                    <div className="space-y-1">
+                    {/* ── BARRA DE PROGRESO FIJA — siempre visible ── */}
+                    <div className="p-3 bg-[#0a0e17] rounded-lg border border-[#1e293b] space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-slate-400">
-                          {loading ? (progress < 20 ? 'Conectando motores...' : progress < 90 ? `Escaneando ${selectedEngines.size} motores...` : 'Procesando resultados...') : progress >= 100 ? 'Escaneo completado' : 'Listo para escanear'}
-                        </span>
-                        <span className="text-[10px] font-bold text-white tabular-nums">
+                        <div className="flex items-center gap-2">
+                          {loading ? (
+                            <div className="relative flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                              <div className="absolute w-2 h-2 rounded-full bg-blue-400 animate-ping opacity-75" />
+                            </div>
+                          ) : progress >= 100 ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <ScanLine className="w-3.5 h-3.5 text-slate-500" />
+                          )}
+                          <span className="text-[11px] font-semibold tracking-wide">
+                            {loading
+                              ? (progress < 20 ? 'Conectando motores...' : progress < 90 ? `Escaneando ${selectedEngines.size} motores...` : 'Procesando resultados...')
+                              : progress >= 100
+                                ? <span className="text-emerald-400">Escaneo completado</span>
+                                : <span className="text-slate-500">Listo para escanear</span>
+                            }
+                          </span>
+                        </div>
+                        <span className={`text-xs font-bold tabular-nums ${
+                          progress >= 100 ? 'text-emerald-400' : progress > 0 ? 'text-blue-400' : 'text-slate-500'
+                        }`}>
                           {Math.round(progress)}%
                         </span>
                       </div>
-                      <div className="relative h-2 bg-[#0b0f19] rounded-full overflow-hidden border border-[#1e293b]">
+                      <div className="relative h-3 bg-[#111827] rounded-full overflow-hidden border border-[#1e293b]">
                         <div
-                          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
+                          className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
                           style={{
-                            width: `${progress}%`,
+                            width: progress > 0 ? `${progress}%` : '100%',
                             background: progress >= 100
                               ? 'linear-gradient(90deg, #059669, #10b981, #34d399)'
                               : progress > 0
                                 ? 'linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa)'
-                                : 'linear-gradient(90deg, #1e293b, #334155)',
+                                : 'linear-gradient(90deg, #1e293b, #253044)',
+                            opacity: progress > 0 ? 1 : 0.4,
                           }}
                         >
                           {progress > 0 && progress < 100 && (
@@ -1617,9 +1665,39 @@ export default function Home() {
                             }} />
                           )}
                           {progress > 0 && progress < 100 && (
-                            <div className="absolute right-0 inset-y-0 w-6 bg-gradient-to-l from-white/30 to-transparent" />
+                            <div className="absolute right-0 inset-y-0 w-8 bg-gradient-to-l from-white/30 to-transparent" />
+                          )}
+                          {progress >= 100 && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2s_infinite]" />
                           )}
                         </div>
+                      </div>
+                      {/* Step indicators */}
+                      <div className="flex items-center justify-between px-0.5">
+                        {[
+                          { label: 'Conectar', threshold: 15 },
+                          { label: 'Consultar', threshold: 50 },
+                          { label: 'Recibir', threshold: 85 },
+                          { label: 'Procesar', threshold: 95 },
+                          { label: 'Listo', threshold: 100 },
+                        ].map((step, idx) => {
+                          const reached = progress >= step.threshold;
+                          const current = !reached && progress >= (idx > 0 ? [15, 50, 85, 95, 100][idx - 1] : 0);
+                          return (
+                            <div key={step.label} className="flex flex-col items-center gap-0.5">
+                              <div className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                                reached
+                                  ? progress >= 100 ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]'
+                                  : current ? 'bg-blue-400/50 animate-pulse' : 'bg-[#1e293b]'
+                              }`} />
+                              <span className={`text-[8px] leading-none transition-colors duration-300 ${
+                                reached ? (progress >= 100 ? 'text-emerald-400' : 'text-blue-300') : 'text-slate-600'
+                              }`}>
+                                {step.label}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -1705,54 +1783,61 @@ export default function Home() {
                       )}
                     </Button>
 
-                    <div className="mt-3 space-y-2">
-                      {/* Stage indicator with animated icon */}
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex items-center justify-center">
+                    {/* ── BARRA DE PROGRESO UPLOAD FIJA — siempre visible ── */}
+                    <div className="mt-3 p-3 bg-[#0a0e17] rounded-lg border border-[#1e293b] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
                           {uploadLoading ? (
-                            <>
+                            <div className="relative flex items-center justify-center">
                               <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
                               <div className="absolute w-2 h-2 rounded-full bg-blue-400 animate-ping opacity-75" />
-                            </>
+                            </div>
+                          ) : uploadProgress >= 100 ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                           ) : (
-                            <div className={`w-2 h-2 rounded-full ${uploadProgress >= 100 ? 'bg-emerald-400' : 'bg-slate-700'}`} />
+                            <Upload className="w-3.5 h-3.5 text-slate-500" />
                           )}
+                          <span className="text-[11px] font-semibold tracking-wide">
+                            {uploadLoading
+                              ? (uploadStage || 'Procesando...')
+                              : uploadProgress >= 100
+                                ? <span className="text-emerald-400">Procesamiento completado</span>
+                                : <span className="text-slate-500">Listo para procesar</span>
+                            }
+                          </span>
                         </div>
-                        <span className="text-[11px] font-medium text-blue-300 tracking-wide">
-                          {uploadLoading ? (uploadStage || 'Procesando...') : uploadProgress >= 100 ? 'Procesamiento completado' : 'Listo para procesar'}
-                        </span>
-                        <span className="ml-auto text-[11px] font-bold text-white tabular-nums">
+                        <span className={`text-xs font-bold tabular-nums ${
+                          uploadProgress >= 100 ? 'text-emerald-400' : uploadProgress > 0 ? 'text-blue-400' : 'text-slate-500'
+                        }`}>
                           {Math.round(uploadProgress)}%
                         </span>
                       </div>
 
-                      {/* Main progress bar with gradient and animation */}
-                      <div className="relative h-2.5 bg-[#0b0f19] rounded-full overflow-hidden border border-[#1e293b]">
-                        {/* Animated background shimmer */}
-                        {uploadLoading && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-[shimmer_2s_infinite]" />}
-                        {/* Progress fill */}
+                      <div className="relative h-3 bg-[#111827] rounded-full overflow-hidden border border-[#1e293b]">
                         <div
                           className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
                           style={{
-                            width: `${uploadProgress}%`,
+                            width: uploadProgress > 0 ? `${uploadProgress}%` : '100%',
                             background: uploadProgress >= 100
                               ? 'linear-gradient(90deg, #059669, #10b981, #34d399)'
-                              : uploadLoading
+                              : uploadProgress > 0
                                 ? 'linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa)'
-                                : 'linear-gradient(90deg, #1e293b, #334155)',
+                                : 'linear-gradient(90deg, #1e293b, #253044)',
+                            opacity: uploadProgress > 0 ? 1 : 0.4,
                           }}
                         >
-                          {/* Animated stripe overlay */}
-                          {uploadLoading && (
+                          {uploadProgress > 0 && uploadProgress < 100 && (
                             <div className="absolute inset-0 opacity-30" style={{
                               backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 12px)',
                               backgroundSize: '24px 24px',
                               animation: 'moveStripes 1s linear infinite',
                             }} />
                           )}
-                          {/* Glow effect on the leading edge */}
-                          {uploadLoading && (
-                            <div className="absolute right-0 inset-y-0 w-6 bg-gradient-to-l from-white/30 to-transparent" />
+                          {uploadProgress > 0 && uploadProgress < 100 && (
+                            <div className="absolute right-0 inset-y-0 w-8 bg-gradient-to-l from-white/30 to-transparent" />
+                          )}
+                          {uploadProgress >= 100 && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2s_infinite]" />
                           )}
                         </div>
                       </div>
@@ -1776,7 +1861,7 @@ export default function Home() {
                                   : current ? 'bg-blue-400/50 animate-pulse' : 'bg-[#1e293b]'
                               }`} />
                               <span className={`text-[8px] leading-none transition-colors duration-300 ${
-                                reached ? 'text-blue-300' : 'text-slate-600'
+                                reached ? (uploadProgress >= 100 ? 'text-emerald-400' : 'text-blue-300') : 'text-slate-600'
                               }`}>
                                 {milestone.label}
                               </span>
@@ -3072,18 +3157,22 @@ export default function Home() {
                     Enviar Alerta de Prueba
                   </Button>
 
-                  {/* Setup instructions */}
-                  {!telegramConfigured && (
-                    <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
-                      <p className="text-xs text-slate-400 font-medium mb-2">Instrucciones de configuración:</p>
-                      <ol className="text-xs text-slate-500 space-y-1 list-decimal list-inside">
-                        <li>Crear un bot en Telegram vía @BotFather</li>
-                        <li>Obtener el token del bot</li>
-                        <li>Obtener el Chat ID (enviar /start al bot, luego consultar /getUpdates)</li>
-                        <li>Configurar variables de entorno TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID</li>
-                      </ol>
-                    </div>
-                  )}
+                  {/* Setup instructions — always visible */}
+                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                    <p className="text-xs text-slate-400 font-medium mb-2">Instrucciones de configuración:</p>
+                    <ol className="text-xs text-slate-500 space-y-1.5 list-decimal list-inside">
+                      <li>Crear un bot en Telegram: abre @BotFather, escribe <code className="bg-slate-800 px-1 rounded text-cyan-400">/newbot</code>, sigue las instrucciones</li>
+                      <li>Copia el token que te da BotFather (formato: <code className="bg-slate-800 px-1 rounded text-cyan-400">123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>)</li>
+                      <li>Obtén tu Chat ID: envía <code className="bg-slate-800 px-1 rounded text-cyan-400">/start</code> a tu bot, luego visita <code className="bg-slate-800 px-1 rounded text-cyan-400 break-all">https://api.telegram.org/bot{TOKEN}/getUpdates</code> y busca <code className="bg-slate-800 px-1 rounded text-cyan-400">chat.id</code></li>
+                      <li>En Vercel: ve a tu proyecto → Settings → Environment Variables y agrega:
+                        <div className="mt-1 ml-4 space-y-1">
+                          <div className="flex items-center gap-1"><span className={`text-[10px] ${telegramHasBotToken ? 'text-emerald-400' : 'text-red-400'}`}>{telegramHasBotToken ? '✓' : '✗'}</span> <code className="bg-slate-800 px-1 rounded text-amber-400 text-[10px]">TELEGRAM_BOT_TOKEN</code> = tu_token</div>
+                          <div className="flex items-center gap-1"><span className={`text-[10px] ${telegramHasChatId ? 'text-emerald-400' : 'text-red-400'}`}>{telegramHasChatId ? '✓' : '✗'}</span> <code className="bg-slate-800 px-1 rounded text-amber-400 text-[10px]">TELEGRAM_CHAT_ID</code> = tu_chat_id</div>
+                        </div>
+                      </li>
+                      <li>Redespliega el proyecto en Vercel (Deployments → Redeploy) y recarga esta página</li>
+                    </ol>
+                  </div>
                 </CardContent>
               </Card>
 
