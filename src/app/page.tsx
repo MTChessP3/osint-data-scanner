@@ -400,6 +400,7 @@ export default function Home() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<string>('');
   const [batchResults, setBatchResults] = useState<BatchResult[] | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -1164,11 +1165,18 @@ export default function Home() {
     setRelationshipAnalysis(null);
     setJointAnalysisId(null);
     setUploadProgress(0);
+    setUploadStage('Iniciando carga...');
 
     const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 85) { clearInterval(progressInterval); return 85; }
-        return prev + Math.random() * 2;
+        const next = prev + Math.random() * 2;
+        // Update stage labels based on progress
+        if (next > 20 && prev <= 20) setUploadStage('Analizando estructura del archivo...');
+        else if (next > 40 && prev <= 40) setUploadStage('Extrayendo datos de hojas...');
+        else if (next > 60 && prev <= 60) setUploadStage('Ejecutando escaneo OSINT...');
+        else if (next > 75 && prev <= 75) setUploadStage('Generando reportes de inteligencia...');
+        return next;
       });
     }, 800);
 
@@ -1178,13 +1186,15 @@ export default function Home() {
 
       if (isXLSX) {
         // ── Always use server-side parsing — more reliable for .xls and .xlsx ──
-        // Client-side xlsx import was causing Application errors on Vercel
         try {
           const formData = new FormData();
           formData.append('file', uploadFile);
+          setUploadStage('Enviando archivo al servidor...');
+          setUploadProgress(10);
           const res = await fetch('/api/upload', { method: 'POST', body: formData });
           clearInterval(progressInterval);
           setUploadProgress(100);
+          setUploadStage('Procesamiento completado');
 
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
@@ -1232,9 +1242,12 @@ export default function Home() {
         // CSV or other format
         const formData = new FormData();
         formData.append('file', uploadFile);
+        setUploadStage('Enviando archivo CSV...');
+        setUploadProgress(10);
         const res = await fetch('/api/upload', { method: 'POST', body: formData });
         clearInterval(progressInterval);
         setUploadProgress(100);
+        setUploadStage('Procesamiento completado');
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'Error al procesar archivo');
@@ -1245,9 +1258,10 @@ export default function Home() {
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Error desconocido');
+      setUploadStage('Error en el procesamiento');
     } finally {
       setUploadLoading(false);
-      setTimeout(() => setUploadProgress(0), 1000);
+      setTimeout(() => { setUploadProgress(0); setUploadStage(''); }, 2000);
     }
   }, [uploadFile]);
 
@@ -1668,7 +1682,76 @@ export default function Home() {
                       )}
                     </Button>
 
-                    {uploadProgress > 0 && <Progress value={uploadProgress} className="h-1.5" />}
+                    {uploadProgress > 0 && (
+                      <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        {/* Stage indicator with animated icon */}
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                            <div className="absolute w-2 h-2 rounded-full bg-blue-400 animate-ping opacity-75" />
+                          </div>
+                          <span className="text-[11px] font-medium text-blue-300 tracking-wide">
+                            {uploadStage || 'Procesando...'}
+                          </span>
+                          <span className="ml-auto text-[11px] font-bold text-white tabular-nums">
+                            {Math.round(uploadProgress)}%
+                          </span>
+                        </div>
+
+                        {/* Main progress bar with gradient and animation */}
+                        <div className="relative h-2.5 bg-[#0b0f19] rounded-full overflow-hidden border border-[#1e293b]">
+                          {/* Animated background shimmer */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-[shimmer_2s_infinite]" />
+                          {/* Progress fill */}
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
+                            style={{
+                              width: `${uploadProgress}%`,
+                              background: uploadProgress >= 100
+                                ? 'linear-gradient(90deg, #059669, #10b981, #34d399)'
+                                : 'linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa)',
+                            }}
+                          >
+                            {/* Animated stripe overlay */}
+                            <div className="absolute inset-0 opacity-30" style={{
+                              backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.15) 6px, rgba(255,255,255,0.15) 12px)',
+                              backgroundSize: '24px 24px',
+                              animation: 'moveStripes 1s linear infinite',
+                            }} />
+                            {/* Glow effect on the leading edge */}
+                            <div className="absolute right-0 inset-y-0 w-6 bg-gradient-to-l from-white/30 to-transparent" />
+                          </div>
+                        </div>
+
+                        {/* Stage milestones */}
+                        <div className="flex items-center justify-between px-0.5">
+                          {[
+                            { label: 'Carga', threshold: 10, icon: '⬆' },
+                            { label: 'Análisis', threshold: 30, icon: '🔍' },
+                            { label: 'Escaneo OSINT', threshold: 55, icon: '🛡' },
+                            { label: 'Reportes', threshold: 80, icon: '📊' },
+                            { label: 'Listo', threshold: 100, icon: '✓' },
+                          ].map((milestone, idx) => {
+                            const reached = uploadProgress >= milestone.threshold;
+                            const current = !reached && uploadProgress >= (idx > 0 ? [10, 30, 55, 80, 100][idx - 1] : 0);
+                            return (
+                              <div key={milestone.label} className="flex flex-col items-center gap-0.5">
+                                <div className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                                  reached
+                                    ? uploadProgress >= 100 ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]'
+                                    : current ? 'bg-blue-400/50 animate-pulse' : 'bg-[#1e293b]'
+                                }`} />
+                                <span className={`text-[8px] leading-none transition-colors duration-300 ${
+                                  reached ? 'text-blue-300' : 'text-slate-600'
+                                }`}>
+                                  {milestone.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Batch Results (compact inline) */}
                     {batchResults && batchResults.length > 0 && (
