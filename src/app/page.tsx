@@ -403,6 +403,20 @@ export default function Home() {
   const [uploadStage, setUploadStage] = useState<string>('');
   const [batchResults, setBatchResults] = useState<BatchResult[] | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // ── TXT analysis state ──
+  const [txtAnalysis, setTxtAnalysis] = useState<{
+    format: string;
+    totalLines: number;
+    totalEntities: { names: number; emails: number; phones: number; cedulas: number; ips: number; urls: number; usernames: number; addresses: number; companies: number };
+    persons: Array<{
+      fullName: string; email: string; phone: string; cedula: string;
+      address: string; usernames: string[]; ips: string[]; urls: string[];
+      companies: string[]; confidence: string; lineNumber: number;
+    }>;
+    unlinkedEntities: { ips: string[]; urls: string[]; usernames: string[]; emails: string[]; companies: string[] };
+    intelligenceSummary: string;
+  } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   // ── Relationship analysis states ──
@@ -1162,6 +1176,7 @@ export default function Home() {
     setUploadLoading(true);
     setUploadError(null);
     setBatchResults(null);
+    setTxtAnalysis(null);
     setRelationshipAnalysis(null);
     setJointAnalysisId(null);
     setUploadProgress(0);
@@ -1182,80 +1197,61 @@ export default function Home() {
 
     try {
       const fileName = uploadFile.name.toLowerCase();
-      const isXLSX = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+      const fileLabel = fileName.endsWith('.txt') ? 'TXT' :
+                        fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'Excel' : 'CSV';
 
-      if (isXLSX) {
-        // ── Always use server-side parsing — more reliable for .xls and .xlsx ──
-        try {
-          const formData = new FormData();
-          formData.append('file', uploadFile);
-          setUploadStage('Enviando archivo al servidor...');
-          setUploadProgress(10);
-          const res = await fetch('/api/upload', { method: 'POST', body: formData });
-          clearInterval(progressInterval);
-          setUploadProgress(100);
-          setUploadStage('Procesamiento completado');
+      // ── All formats go through server-side parsing ──
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      setUploadStage(`Enviando archivo ${fileLabel} al servidor...`);
+      setUploadProgress(10);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setUploadStage('Procesamiento completado');
 
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            // Check if server detected IRM/Azure RMS protection
-            if (errData.isIRM === true) {
-              throw new Error(
-                errData.error ||
-                'El archivo tiene proteccion IRM (Azure Rights Management). Los datos estan cifrados. ' +
-                'Solucion: abre el archivo en Excel con tu cuenta autorizada, ve a Archivo > Informacion > ' +
-                'Proteger libro > Restringir acceso > "Sin restricciones", guardalo como .xlsx y subelo de nuevo.'
-              );
-            }
-            // Check if server detected genuine file encryption (not just sheet protection)
-            if (errData.isEncrypted === true) {
-              throw new Error(
-                'El archivo tiene cifrado real y no puede ser leido. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
-              );
-            }
-            throw new Error(errData.error || 'Error al procesar archivo Excel en el servidor');
-          }
-
-          const uploadData = await res.json();
-
-          if (uploadData.type === 'xlsx_multi_sheet') {
-            setSheetNames(uploadData.sheetNames || []);
-            setBatchResults(uploadData.results);
-            setRelationshipAnalysis(uploadData.relationshipAnalysis || null);
-            setJointAnalysisId(uploadData.jointAnalysisId || null);
-            setJointReportFileName(uploadData.jointReportFileName || null);
-          } else {
-            setBatchResults(uploadData.results);
-          }
-
-          fetchPastScans();
-        } catch (serverError) {
-          const msg = serverError instanceof Error ? serverError.message : 'Error desconocido';
-          // Only re-throw as "encrypted" if the server explicitly flagged it with isEncrypted=true
-          // This prevents false positives from .xls files that merely have sheet protection
-          if (msg.includes('[ENCRYPTED]')) {
-            throw new Error('El archivo tiene cifrado real y no puede ser leido. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.');
-          }
-          throw new Error(msg || 'No se pudo leer el archivo Excel. Verifica que el archivo no esté dañado.');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        // Check if server detected IRM/Azure RMS protection
+        if (errData.isIRM === true) {
+          throw new Error(
+            errData.error ||
+            'El archivo tiene proteccion IRM (Azure Rights Management). Los datos estan cifrados. ' +
+            'Solucion: abre el archivo en Excel con tu cuenta autorizada, ve a Archivo > Informacion > ' +
+            'Proteger libro > Restringir acceso > "Sin restricciones", guardalo como .xlsx y subelo de nuevo.'
+          );
         }
-      } else {
-        // CSV or other format
-        const formData = new FormData();
-        formData.append('file', uploadFile);
-        setUploadStage('Enviando archivo CSV...');
-        setUploadProgress(10);
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        clearInterval(progressInterval);
-        setUploadProgress(100);
-        setUploadStage('Procesamiento completado');
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Error al procesar archivo');
+        // Check if server detected genuine file encryption (not just sheet protection)
+        if (errData.isEncrypted === true) {
+          throw new Error(
+            'El archivo tiene cifrado real y no puede ser leido. Abre el archivo en Excel, elimina la protección y guárdalo como .xlsx.'
+          );
         }
-        const data = await res.json();
-        setBatchResults(data.results);
-        fetchPastScans();
+        // Check if TXT analysis found no entities
+        if (errData.txtAnalysis) {
+          throw new Error(
+            errData.error + `\n\nResumen del análisis: ${errData.txtAnalysis.intelligenceSummary}`
+          );
+        }
+        throw new Error(errData.error || `Error al procesar archivo ${fileLabel} en el servidor`);
       }
+
+      const uploadData = await res.json();
+
+      if (uploadData.type === 'xlsx_multi_sheet') {
+        setSheetNames(uploadData.sheetNames || []);
+        setBatchResults(uploadData.results);
+        setRelationshipAnalysis(uploadData.relationshipAnalysis || null);
+        setJointAnalysisId(uploadData.jointAnalysisId || null);
+        setJointReportFileName(uploadData.jointReportFileName || null);
+      } else if (uploadData.type === 'txt_analysis') {
+        setBatchResults(uploadData.results);
+        setTxtAnalysis(uploadData.txtAnalysis);
+      } else {
+        setBatchResults(uploadData.results);
+      }
+
+      fetchPastScans();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Error desconocido');
       setUploadStage('Error en el procesamiento');
@@ -1270,9 +1266,9 @@ export default function Home() {
     e.preventDefault();
     setIsDragging(false);
     const files = Array.from(e.dataTransfer.files);
-    const validFile = files.find(f => f.name.endsWith('.csv') || f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+    const validFile = files.find(f => f.name.endsWith('.csv') || f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.txt'));
     if (validFile) { setUploadFile(validFile); setUploadError(null); }
-    else setUploadError('Formato no soportado. Use .csv, .xlsx o .xls');
+    else setUploadError('Formato no soportado. Use .csv, .xlsx, .xls o .txt');
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
@@ -1624,7 +1620,7 @@ export default function Home() {
                       Zona de análisis de archivos
                     </CardTitle>
                     <CardDescription className="text-slate-500 text-xs">
-                      Carga archivos Excel (.xlsx / .xls) para investigación OSINT individual y cruce de vínculos
+                      Carga archivos Excel (.xlsx / .xls), CSV o TXT para investigación OSINT individual y cruce de vínculos
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -1642,7 +1638,7 @@ export default function Home() {
                       onClick={() => {
                         const input = document.createElement('input');
                         input.type = 'file';
-                        input.accept = '.csv,.xlsx,.xls';
+                        input.accept = '.csv,.xlsx,.xls,.txt';
                         input.onchange = (e) => {
                           const file = (e.target as HTMLInputElement).files?.[0];
                           if (file) { setUploadFile(file); setUploadError(null); }
@@ -1663,7 +1659,7 @@ export default function Home() {
                         <div className="space-y-1">
                           <Upload className="w-8 h-8 mx-auto text-slate-600" />
                           <p className="text-sm text-slate-400">Arrastra tu archivo aquí o haz clic</p>
-                          <p className="text-[10px] text-slate-600">.xlsx / .xls (máx. 30 personas/hoja) | .csv</p>
+                          <p className="text-[10px] text-slate-600">.xlsx / .xls / .csv / .txt (máx. 30 personas)</p>
                         </div>
                       )}
                     </div>
@@ -1749,6 +1745,95 @@ export default function Home() {
                               </div>
                             );
                           })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TXT Analysis Results (entity extraction) */}
+                    {txtAnalysis && (
+                      <div className="space-y-2 mt-2">
+                        <Separator className="bg-[#1e293b]" />
+                        <div className="p-3 bg-cyan-900/15 border border-cyan-800/30 rounded-lg space-y-2">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-cyan-400" />
+                            <p className="text-xs font-medium text-cyan-300">Análisis de Texto — Entidades Extraídas</p>
+                          </div>
+                          <p className="text-[10px] text-slate-400">{txtAnalysis.intelligenceSummary}</p>
+
+                          {/* Entity stats grid */}
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {[
+                              { label: 'Nombres', value: txtAnalysis.totalEntities.names, icon: User, color: 'text-cyan-400' },
+                              { label: 'Emails', value: txtAnalysis.totalEntities.emails, icon: Mail, color: 'text-blue-400' },
+                              { label: 'Teléfonos', value: txtAnalysis.totalEntities.phones, icon: Phone, color: 'text-emerald-400' },
+                              { label: 'Cédulas', value: txtAnalysis.totalEntities.cedulas, icon: Fingerprint, color: 'text-amber-400' },
+                              { label: 'IPs', value: txtAnalysis.totalEntities.ips, icon: Globe, color: 'text-red-400' },
+                              { label: 'URLs', value: txtAnalysis.totalEntities.urls, icon: ExternalLink, color: 'text-violet-400' },
+                              { label: 'Usuarios', value: txtAnalysis.totalEntities.usernames, icon: AtSign, color: 'text-orange-400' },
+                              { label: 'Direcciones', value: txtAnalysis.totalEntities.addresses, icon: MapPin, color: 'text-rose-400' },
+                              { label: 'Empresas', value: txtAnalysis.totalEntities.companies, icon: Building2, color: 'text-teal-400' },
+                              { label: 'Líneas', value: txtAnalysis.totalLines, icon: FileDigit, color: 'text-slate-400' },
+                            ].map(stat => (
+                              <div key={stat.label} className="flex items-center gap-1 p-1.5 bg-[#0b0f19] rounded border border-[#1e293b]">
+                                <stat.icon className={`w-3 h-3 ${stat.color}`} />
+                                <div>
+                                  <p className="text-[9px] text-slate-500 leading-none">{stat.label}</p>
+                                  <p className={`text-xs font-bold ${stat.color} leading-none`}>{stat.value}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Identified persons */}
+                          {txtAnalysis.persons.length > 0 && (
+                            <ScrollArea className="max-h-40">
+                              <div className="space-y-1">
+                                {txtAnalysis.persons.map((person, idx) => {
+                                  const confColor = person.confidence === 'alta' ? 'text-emerald-400 bg-emerald-900/20 border-emerald-800/30' :
+                                                    person.confidence === 'media' ? 'text-amber-400 bg-amber-900/20 border-amber-800/30' :
+                                                    'text-slate-400 bg-slate-800/20 border-slate-700/30';
+                                  return (
+                                    <div key={idx} className="p-2 bg-[#0b0f19] rounded border border-[#1e293b] flex items-center justify-between">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <p className="text-[11px] font-medium text-white truncate">{person.fullName || 'Sin nombre'}</p>
+                                          <span className={`text-[8px] px-1 py-0.5 rounded border ${confColor}`}>{person.confidence}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                          {person.email && <span className="text-[9px] text-blue-400 truncate">{person.email}</span>}
+                                          {person.phone && <span className="text-[9px] text-emerald-400">{person.phone}</span>}
+                                          {person.cedula && <span className="text-[9px] text-amber-400">{person.cedula}</span>}
+                                        </div>
+                                        {(person.ips.length > 0 || person.urls.length > 0 || person.usernames.length > 0) && (
+                                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                            {person.ips.map((ip, i) => <Badge key={i} variant="outline" className="border-red-800/30 text-red-400 text-[8px] px-1 py-0">{ip}</Badge>)}
+                                            {person.usernames.map((u, i) => <Badge key={i} variant="outline" className="border-orange-800/30 text-orange-400 text-[8px] px-1 py-0">{u}</Badge>)}
+                                            {person.urls.slice(0, 2).map((u, i) => <Badge key={i} variant="outline" className="border-violet-800/30 text-violet-400 text-[8px] px-1 py-0 truncate max-w-24">{u.replace(/^https?:\/\//, '').substring(0, 25)}</Badge>)}
+                                          </div>
+                                        )}
+                                      </div>
+                                      {person.lineNumber > 0 && (
+                                        <span className="text-[8px] text-slate-600 ml-1 shrink-0">L{person.lineNumber}</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </ScrollArea>
+                          )}
+
+                          {/* Unlinked entities */}
+                          {(txtAnalysis.unlinkedEntities.ips.length > 0 || txtAnalysis.unlinkedEntities.urls.length > 0 || txtAnalysis.unlinkedEntities.usernames.length > 0 || txtAnalysis.unlinkedEntities.companies.length > 0) && (
+                            <div className="space-y-1">
+                              <p className="text-[10px] text-slate-500 font-medium">Entidades sin vincular a persona:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {txtAnalysis.unlinkedEntities.ips.map((ip, i) => <Badge key={`ip-${i}`} variant="outline" className="border-red-800/30 text-red-400 text-[9px]">IP: {ip}</Badge>)}
+                                {txtAnalysis.unlinkedEntities.urls.map((url, i) => <Badge key={`url-${i}`} variant="outline" className="border-violet-800/30 text-violet-400 text-[9px] truncate max-w-36">URL: {url.replace(/^https?:\/\//, '').substring(0, 30)}</Badge>)}
+                                {txtAnalysis.unlinkedEntities.usernames.map((u, i) => <Badge key={`u-${i}`} variant="outline" className="border-orange-800/30 text-orange-400 text-[9px]">{u}</Badge>)}
+                                {txtAnalysis.unlinkedEntities.companies.map((c, i) => <Badge key={`c-${i}`} variant="outline" className="border-teal-800/30 text-teal-400 text-[9px]">{c}</Badge>)}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

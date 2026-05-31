@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { runFullScan, OSINTResult, setDeepSeekApiKey } from '@/lib/osint-scanner';
 import { parseXLSXWithSheets, analyzeRelationships, crossReferenceOSINTResults, PersonWithOSINT } from '@/lib/relationship-analyzer';
+import { analyzeTXT } from '@/lib/txt-analyzer';
 import { createScan, updateScanStatus, addScanResults, addReport, createJointAnalysis } from '@/lib/memory-store';
 import { generateOSINTReport, generateReportFileName } from '@/lib/generate-report';
 import { generateIndividualPDF, generatePDFFileName } from '@/lib/generate-pdf-report';
@@ -151,10 +152,11 @@ export async function POST(request: NextRequest) {
     const fileName = file.name.toLowerCase();
     const isXLSX = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
     const isCSV = fileName.endsWith('.csv');
+    const isTXT = fileName.endsWith('.txt');
 
-    if (!isXLSX && !isCSV) {
+    if (!isXLSX && !isCSV && !isTXT) {
       return NextResponse.json(
-        { error: 'Formato no soportado. Use .xlsx, .xls o .csv' },
+        { error: 'Formato no soportado. Use .xlsx, .xls, .csv o .txt' },
         { status: 400 }
       );
     }
@@ -167,8 +169,51 @@ export async function POST(request: NextRequest) {
 
     let sheets: { name: string; data: Record<string, string>[] }[] = [];
     let sheetNames: string[] = [];
+    let txtAnalysisResult: Awaited<ReturnType<typeof analyzeTXT>> | null = null;
 
-    if (isXLSX) {
+    if (isTXT) {
+      // Parse TXT file with intelligent entity extraction
+      const text = await file.text();
+      if (!text.trim()) {
+        return NextResponse.json(
+          { error: 'El archivo TXT está vacío' },
+          { status: 400 }
+        );
+      }
+      txtAnalysisResult = analyzeTXT(text);
+      if (txtAnalysisResult.persons.length === 0) {
+        return NextResponse.json(
+          {
+            error: 'No se pudieron extraer entidades de inteligencia del archivo TXT. Asegúrate de que el archivo contenga nombres, correos, teléfonos, cédulas u otros datos identificables.',
+            txtAnalysis: {
+              format: txtAnalysisResult.format,
+              totalLines: txtAnalysisResult.totalLines,
+              totalEntities: txtAnalysisResult.totalEntities,
+              intelligenceSummary: txtAnalysisResult.intelligenceSummary,
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Convert TXT persons to sheet-like format for unified processing
+      const txtSheetData = txtAnalysisResult.persons.map(p => ({
+        Nombre_Completo: p.fullName,
+        Correo: p.email,
+        Telefono: p.phone,
+        Cedula: p.cedula,
+        Direccion: p.address,
+        Confianza: p.confidence,
+        Linea: String(p.lineNumber),
+        Usernames: p.usernames.join(', '),
+        IPs: p.ips.join(', '),
+        URLs: p.urls.join(', '),
+        Empresas: p.companies.join(', '),
+      }));
+
+      sheets = [{ name: 'Análisis TXT', data: txtSheetData }];
+      sheetNames = ['Análisis TXT'];
+    } else if (isXLSX) {
       // Parse Excel file
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
@@ -459,9 +504,36 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
+    const baseResponse: Record<string, unknown> = {
       results: allBatchResults,
-    });
+    };
+
+    // Include TXT analysis details for the frontend
+    if (txtAnalysisResult) {
+      baseResponse.type = 'txt_analysis';
+      baseResponse.txtAnalysis = {
+        format: txtAnalysisResult.format,
+        totalLines: txtAnalysisResult.totalLines,
+        totalEntities: txtAnalysisResult.totalEntities,
+        persons: txtAnalysisResult.persons.map(p => ({
+          fullName: p.fullName,
+          email: p.email,
+          phone: p.phone,
+          cedula: p.cedula,
+          address: p.address,
+          usernames: p.usernames,
+          ips: p.ips,
+          urls: p.urls,
+          companies: p.companies,
+          confidence: p.confidence,
+          lineNumber: p.lineNumber,
+        })),
+        unlinkedEntities: txtAnalysisResult.unlinkedEntities,
+        intelligenceSummary: txtAnalysisResult.intelligenceSummary,
+      };
+    }
+
+    return NextResponse.json(baseResponse);
 
   } catch (error) {
     console.error('[Upload] Error:', error);
