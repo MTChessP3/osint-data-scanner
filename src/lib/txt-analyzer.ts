@@ -269,13 +269,30 @@ function extractUsernames(text: string): string[] {
     const username = match[1]; // includes the @
     const name = match[2]; // without the @
     if (name.length >= 3 && !FALSE_NAME_WORDS.has(name.toLowerCase())) {
-      // Skip if it looks like an email part (e.g. @gmail, @hotmail, @yahoo)
+      // Skip if it looks like an email domain (e.g. @gmail, @hotmail, @yahoo)
+      // These are email providers, not usernames
       const emailDomains = ['gmail', 'hotmail', 'yahoo', 'outlook', 'live', 'icloud', 'aol', 'proton', 'mail', 'zoho'];
       if (!emailDomains.includes(name.toLowerCase())) {
         results.push(username);
       }
     }
   }
+
+  // Also extract email usernames (the part before @ from email addresses)
+  // e.g. from juanperez@gmail.com → @juanperez as a username
+  const emails = text.match(EMAIL_REGEX);
+  if (emails) {
+    for (const email of emails) {
+      const localPart = email.split('@')[0];
+      if (localPart.length >= 3 && !/^\d+$/.test(localPart)) {
+        const usernameFromEmail = `@${localPart}`;
+        if (!results.includes(usernameFromEmail)) {
+          results.push(usernameFromEmail);
+        }
+      }
+    }
+  }
+
   return [...new Set(results)];
 }
 
@@ -437,7 +454,20 @@ function extractPersonFromKV(record: Record<string, string>): ExtractedPerson {
   const ips = extractIPs(allValues);
   const urls = extractURLs(allValues);
   const companies = extractCompanies(allValues);
-  const usernames = username ? [username.startsWith('@') ? username : `@${username}`] : extractUsernames(allValues);
+  let usernames: string[] = username ? [username.startsWith('@') ? username : `@${username}`] : [];
+  // Also extract @username patterns from values
+  const extractedUsernames = extractUsernames(allValues);
+  for (const u of extractedUsernames) {
+    if (!usernames.includes(u)) usernames.push(u);
+  }
+  // Also add email username (local part before @) as a username
+  if (email && email.includes('@')) {
+    const localPart = email.split('@')[0];
+    if (localPart.length >= 3 && !/^\d+$/.test(localPart)) {
+      const emailUsername = `@${localPart}`;
+      if (!usernames.includes(emailUsername)) usernames.push(emailUsername);
+    }
+  }
 
   const hasData = !!(fullName || email || phone || cedula);
   const dataPoints = [fullName, email, phone, cedula].filter(Boolean).length;
@@ -650,13 +680,19 @@ function parseFreeTextOrLog(text: string): ExtractedPerson[] {
 
   for (const email of allEmails) {
     if (!linkedEmails.has(email)) {
+      // Extract email username (local part) as a username
+      const localPart = email.split('@')[0];
+      const emailUsernames: string[] = [];
+      if (localPart.length >= 3 && !/^\d+$/.test(localPart)) {
+        emailUsernames.push(`@${localPart}`);
+      }
       persons.push({
-        fullName: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        fullName: localPart.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
         email,
         phone: '',
         cedula: '',
         address: '',
-        usernames: [],
+        usernames: emailUsernames,
         ips: [],
         urls: [],
         companies: [],
