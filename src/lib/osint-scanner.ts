@@ -1233,7 +1233,7 @@ async function googleDorkSearch(fullName: string, email?: string, phone?: string
 }
 
 // ── 4. Social Media Scan — Now with URL verification ──
-async function scanSocialMedia(fullName: string, email?: string): Promise<OSINTResult[]> {
+async function scanSocialMedia(fullName: string, email?: string, usernames?: string[]): Promise<OSINTResult[]> {
   const platforms = ['linkedin.com', 'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com'];
   const allSearchResults: WebSearchResult[] = [];
 
@@ -1245,11 +1245,30 @@ async function scanSocialMedia(fullName: string, email?: string): Promise<OSINTR
   }
 
   if (email) {
-    const username = email.split('@')[0];
+    const emailUsername = email.split('@')[0];
     try {
-      const sr = await performWebSearch(`"${username}" profile account -site:${email.split('@')[1]}`, 5);
+      const sr = await performWebSearch(`"${emailUsername}" profile account -site:${email.split('@')[1]}`, 5);
       allSearchResults.push(...sr);
     } catch { /* continue */ }
+  }
+
+  // Search by explicit usernames (from TXT analysis, email local parts, etc.)
+  if (usernames && usernames.length > 0) {
+    for (const rawUsername of usernames.slice(0, 5)) {
+      const username = rawUsername.startsWith('@') ? rawUsername.substring(1) : rawUsername;
+      if (!username || username.length < 2) continue;
+      try {
+        const sr = await performWebSearch(`"${username}" profile account social media`, 5);
+        allSearchResults.push(...sr);
+      } catch { /* continue */ }
+      // Also try direct platform searches by username
+      for (const platform of platforms.slice(0, 3)) {
+        try {
+          const sr = await performWebSearch(`site:${platform} "${username}"`, 3);
+          allSearchResults.push(...sr);
+        } catch { /* continue */ }
+      }
+    }
   }
 
   // Verify social media profile URLs directly
@@ -1666,12 +1685,21 @@ async function checkHIBPDeep(email: string, fullName: string): Promise<OSINTResu
 }
 
 // ── 11. DeepFind Profile Analyzer ──
-async function scanDeepFindProfile(fullName: string, email?: string): Promise<OSINTResult[]> {
+async function scanDeepFindProfile(fullName: string, email?: string, usernames?: string[]): Promise<OSINTResult[]> {
   const queries = [
     `site:deepfind.me "${fullName}"`,
     `"${fullName}" deepfind profile social media analyzer`,
   ];
   if (email) queries.push(`"${email}" deepfind profile analysis`);
+
+  // Add username-based searches
+  if (usernames && usernames.length > 0) {
+    for (const rawUsername of usernames.slice(0, 3)) {
+      const username = rawUsername.startsWith('@') ? rawUsername.substring(1) : rawUsername;
+      if (!username || username.length < 2) continue;
+      queries.push(`"${username}" profile account deepfind`);
+    }
+  }
 
   const allSearchResults: WebSearchResult[] = [];
   for (const query of queries) {
@@ -2186,6 +2214,7 @@ export async function runFullScan(params: {
   cedula?: string;
   email?: string;
   phone?: string;
+  usernames?: string[];
   deepseekKey?: string;
   selectedEngines?: string[];
 }): Promise<OSINTResult[]> {
@@ -2194,7 +2223,18 @@ export async function runFullScan(params: {
     setDeepSeekApiKey(params.deepseekKey);
   }
 
-  const { fullName, cedula, email, phone, selectedEngines } = params;
+  const { fullName, cedula, email, phone, usernames, selectedEngines } = params;
+  // Derive usernames from email if not explicitly provided
+  const derivedUsernames: string[] = [...(usernames || [])];
+  if (email) {
+    const emailLocal = email.split('@')[0];
+    if (emailLocal.length >= 3 && !/^\d+$/.test(emailLocal)) {
+      const asUsername = `@${emailLocal}`;
+      if (!derivedUsernames.some(u => u.replace('@', '') === emailLocal)) {
+        derivedUsernames.push(asUsername);
+      }
+    }
+  }
   const allResults: OSINTResult[] = [];
   const scanPromises: Promise<OSINTResult[]>[] = [];
 
@@ -2229,10 +2269,10 @@ export async function runFullScan(params: {
 
   // ── Redes Sociales (2) ──
   if (shouldRun('Social Media Scan')) {
-    scanPromises.push(scanSocialMedia(fullName, email));
+    scanPromises.push(scanSocialMedia(fullName, email, derivedUsernames));
   }
   if (shouldRun('DeepFind Profile Analyzer')) {
-    scanPromises.push(scanDeepFindProfile(fullName, email));
+    scanPromises.push(scanDeepFindProfile(fullName, email, derivedUsernames));
   }
 
   // ── Telegram XTEA (1) ──

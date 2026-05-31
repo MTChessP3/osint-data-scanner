@@ -630,14 +630,11 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setScanData(null);
-    setProgress(0);
+    setProgress(5);
 
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 90) { clearInterval(progressInterval); return 90; }
-        return prev + Math.random() * 5;
-      });
-    }, 500);
+    // Step-based progress: no fake timers
+    // Step 1: Conectando (5%) — already set
+    setProgress(15); // Step 2: Enviando consulta
 
     try {
       const res = await fetch('/api/scan', {
@@ -649,8 +646,7 @@ export default function Home() {
         }),
       });
 
-      clearInterval(progressInterval);
-      setProgress(100);
+      setProgress(85); // Step 3: Recibiendo resultados
 
       if (!res.ok) {
         const errData = await res.json();
@@ -658,10 +654,13 @@ export default function Home() {
       }
 
       const data: ScanResponse = await res.json();
+      setProgress(95); // Step 4: Procesando resultados
       setScanData(data);
+      setProgress(100); // Step 5: Completado
       setActiveTab('results');
       fetchPastScans();
     } catch (err) {
+      setProgress(0);
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setLoading(false);
@@ -1093,14 +1092,9 @@ export default function Home() {
     setSocialScanLoading(true);
     setSocialScanError(null);
     setSocialScanData(null);
-    setSocialScanProgress(0);
+    setSocialScanProgress(5);
 
-    const progressInterval = setInterval(() => {
-      setSocialScanProgress(prev => {
-        if (prev >= 90) { clearInterval(progressInterval); return 90; }
-        return prev + Math.random() * 3;
-      });
-    }, 600);
+    // Step-based progress: no fake timers
 
     try {
       // Build payload with ONLY the parameters relevant to the active search mode
@@ -1108,6 +1102,8 @@ export default function Home() {
         searchMode: socialSearchMode,
         selectedPlatforms: Array.from(selectedSocialPlatforms),
       };
+
+      setSocialScanProgress(15); // Step 2: Enviando consulta
 
       if (socialSearchMode === 'nickname') {
         payload.nickname = effectiveNickname;
@@ -1132,8 +1128,7 @@ export default function Home() {
         body: JSON.stringify(payload),
       });
 
-      clearInterval(progressInterval);
-      setSocialScanProgress(100);
+      setSocialScanProgress(85); // Step 3: Recibiendo resultados
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -1141,10 +1136,12 @@ export default function Home() {
       }
 
       const data: SocialScanResponse = await res.json();
+      setSocialScanProgress(100); // Step 4: Completado
       setSocialScanData(data);
       // Refresh history list to include the new social media scan
       fetchPastScans();
     } catch (err) {
+      setSocialScanProgress(0);
       setSocialScanError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setSocialScanLoading(false);
@@ -1179,36 +1176,25 @@ export default function Home() {
     setTxtAnalysis(null);
     setRelationshipAnalysis(null);
     setJointAnalysisId(null);
-    setUploadProgress(0);
+    setUploadProgress(5);
     setUploadStage('Iniciando carga...');
 
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 85) { clearInterval(progressInterval); return 85; }
-        const next = prev + Math.random() * 2;
-        // Update stage labels based on progress
-        if (next > 20 && prev <= 20) setUploadStage('Analizando estructura del archivo...');
-        else if (next > 40 && prev <= 40) setUploadStage('Extrayendo datos de hojas...');
-        else if (next > 60 && prev <= 60) setUploadStage('Ejecutando escaneo OSINT...');
-        else if (next > 75 && prev <= 75) setUploadStage('Generando reportes de inteligencia...');
-        return next;
-      });
-    }, 800);
-
+    // Step-based progress: no fake timers
     try {
       const fileName = uploadFile.name.toLowerCase();
       const fileLabel = fileName.endsWith('.txt') ? 'TXT' :
                         fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'Excel' : 'CSV';
 
-      // ── All formats go through server-side parsing ──
+      // Step 1: Enviando archivo
       const formData = new FormData();
       formData.append('file', uploadFile);
       setUploadStage(`Enviando archivo ${fileLabel} al servidor...`);
-      setUploadProgress(10);
+      setUploadProgress(15);
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      setUploadStage('Procesamiento completado');
+
+      // Step 2: Recibiendo respuesta
+      setUploadStage('Recibiendo resultados del servidor...');
+      setUploadProgress(70);
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -1238,6 +1224,10 @@ export default function Home() {
 
       const uploadData = await res.json();
 
+      // Step 3: Procesando resultados
+      setUploadStage('Procesando resultados de inteligencia...');
+      setUploadProgress(90);
+
       if (uploadData.type === 'xlsx_multi_sheet') {
         setSheetNames(uploadData.sheetNames || []);
         setBatchResults(uploadData.results);
@@ -1251,10 +1241,14 @@ export default function Home() {
         setBatchResults(uploadData.results);
       }
 
+      // Step 4: Completado
+      setUploadProgress(100);
+      setUploadStage('Procesamiento completado');
       fetchPastScans();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Error desconocido');
       setUploadStage('Error en el procesamiento');
+      setUploadProgress(0);
     } finally {
       setUploadLoading(false);
       // Progress bar stays visible at 100% — no auto-reset
@@ -1597,7 +1591,7 @@ export default function Home() {
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-medium text-slate-400">
-                          {loading ? `Escaneando ${selectedEngines.size} motores...` : progress >= 100 ? 'Escaneo completado' : 'Listo para escanear'}
+                          {loading ? (progress < 20 ? 'Conectando motores...' : progress < 90 ? `Escaneando ${selectedEngines.size} motores...` : 'Procesando resultados...') : progress >= 100 ? 'Escaneo completado' : 'Listo para escanear'}
                         </span>
                         <span className="text-[10px] font-bold text-white tabular-nums">
                           {Math.round(progress)}%

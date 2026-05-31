@@ -30,6 +30,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El nombre completo es requerido' }, { status: 400 });
     }
 
+    // Derive usernames from email if provided
+    const usernames: string[] = [];
+    if (email && email.includes('@')) {
+      const localPart = email.split('@')[0];
+      if (localPart.length >= 3 && !/^\d+$/.test(localPart)) {
+        usernames.push(`@${localPart}`);
+      }
+    }
+
     // Create scan record
     const scan = createScan({ fullName, cedula, email, phone, status: 'running', scanType: 'data_intelligence' });
 
@@ -37,7 +46,7 @@ export async function POST(request: NextRequest) {
     const effectiveDeepseekKey = process.env.DEEPSEEK_API_KEY || deepseekKey;
     let results: OSINTResult[] = [];
     try {
-      results = await runFullScan({ fullName, cedula, email, phone, deepseekKey: effectiveDeepseekKey, selectedEngines });
+      results = await runFullScan({ fullName, cedula, email, phone, usernames: usernames.length > 0 ? usernames : undefined, deepseekKey: effectiveDeepseekKey, selectedEngines });
     } catch (scanError) {
       console.error('Scan error:', scanError);
     }

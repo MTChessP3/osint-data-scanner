@@ -47,6 +47,7 @@ function extractPersonData(row: Record<string, string>): {
   email: string;
   phone: string;
   cedula: string;
+  usernames: string[];
 } {
   const fullName = extractFieldValue(row, [
     'nombre_completo', 'fullname', 'full_name', 'nombre', 'name',
@@ -69,7 +70,36 @@ function extractPersonData(row: Record<string, string>): {
     'numero_documento', 'dni', 'cedula_ciudadania', 'rut', 'nif',
   ]);
 
-  return { fullName, email, phone, cedula };
+  // Extract usernames from the row
+  const usernames: string[] = [];
+
+  // 1. Explicit username fields
+  const usernameValue = extractFieldValue(row, [
+    'usuario', 'username', 'alias', 'nickname', 'nick', 'login',
+    'cuenta', 'perfil', 'handle',
+  ]);
+  if (usernameValue) {
+    // May be comma-separated
+    for (const u of usernameValue.split(/[,;]/)) {
+      const trimmed = u.trim();
+      if (trimmed) {
+        usernames.push(trimmed.startsWith('@') ? trimmed : `@${trimmed}`);
+      }
+    }
+  }
+
+  // 2. Derive username from email local part (even @gmail, @hotmail, etc.)
+  if (email && email.includes('@')) {
+    const localPart = email.split('@')[0];
+    if (localPart.length >= 3 && !/^\d+$/.test(localPart)) {
+      const emailUsername = `@${localPart}`;
+      if (!usernames.some(u => u.replace('@', '') === localPart)) {
+        usernames.push(emailUsername);
+      }
+    }
+  }
+
+  return { fullName, email, phone, cedula, usernames };
 }
 
 // ── CSV Parsing ──
@@ -318,6 +348,7 @@ export async function POST(request: NextRequest) {
               email: personData.email || undefined,
               phone: personData.phone || undefined,
               cedula: personData.cedula || undefined,
+              usernames: personData.usernames.length > 0 ? personData.usernames : undefined,
               deepseekKey: effectiveDeepseekKey,
             }),
             new Promise<OSINTResult[]>((resolve) =>
