@@ -383,14 +383,15 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
   const readMethods: Array<{ type: string; label: string; getData: () => unknown }> =
     format === 'ole2'
       ? [
-          // Approach 1: bookSheets + no cellStyles (bypasses sheet protection for many .xls files)
+          // Approach 1: Minimal options — just read raw values, no formatting (works for IRM-protected files too)
+          { type: 'buffer', label: 'buffer_minimal', getData: () => buf },
+          { type: 'array', label: 'array_minimal', getData: () => uint8 },
+          // Approach 2: bookSheets + no cellStyles (bypasses sheet protection for many .xls files)
           { type: 'buffer', label: 'buffer_nostyles', getData: () => buf },
           { type: 'array', label: 'array_nostyles', getData: () => uint8 },
-          // Approach 2: dense mode (different internal representation)
+          // Approach 3: dense mode (different internal representation)
           { type: 'buffer', label: 'buffer_dense', getData: () => buf },
           { type: 'array', label: 'array_dense', getData: () => uint8 },
-          // Approach 3: Minimal options — just read raw values, skip formatting
-          { type: 'buffer', label: 'buffer_minimal', getData: () => buf },
           // Approach 4: binary/base64 as last resort
           { type: 'binary', label: 'binary', getData: () => buf.toString('binary') },
           { type: 'base64', label: 'base64', getData: () => buf.toString('base64') },
@@ -411,14 +412,14 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       if (format === 'ole2') {
         // For OLE2 .xls files, try increasingly aggressive approaches
         if (i <= 1) {
-          // Approach 1: bookSheets to bypass protection, no cellStyles
-          readOptions = { type: method.type, sheetStubs: true, bookSheets: true, cellStyles: false, cellNF: false, cellDates: true };
-        } else if (i <= 3) {
-          // Approach 2: Dense mode
-          readOptions = { type: method.type, sheetStubs: true, bookSheets: true, dense: true, cellStyles: false, cellNF: false, cellDates: true };
-        } else if (i === 4) {
-          // Approach 3: Minimal — just values, no formatting at all
+          // Approach 1: Minimal — just values, no formatting (works even with IRM-protected files for detection)
           readOptions = { type: method.type, sheetStubs: false, cellStyles: false, cellNF: false, cellDates: false, cellText: false };
+        } else if (i <= 3) {
+          // Approach 2: bookSheets to bypass protection, no cellStyles
+          readOptions = { type: method.type, sheetStubs: true, bookSheets: true, cellStyles: false, cellNF: false, cellDates: true };
+        } else if (i <= 5) {
+          // Approach 3: Dense mode
+          readOptions = { type: method.type, sheetStubs: true, bookSheets: true, dense: true, cellStyles: false, cellNF: false, cellDates: true };
         } else {
           // Approach 4: string-based (last resort)
           readOptions = { type: method.type, sheetStubs: true, cellStyles: false, cellNF: false };
@@ -438,6 +439,17 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
 
       const result = buildSheetsFromWorkbook(workbook);
       const nonEmptySheets = result.sheets.filter(s => s.data.length > 0);
+
+      // ── IRM/RMS detected: throw immediately with clear error ──
+      if (result.irmDetected) {
+        const ownerInfo = result.irmOwner ? ` (propietario: ${result.irmOwner})` : '';
+        throw new Error(
+          `[ENCRYPTED] El archivo tiene proteccion IRM/Azure Rights Management${ownerInfo}. ` +
+          `Los datos estan cifrados y no pueden ser leidos. ` +
+          `Solucion: abre el archivo en Excel (con tu cuenta autorizada), ve a Archivo > Informacion > ` +
+          `Proteger libro > Restringir acceso > y selecciona "Sin restricciones", luego guardalo como .xlsx y subelo de nuevo.`
+        );
+      }
 
       if (nonEmptySheets.length > 0) {
         return result;
@@ -468,6 +480,11 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      // ── IRM/RMS detection: throw immediately with clear error ──
+      // This is a definitive detection — no point trying other methods.
+      if (msg.includes('[ENCRYPTED]') && msg.includes('IRM')) {
+        throw e instanceof Error ? e : new Error(msg);
+      }
       // NOTE: Do NOT immediately throw for "encryption" errors on .xls files.
       // The XLSX library often reports "password protected" or "encrypted" for .xls files
       // that merely have sheet protection (not actual file encryption).
@@ -507,12 +524,52 @@ export function parseXLSXWithSheets(buffer: Buffer | ArrayBuffer | Uint8Array): 
   );
 }
 
+// ── IRM/RMS Detection ──
+// Files protected with Azure Information Protection (Rights Management) show a
+// restriction notice in cell A1 instead of real data. We detect this pattern to
+// give the user a clear, actionable error message.
+const IRM_PATTERNS = [
+  /permiso de acceso.*restringido/i,
+  /access permission.*restricted/i,
+  /rights management/i,
+  /information rights management/i,
+  /solo se puede abrir utilizando/i,
+  /can only be opened using/i,
+  /complemento rights management/i,
+];
+
+function isIRMProtected(ws: XLSX.WorkSheet): boolean {
+  const cellA1 = ws['A1'];
+  if (!cellA1 || cellA1.t !== 's' || typeof cellA1.v !== 'string') return false;
+  const value = cellA1.v;
+  return IRM_PATTERNS.some(pattern => pattern.test(value));
+}
+
 function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
   sheets: { name: string; data: Record<string, string>[] }[];
   sheetNames: string[];
+  irmDetected?: boolean;
+  irmOwner?: string;
 } {
+  let irmDetected = false;
+  let irmOwner: string | undefined;
+
   const sheets = workbook.SheetNames.map(name => {
     const ws = workbook.Sheets[name];
+
+    // ── Check for IRM/RMS protection before attempting data extraction ──
+    if (isIRMProtected(ws)) {
+      irmDetected = true;
+      // Try to extract the owner from the IRM notice
+      const cellA1 = ws['A1'];
+      if (cellA1 && typeof cellA1.v === 'string') {
+        // Look for email patterns in the cell or workbook metadata
+        const emailMatch = cellA1.v.match(/[\w.-]+@[\w.-]+\.\w+/);
+        if (emailMatch) irmOwner = emailMatch[0];
+      }
+      return { name, data: [] as Record<string, string>[] };
+    }
+
     let data: Record<string, string>[] = [];
 
     // Method 1: sheet_to_json with header row (most common approach)
@@ -642,7 +699,7 @@ function buildSheetsFromWorkbook(workbook: XLSX.WorkBook): {
     return { name, data };
   });
 
-  return { sheets, sheetNames: workbook.SheetNames };
+  return { sheets, sheetNames: workbook.SheetNames, irmDetected, irmOwner };
 }
 
 // ══════════════════════════════════════════════════════════════════

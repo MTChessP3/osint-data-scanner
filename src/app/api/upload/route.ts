@@ -180,6 +180,18 @@ export async function POST(request: NextRequest) {
       } catch (parseError) {
         const msg = parseError instanceof Error ? parseError.message : 'Error desconocido';
 
+        // Check for IRM/Azure RMS encryption
+        if (msg.includes('[ENCRYPTED]') && msg.includes('IRM')) {
+          return NextResponse.json(
+            {
+              error: msg.replace('[ENCRYPTED] ', ''),
+              isEncrypted: true,
+              isIRM: true,
+            },
+            { status: 400 }
+          );
+        }
+
         // Check for genuine encryption
         if (msg.includes('[ENCRYPTED]')) {
           return NextResponse.json(

@@ -1188,6 +1188,15 @@ export default function Home() {
 
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
+            // Check if server detected IRM/Azure RMS protection
+            if (errData.isIRM === true) {
+              throw new Error(
+                errData.error ||
+                'El archivo tiene proteccion IRM (Azure Rights Management). Los datos estan cifrados. ' +
+                'Solucion: abre el archivo en Excel con tu cuenta autorizada, ve a Archivo > Informacion > ' +
+                'Proteger libro > Restringir acceso > "Sin restricciones", guardalo como .xlsx y subelo de nuevo.'
+              );
+            }
             // Check if server detected genuine file encryption (not just sheet protection)
             if (errData.isEncrypted === true) {
               throw new Error(
