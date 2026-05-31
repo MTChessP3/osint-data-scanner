@@ -76,8 +76,8 @@ const IP_REGEX = /\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|
 // URL
 const URL_REGEX = /https?:\/\/[^\s<>"'{}|\\^`\[\]]+/gi;
 
-// Username / alias (@username)
-const USERNAME_REGEX = /@([a-zA-Z0-9_]{3,30})/g;
+// Username / alias (@username) — excludes email @ patterns
+const USERNAME_REGEX = /(?:^|[\s,;|])(@([a-zA-Z0-9_]{3,30}))(?![@.\w]*\.\w{2,})/g;
 
 // Colombian address patterns
 const ADDRESS_REGEX = /(?:Calle|Cra|Carrera|Diagonal|Diag|Transversal|Trans|Av|Avenida|Autopista|Camino|Vereda|Barrio|Municipio|Urbanización|Kra|Cl|Dg|Tv|Ak)\s*\.?\s*\d+[a-zA-Z]?\s*[\-#]?\s*\d*[a-zA-Z]?(?:\s*[-,]\s*\d+)?(?:\s+(?:Sur|Norte|Este|Oeste|Bis|BIS))?(?:[,.\s]+(?:Apartamento|Apto|Ap|Casa|Bloque|Torre|Piso|Local|Oficina|Int)\s*\.?\s*\d+)?/gi;
@@ -136,6 +136,8 @@ const NAME_FIELD_PATTERNS = [
   'propietario', 'representante', 'titular', 'responsable',
   'solicitante', 'requerido', 'afectado', 'denunciado',
   'denunciante', 'demandado', 'demandante', 'implicado',
+  'receptor', 'remitente', 'destinatario', 'beneficiario',
+  'vinculado', 'relacionado', 'sosp', 'sospechoso',
 ];
 
 const EMAIL_FIELD_PATTERNS = [
@@ -152,6 +154,7 @@ const PHONE_FIELD_PATTERNS = [
 const CEDULA_FIELD_PATTERNS = [
   'cedula', 'nit', 'documento', 'identificacion', 'id', 'cc',
   'numero_documento', 'dni', 'cedula_ciudadania', 'rut', 'nif',
+  'cedula_asociada', 'ip_asociada',
 ];
 
 const ADDRESS_FIELD_PATTERNS = [
@@ -259,14 +262,21 @@ function extractURLs(text: string): string[] {
 }
 
 function extractUsernames(text: string): string[] {
-  const matches = text.match(USERNAME_REGEX);
-  if (!matches) return [];
-  // Filter out common false positives
-  const filtered = matches.filter(u => {
-    const name = u.substring(1).toLowerCase();
-    return name.length >= 3 && !FALSE_NAME_WORDS.has(name);
-  });
-  return [...new Set(filtered)];
+  const results: string[] = [];
+  const regex = new RegExp(USERNAME_REGEX.source, USERNAME_REGEX.flags);
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const username = match[1]; // includes the @
+    const name = match[2]; // without the @
+    if (name.length >= 3 && !FALSE_NAME_WORDS.has(name.toLowerCase())) {
+      // Skip if it looks like an email part (e.g. @gmail, @hotmail, @yahoo)
+      const emailDomains = ['gmail', 'hotmail', 'yahoo', 'outlook', 'live', 'icloud', 'aol', 'proton', 'mail', 'zoho'];
+      if (!emailDomains.includes(name.toLowerCase())) {
+        results.push(username);
+      }
+    }
+  }
+  return [...new Set(results)];
 }
 
 function extractAddresses(text: string): string[] {
@@ -361,7 +371,9 @@ function parseKeyValueFormat(text: string): ExtractedPerson[] {
   for (const line of lines) {
     const kvMatch = line.match(/^([a-zA-ZáéíóúñÁÉÍÓÚÑ_\s]+?)[:=]\s*(.+)$/);
     if (kvMatch) {
-      const key = kvMatch[1].trim().toLowerCase().replace(/[^a-z0-9_áéíóúñ]/g, '_');
+      const key = kvMatch[1].trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents for matching
+        .replace(/[^a-z0-9_]/g, '_');
       const value = kvMatch[2].trim();
       currentRecord[key] = value;
     } else if (line.trim() === '' || /^[-=]{3,}$/.test(line.trim())) {
@@ -399,7 +411,21 @@ function extractPersonFromKV(record: Record<string, string>): ExtractedPerson {
     return '';
   };
 
-  const fullName = getFieldValue(NAME_FIELD_PATTERNS);
+  // Priority name patterns — person names (higher priority)
+  const PERSON_NAME_PATTERNS = [
+    'nombre_completo', 'fullname', 'full_name', 'nombre', 'name',
+    'persona', 'sujeto', 'investigado', 'contacto_nombre',
+    'nombres', 'apellidos', 'propietario', 'representante',
+    'titular', 'responsable', 'solicitante', 'requerido',
+    'afectado', 'denunciado', 'denunciante', 'demandado',
+    'demandante', 'implicado', 'receptor', 'remitente',
+    'destinatario', 'beneficiario', 'vinculado', 'relacionado',
+    'sospechoso',
+  ];
+  // Fallback name patterns — company names (lower priority, only if no person name found)
+  const COMPANY_NAME_PATTERNS = ['razon_social', 'empresa', 'company'];
+
+  const fullName = getFieldValue(PERSON_NAME_PATTERNS) || getFieldValue(COMPANY_NAME_PATTERNS);
   const email = getFieldValue(EMAIL_FIELD_PATTERNS);
   const phone = getFieldValue(PHONE_FIELD_PATTERNS);
   const cedula = getFieldValue(CEDULA_FIELD_PATTERNS);

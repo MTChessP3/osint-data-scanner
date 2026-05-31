@@ -1257,7 +1257,7 @@ export default function Home() {
       setUploadStage('Error en el procesamiento');
     } finally {
       setUploadLoading(false);
-      setTimeout(() => { setUploadProgress(0); setUploadStage(''); }, 2000);
+      setTimeout(() => { setUploadProgress(0); setUploadStage(''); }, 15000);
     }
   }, [uploadFile]);
 
