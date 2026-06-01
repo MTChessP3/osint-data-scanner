@@ -469,6 +469,11 @@ export default function Home() {
   const [telegramDetectedChats, setTelegramDetectedChats] = useState<Array<{ chatId: number; type: string; title?: string; username?: string; firstName?: string }>>([]);
   const [telegramDetectError, setTelegramDetectError] = useState<string | null>(null);
   const [telegramTestSending, setTelegramTestSending] = useState(false);
+  const [telegramBotTokenInput, setTelegramBotTokenInput] = useState('');
+  const [telegramSavingToken, setTelegramSavingToken] = useState(false);
+  const [telegramSaveTokenError, setTelegramSaveTokenError] = useState<string | null>(null);
+  const [telegramBotTokenSource, setTelegramBotTokenSource] = useState<'env' | 'runtime' | 'none'>('none');
+  const [telegramChatIdSource, setTelegramChatIdSource] = useState<'env' | 'runtime' | 'none'>('none');
 
   // ── Chat states ──
   const [chatOpen, setChatOpen] = useState(false);
@@ -498,6 +503,8 @@ export default function Home() {
       if (tgRes.ok) {
         const tgData = await tgRes.json();
         setTelegramBotInfo(tgData.botInfo || null);
+        setTelegramBotTokenSource(tgData.botTokenSource || 'none');
+        setTelegramChatIdSource(tgData.chatIdSource || 'none');
       }
     } catch { /* ignore */ }
   }
@@ -596,6 +603,57 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.botInfo) {
           setTelegramBotInfo(data.botInfo);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function handleSaveBotToken() {
+    if (!telegramBotTokenInput.trim()) return;
+    setTelegramSavingToken(true);
+    setTelegramSaveTokenError(null);
+    try {
+      const res = await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_bot_token', botToken: telegramBotTokenInput.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setTelegramHasBotToken(true);
+          setTelegramBotTokenInput('');
+          setTelegramBotInfo(data.botInfo || null);
+          setTelegramBotTokenSource('runtime');
+          // Refresh full config
+          fetchAlertConfig();
+        } else {
+          setTelegramSaveTokenError(data.error || 'Error al guardar el token');
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setTelegramSaveTokenError(errData.error || 'Error al guardar el token');
+      }
+    } catch {
+      setTelegramSaveTokenError('Error de conexión con el servidor');
+    }
+    setTelegramSavingToken(false);
+  }
+
+  async function handleSelectChat(chatId: number) {
+    try {
+      const res = await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_chat_id', chatId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setTelegramHasChatId(true);
+          setTelegramConfigured(true);
+          setTelegramChatIdSource('runtime');
+          fetchAlertConfig();
         }
       }
     } catch { /* ignore */ }
@@ -2261,7 +2319,7 @@ export default function Home() {
                     <p className="text-xs text-slate-500 mt-0.5">
                       {telegramConfigured
                         ? 'Las alertas OSINT se envían automáticamente cuando se detectan palabras clave'
-                        : 'Se requiere configuración del Bot Token en el servidor'}
+                        : 'Ingresa el Bot Token para comenzar la configuración'}
                     </p>
                   </div>
                   {telegramBotInfo && (
@@ -2271,7 +2329,7 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Config details — env var status */}
+                {/* Config details — status indicators with source */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
                     {telegramHasBotToken ? (
@@ -2284,6 +2342,11 @@ export default function Home() {
                       <p className={`text-[11px] font-medium ${telegramHasBotToken ? 'text-emerald-400' : 'text-red-400'}`}>
                         {telegramHasBotToken ? 'Activo' : 'Falta'}
                       </p>
+                      {telegramHasBotToken && (
+                        <p className="text-[9px] text-slate-600">
+                          {telegramBotTokenSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
@@ -2297,16 +2360,64 @@ export default function Home() {
                       <p className={`text-[11px] font-medium ${telegramHasChatId ? 'text-emerald-400' : 'text-red-400'}`}>
                         {telegramHasChatId ? 'Detectado' : 'Pendiente'}
                       </p>
+                      {telegramHasChatId && (
+                        <p className="text-[9px] text-slate-600">
+                          {telegramChatIdSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Auto-detect Chat ID */}
+                {/* Step 1: Enter Bot Token (shown only if not configured) */}
+                {!telegramHasBotToken && (
+                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-cyan-900/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-cyan-900/30 text-cyan-400 text-[10px] font-bold">1</span>
+                      <span className="text-xs font-medium text-cyan-300">Paso 1: Ingresar Bot Token</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Obten tu token desde <code className="text-cyan-400">@BotFather</code> en Telegram. Envía <code className="text-cyan-400">/newbot</code> o <code className="text-cyan-400">/mybots</code> para obtenerlo.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
+                        value={telegramBotTokenInput}
+                        onChange={e => setTelegramBotTokenInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveBotToken(); }}
+                        className="bg-[#111827] border-[#1e293b] text-white placeholder:text-slate-600 text-xs font-mono focus:border-cyan-600"
+                        disabled={telegramSavingToken}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleSaveBotToken}
+                        disabled={!telegramBotTokenInput.trim() || telegramSavingToken}
+                        className="bg-cyan-700 hover:bg-cyan-800 text-white text-[11px] h-9 disabled:opacity-50 shrink-0"
+                      >
+                        {telegramSavingToken ? (
+                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Verificando...</>
+                        ) : (
+                          <><Check className="w-3 h-3 mr-1.5" />Guardar</>
+                        )}
+                      </Button>
+                    </div>
+                    {telegramSaveTokenError && (
+                      <div className="flex items-start gap-2 p-2 rounded bg-red-950/15 border border-red-800/20">
+                        <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-red-400">{telegramSaveTokenError}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 2: Detect Chat ID */}
                 <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Bot className="w-4 h-4 text-cyan-400" />
-                      <span className="text-xs font-medium text-cyan-300">Auto-detección de Chat ID</span>
+                      <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${telegramHasBotToken ? 'bg-cyan-900/30 text-cyan-400' : 'bg-slate-800 text-slate-500'}`}>2</span>
+                      <span className={`text-xs font-medium ${telegramHasBotToken ? 'text-cyan-300' : 'text-slate-500'}`}>
+                        Paso 2: Detectar Chat ID
+                      </span>
                     </div>
                     <Button
                       size="sm"
@@ -2323,20 +2434,30 @@ export default function Home() {
                   </div>
 
                   {!telegramHasBotToken && (
-                    <p className="text-[10px] text-amber-400 bg-amber-950/15 border border-amber-800/20 rounded p-2">
-                      Requiere que TELEGRAM_BOT_TOKEN esté configurado en Vercel (Settings → Environment Variables)
+                    <p className="text-[10px] text-slate-600">
+                      Completa el Paso 1 primero para habilitar la detección
                     </p>
                   )}
 
-                  {/* Detected chats */}
+                  {telegramHasBotToken && !telegramHasChatId && (
+                    <p className="text-[10px] text-amber-400 bg-amber-950/15 border border-amber-800/20 rounded p-2">
+                      Envía <code className="text-amber-300">/start</code> a tu bot en Telegram antes de detectar. Busca <code className="text-amber-300">@{telegramBotInfo?.username || 'tu_bot'}</code> y envíale un mensaje.
+                    </p>
+                  )}
+
+                  {/* Detected chats — selectable! */}
                   {telegramDetectedChats.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-[10px] text-slate-400">Chats detectados (selecciona para ver detalles):</p>
+                      <p className="text-[10px] text-slate-400">Chats detectados — haz clic para seleccionar como destino de alertas:</p>
                       {telegramDetectedChats.map((chat, idx) => (
-                        <div key={idx} className="flex items-center gap-2 p-2 rounded bg-[#111827] border border-[#1e293b]">
+                        <button
+                          key={idx}
+                          onClick={() => handleSelectChat(chat.chatId)}
+                          className="w-full flex items-center gap-2 p-2 rounded bg-[#111827] border border-[#1e293b] hover:border-cyan-700/50 hover:bg-cyan-950/10 transition-colors text-left cursor-pointer group"
+                        >
                           <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-emerald-400' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-400' : 'bg-cyan-400'}`} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] text-white font-medium truncate">
+                            <p className="text-[11px] text-white font-medium truncate group-hover:text-cyan-300 transition-colors">
                               {chat.firstName || chat.title || chat.username || 'Sin nombre'}
                             </p>
                             <p className="text-[9px] text-slate-500">
@@ -2350,7 +2471,8 @@ export default function Home() {
                           }`}>
                             {chat.type}
                           </Badge>
-                        </div>
+                          <Check className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 transition-colors shrink-0" />
+                        </button>
                       ))}
                     </div>
                   )}
@@ -2393,7 +2515,10 @@ export default function Home() {
                   <p className="text-[10px] text-slate-500 leading-relaxed">
                     <strong className="text-slate-400">¿Cómo funciona?</strong> Cuando se ejecuta un escaneo OSINT y los resultados contienen palabras clave de la Lista Negra (pestaña Alertas),
                     el sistema envía automáticamente una alerta formateada a Telegram con los detalles del hallazgo, la fuente y la severidad.
-                    La auto-detección consulta la API de Telegram para identificar los chats donde el bot tiene conversaciones activas.
+                    La auto-detección consulta la API de Telegram (<code className="text-cyan-400">getUpdates</code>) para identificar los chats donde el bot tiene conversaciones activas.
+                  </p>
+                  <p className="text-[10px] text-slate-600 mt-1.5">
+                    <strong>Configuración persistente:</strong> Para que la configuración sobreviva reinicios del servidor, agrega <code className="text-cyan-600">TELEGRAM_BOT_TOKEN</code> y <code className="text-cyan-600">TELEGRAM_CHAT_ID</code> como Environment Variables en Vercel Dashboard → Settings.
                   </p>
                 </div>
               </CardContent>

@@ -2,6 +2,7 @@
  * /api/telegram — Telegram Bot Management API
  *
  * Handles:
+ * - Runtime configuration (save_bot_token, save_chat_id)
  * - Auto-detection of Chat ID via getUpdates
  * - Connection testing (send test message)
  * - Status verification (check if bot token is valid)
@@ -11,7 +12,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { isTelegramConfigured, testTelegramAlert, sendTelegramAlert } from '@/lib/telegram-alerts';
+import {
+  getBotToken, getChatId, hasBotToken, hasChatId, isConfigured,
+  setRuntimeBotToken, setRuntimeChatId, getConfigStatus,
+} from '@/lib/telegram-runtime-config';
+import { testTelegramAlert, sendTelegramAlert } from '@/lib/telegram-alerts';
 
 // ── GET: Check Telegram configuration status ──
 
@@ -21,16 +26,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const configured = isTelegramConfigured();
-  const hasBotToken = !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.trim().length > 0);
-  const hasChatId = !!(process.env.TELEGRAM_CHAT_ID && process.env.TELEGRAM_CHAT_ID.trim().length > 0);
+  const status = getConfigStatus();
 
   // If bot token exists, verify it's valid by calling getMe
   let botInfo = null;
-  if (hasBotToken) {
+  const botToken = getBotToken();
+  if (botToken) {
     try {
-      const token = process.env.TELEGRAM_BOT_TOKEN!;
-      const meRes = await fetch(`https://api.telegram.org/bot${token}/getMe`, {
+      const meRes = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, {
         signal: AbortSignal.timeout(10000),
       });
       if (meRes.ok) {
@@ -49,9 +52,11 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    configured,
-    hasBotToken,
-    hasChatId,
+    configured: status.configured,
+    hasBotToken: status.hasBotToken,
+    hasChatId: status.hasChatId,
+    botTokenSource: status.botTokenSource,
+    chatIdSource: status.chatIdSource,
     botInfo,
   });
 }
@@ -69,13 +74,75 @@ export async function POST(request: NextRequest) {
     const { action } = body;
 
     switch (action) {
-      // ── Detect Chat ID automatically via getUpdates ──
-      case 'detect_chat_id': {
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (!botToken || botToken.trim().length === 0) {
+      // ── Save Bot Token (runtime) ──
+      case 'save_bot_token': {
+        const { botToken } = body;
+        if (!botToken || typeof botToken !== 'string' || botToken.trim().length === 0) {
           return NextResponse.json({
             success: false,
-            error: 'TELEGRAM_BOT_TOKEN no está configurado en las variables de entorno del servidor.',
+            error: 'El token del bot es obligatorio.',
+          }, { status: 400 });
+        }
+
+        // Verify token validity before saving
+        try {
+          const meRes = await fetch(`https://api.telegram.org/bot${botToken.trim()}/getMe`, {
+            signal: AbortSignal.timeout(10000),
+          });
+          const meData = await meRes.json();
+
+          if (!meData.ok) {
+            return NextResponse.json({
+              success: false,
+              error: `Token inválido: ${meData.description || 'verifica que el token sea correcto'}`,
+            }, { status: 400 });
+          }
+
+          // Token is valid — save it
+          setRuntimeBotToken(botToken.trim());
+
+          return NextResponse.json({
+            success: true,
+            botInfo: {
+              username: meData.result.username,
+              firstName: meData.result.first_name,
+              id: meData.result.id,
+            },
+            message: 'Token del bot guardado exitosamente (sesión actual). Para persistencia, configúralo en Vercel → Settings → Environment Variables.',
+          });
+        } catch (fetchError) {
+          return NextResponse.json({
+            success: false,
+            error: `Error de conexión con Telegram API: ${fetchError instanceof Error ? fetchError.message : 'desconocido'}`,
+          }, { status: 500 });
+        }
+      }
+
+      // ── Save Chat ID (runtime) ──
+      case 'save_chat_id': {
+        const { chatId } = body;
+        if (!chatId || (typeof chatId !== 'string' && typeof chatId !== 'number')) {
+          return NextResponse.json({
+            success: false,
+            error: 'El Chat ID es obligatorio.',
+          }, { status: 400 });
+        }
+
+        setRuntimeChatId(String(chatId).trim());
+
+        return NextResponse.json({
+          success: true,
+          message: `Chat ID ${chatId} guardado exitosamente (sesión actual). Para persistencia, configúralo en Vercel → Settings → Environment Variables.`,
+        });
+      }
+
+      // ── Detect Chat ID automatically via getUpdates ──
+      case 'detect_chat_id': {
+        const botToken = getBotToken();
+        if (!botToken) {
+          return NextResponse.json({
+            success: false,
+            error: 'TELEGRAM_BOT_TOKEN no está configurado. Ingresa el token del bot primero.',
           }, { status: 400 });
         }
 
@@ -162,8 +229,8 @@ export async function POST(request: NextRequest) {
 
       // ── Verify bot token validity ──
       case 'verify_token': {
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (!botToken || botToken.trim().length === 0) {
+        const botToken = getBotToken();
+        if (!botToken) {
           return NextResponse.json({
             success: false,
             error: 'TELEGRAM_BOT_TOKEN no está configurado.',
@@ -201,10 +268,10 @@ export async function POST(request: NextRequest) {
 
       // ── Send test alert ──
       case 'test_alert': {
-        if (!isTelegramConfigured()) {
+        if (!isConfigured()) {
           return NextResponse.json({
             success: false,
-            error: 'Telegram no está completamente configurado. Se necesitan TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID.',
+            error: 'Telegram no está completamente configurado. Se necesitan Bot Token y Chat ID.',
           }, { status: 400 });
         }
         const sent = await testTelegramAlert();
@@ -216,7 +283,7 @@ export async function POST(request: NextRequest) {
 
       default:
         return NextResponse.json({
-          error: `Acción desconocida: "${action}". Acciones válidas: detect_chat_id, verify_token, test_alert`,
+          error: `Acción desconocida: "${action}". Acciones válidas: save_bot_token, save_chat_id, detect_chat_id, verify_token, test_alert`,
         }, { status: 400 });
     }
   } catch (error) {

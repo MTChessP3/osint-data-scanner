@@ -1,13 +1,15 @@
 /**
  * Telegram Bot Alert Service — Sends real-time OSINT alerts via Telegram Bot API
  *
- * Configuration via env vars:
- *   TELEGRAM_BOT_TOKEN — Bot token from @BotFather
- *   TELEGRAM_CHAT_ID  — Channel/chat ID for alerts
+ * Configuration sources (priority order):
+ *   1. Environment variables: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+ *   2. Runtime config: set via /api/telegram with action=save_config
  *
  * Uses Telegram Bot API (free tier): https://api.telegram.org/bot{TOKEN}/sendMessage
  * Supports rich HTML formatting for structured alert messages.
  */
+
+import { getBotToken, getChatId, isConfigured as runtimeIsConfigured } from './telegram-runtime-config';
 
 // ── Alert Payload Interface ──
 
@@ -47,9 +49,7 @@ export interface TelegramAlert {
 // ── Configuration Check ──
 
 export function isTelegramConfigured(): boolean {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  return !!(token && token.trim().length > 0 && chatId && chatId.trim().length > 0);
+  return runtimeIsConfigured();
 }
 
 // ── Severity Emoji ──
@@ -168,8 +168,12 @@ export async function sendTelegramAlert(alert: TelegramAlert): Promise<boolean> 
     return false;
   }
 
-  const token = process.env.TELEGRAM_BOT_TOKEN!;
-  const chatId = process.env.TELEGRAM_CHAT_ID!;
+  const token = getBotToken();
+  const chatId = getChatId();
+  if (!token || !chatId) {
+    console.warn('[TelegramAlert] Not configured — skipping alert');
+    return false;
+  }
   const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
 
   const message = formatAlertMessage(alert);

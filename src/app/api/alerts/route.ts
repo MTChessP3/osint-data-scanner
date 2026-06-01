@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getKeywords, addKeyword, removeKeyword, setKeywords } from '@/lib/alert-keywords';
 import { isTelegramConfigured, testTelegramAlert } from '@/lib/telegram-alerts';
+import { hasBotToken as runtimeHasBotToken, hasChatId as runtimeHasChatId } from '@/lib/telegram-runtime-config';
 import { getAlertHistory } from '@/lib/engines/alert-interceptor';
 
 // ── GET: Retrieve alert configuration ──
@@ -26,9 +27,9 @@ export async function GET(request: NextRequest) {
   const keywords = getKeywords();
   const telegramReady = isTelegramConfigured();
 
-  // Check which env vars are set (don't expose values)
-  const hasBotToken = !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.trim().length > 0);
-  const hasChatId = !!(process.env.TELEGRAM_CHAT_ID && process.env.TELEGRAM_CHAT_ID.trim().length > 0);
+  // Check which config values are set (env vars OR runtime — don't expose values)
+  const hasBotToken = runtimeHasBotToken();
+  const hasChatId = runtimeHasChatId();
 
   const history = getAlertHistory().slice(0, 10);
 
