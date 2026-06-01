@@ -457,6 +457,8 @@ export default function Home() {
   // ── Alert states ──
   const [alertKeywords, setAlertKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
+  const [bulkKeywordInput, setBulkKeywordInput] = useState('');
+  const [bulkKeywordLoading, setBulkKeywordLoading] = useState(false);
   const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [telegramHasBotToken, setTelegramHasBotToken] = useState(false);
   const [telegramHasChatId, setTelegramHasChatId] = useState(false);
@@ -541,6 +543,39 @@ export default function Home() {
       }
     } catch { /* ignore */ }
     setAlertLoading(false);
+  }
+
+  async function handleBulkAddKeywords() {
+    if (!bulkKeywordInput.trim()) return;
+    setBulkKeywordLoading(true);
+    try {
+      // Parse: split by newlines OR commas, trim, deduplicate, filter empty
+      const rawKeywords = bulkKeywordInput
+        .split(/[\n,]+/)
+        .map(k => k.trim().toLowerCase())
+        .filter(k => k.length > 0);
+      const uniqueKeywords = [...new Set(rawKeywords)];
+
+      if (uniqueKeywords.length === 0) {
+        setBulkKeywordLoading(false);
+        return;
+      }
+
+      // Get current keywords and merge
+      const merged = [...new Set([...alertKeywords, ...uniqueKeywords])];
+
+      const res = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_keywords', keywords: merged }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAlertKeywords(data.keywords);
+        setBulkKeywordInput('');
+      }
+    } catch { /* ignore */ }
+    setBulkKeywordLoading(false);
   }
 
   async function handleTestAlert() {
@@ -2510,6 +2545,55 @@ export default function Home() {
                   </Button>
                 </div>
 
+                {/* Keywords quick-add in Telegram Avanzado */}
+                {telegramConfigured && (
+                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-cyan-900/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-medium text-amber-300">Palabras Clave para Alertas</span>
+                      <Badge variant="outline" className="text-[9px] text-slate-500 border-slate-700 ml-auto">
+                        {alertKeywords.length} activa{alertKeywords.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    <textarea
+                      placeholder="Introduce tus palabras clave (una por línea o separadas por comas)&#10;&#10;Ejemplo:&#10;bancolombia&#10;contraseña filtrada&#10;datos personales, credenciales"
+                      value={bulkKeywordInput}
+                      onChange={e => setBulkKeywordInput(e.target.value)}
+                      className="w-full min-h-[80px] bg-[#111827] border border-[#1e293b] text-white placeholder:text-slate-600 text-xs focus:border-cyan-600 rounded-lg p-2.5 resize-y font-mono leading-relaxed"
+                      disabled={bulkKeywordLoading}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && e.ctrlKey) handleBulkAddKeywords();
+                      }}
+                    />
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] text-slate-600">Ctrl+Enter para agregar</p>
+                      <Button
+                        onClick={handleBulkAddKeywords}
+                        disabled={!bulkKeywordInput.trim() || bulkKeywordLoading}
+                        className="bg-amber-700 hover:bg-amber-800 text-white text-[11px] h-7 disabled:opacity-50"
+                        size="sm"
+                      >
+                        {bulkKeywordLoading ? (
+                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Agregando...</>
+                        ) : (
+                          <><AlertTriangle className="w-3 h-3 mr-1.5" />Agregar</>
+                        )}
+                      </Button>
+                    </div>
+                    {/* Quick view of current keywords */}
+                    {alertKeywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#1e293b]">
+                        {alertKeywords.map((kw, idx) => (
+                          <Badge key={idx} className="bg-amber-900/30 text-amber-400 border border-amber-800/30 text-[10px] font-mono cursor-pointer hover:bg-red-900/30 hover:text-red-400 hover:border-red-800/30 transition-colors group" onClick={() => handleRemoveKeyword(kw)}>
+                            {kw}
+                            <X className="w-2.5 h-2.5 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Info about how it works */}
                 <div className="p-3 rounded-lg bg-slate-900/30 border border-[#1e293b]">
                   <p className="text-[10px] text-slate-500 leading-relaxed">
@@ -3440,23 +3524,35 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Add keyword input */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Nueva palabra clave..."
-                      value={newKeyword}
-                      onChange={e => setNewKeyword(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') handleAddKeyword(); }}
-                      className="bg-[#0b0f19] border-[#1e293b] text-white placeholder:text-slate-600 text-sm focus:border-amber-600"
-                      disabled={alertLoading}
+                  {/* Bulk keyword textarea */}
+                  <div className="space-y-2">
+                    <textarea
+                      placeholder="Introduce tus palabras clave (una por línea o separadas por comas)&#10;&#10;Ejemplo:&#10;bancolombia&#10;contraseña filtrada&#10;datos personales, credenciales"
+                      value={bulkKeywordInput}
+                      onChange={e => setBulkKeywordInput(e.target.value)}
+                      className="w-full min-h-[100px] bg-[#0b0f19] border border-[#1e293b] text-white placeholder:text-slate-600 text-sm focus:border-amber-600 rounded-lg p-3 resize-y font-mono leading-relaxed"
+                      disabled={bulkKeywordLoading}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && e.ctrlKey) handleBulkAddKeywords();
+                      }}
                     />
-                    <Button
-                      onClick={handleAddKeyword}
-                      disabled={!newKeyword.trim() || alertLoading}
-                      className="bg-amber-700 hover:bg-amber-800 text-white shrink-0"
-                    >
-                      {alertLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Agregar'}
-                    </Button>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-slate-600">
+                        Ctrl+Enter para agregar rápidamente
+                      </p>
+                      <Button
+                        onClick={handleBulkAddKeywords}
+                        disabled={!bulkKeywordInput.trim() || bulkKeywordLoading}
+                        className="bg-amber-700 hover:bg-amber-800 text-white text-xs h-8"
+                        size="sm"
+                      >
+                        {bulkKeywordLoading ? (
+                          <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Agregando...</>
+                        ) : (
+                          <><AlertTriangle className="w-3.5 h-3.5 mr-1.5" />Agregar Palabras Clave</>
+                        )}
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Keywords list */}
