@@ -463,6 +463,13 @@ export default function Home() {
   const [alertLoading, setAlertLoading] = useState(false);
   const [alertHistory, setAlertHistory] = useState<Array<{ keyword: string; sourceType: string; sourceName: string; timestamp: string; telegramSent: boolean }>>([]);
 
+  // ── Telegram Avanzado states (in Scan tab) ──
+  const [telegramBotInfo, setTelegramBotInfo] = useState<{ username: string; firstName: string; id: number } | null>(null);
+  const [telegramDetecting, setTelegramDetecting] = useState(false);
+  const [telegramDetectedChats, setTelegramDetectedChats] = useState<Array<{ chatId: number; type: string; title?: string; username?: string; firstName?: string }>>([]);
+  const [telegramDetectError, setTelegramDetectError] = useState<string | null>(null);
+  const [telegramTestSending, setTelegramTestSending] = useState(false);
+
   // ── Chat states ──
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
@@ -482,6 +489,15 @@ export default function Home() {
         setTelegramHasBotToken(data.telegram?.hasBotToken || false);
         setTelegramHasChatId(data.telegram?.hasChatId || false);
         setAlertHistory(data.alertHistory || []);
+      }
+    } catch { /* ignore */ }
+
+    // Also fetch Telegram bot info
+    try {
+      const tgRes = await fetch('/api/telegram');
+      if (tgRes.ok) {
+        const tgData = await tgRes.json();
+        setTelegramBotInfo(tgData.botInfo || null);
       }
     } catch { /* ignore */ }
   }
@@ -521,9 +537,9 @@ export default function Home() {
   }
 
   async function handleTestAlert() {
-    setAlertLoading(true);
+    setTelegramTestSending(true);
     try {
-      const res = await fetch('/api/alerts', {
+      const res = await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'test_alert' }),
@@ -531,7 +547,7 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          alert('✅ Alerta de prueba enviada exitosamente');
+          alert('✅ Alerta de prueba enviada exitosamente a Telegram');
         } else {
           alert(`❌ Error: ${data.error || data.message || 'No se pudo enviar la alerta'}`);
         }
@@ -539,7 +555,50 @@ export default function Home() {
     } catch {
       alert('❌ Error de conexión al enviar alerta de prueba');
     }
-    setAlertLoading(false);
+    setTelegramTestSending(false);
+  }
+
+  async function handleTelegramDetectChatId() {
+    setTelegramDetecting(true);
+    setTelegramDetectError(null);
+    setTelegramDetectedChats([]);
+    try {
+      const res = await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'detect_chat_id' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.detectedChats?.length > 0) {
+          setTelegramDetectedChats(data.detectedChats);
+        } else {
+          setTelegramDetectError(data.error || 'No se detectaron chats. Envía /start a tu bot primero.');
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setTelegramDetectError(errData.error || 'Error al detectar Chat ID');
+      }
+    } catch {
+      setTelegramDetectError('Error de conexión con el servidor');
+    }
+    setTelegramDetecting(false);
+  }
+
+  async function handleTelegramVerifyToken() {
+    try {
+      const res = await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify_token' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.botInfo) {
+          setTelegramBotInfo(data.botInfo);
+        }
+      }
+    } catch { /* ignore */ }
   }
 
   useEffect(() => {
@@ -2171,6 +2230,174 @@ export default function Home() {
                 </Card>
               </div>
             </div>
+
+            {/* ── TELEGRAM AVANZADO — en sección de Escaneo ── */}
+            <Card className="bg-[#111827] border-[#1e293b]">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-white text-base">
+                  <Send className="w-5 h-5 text-cyan-400" />
+                  Telegram Avanzado
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">
+                  Motor de alertas en tiempo real vía Telegram Bot — configuración y verificación automática
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Status indicator */}
+                <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+                  telegramConfigured
+                    ? 'bg-emerald-950/20 border-emerald-800/30'
+                    : 'bg-red-950/20 border-red-800/30'
+                }`}>
+                  {telegramConfigured ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${telegramConfigured ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {telegramConfigured ? 'Telegram Bot Operativo' : 'Telegram Bot No Configurado'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {telegramConfigured
+                        ? 'Las alertas OSINT se envían automáticamente cuando se detectan palabras clave'
+                        : 'Se requiere configuración del Bot Token en el servidor'}
+                    </p>
+                  </div>
+                  {telegramBotInfo && (
+                    <Badge className="bg-cyan-900/30 text-cyan-400 border border-cyan-800/30 text-[10px]">
+                      @{telegramBotInfo.username}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Config details — env var status */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                    {telegramHasBotToken ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-[10px] text-slate-500 leading-none">BOT_TOKEN</p>
+                      <p className={`text-[11px] font-medium ${telegramHasBotToken ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {telegramHasBotToken ? 'Activo' : 'Falta'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                    {telegramHasChatId ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-[10px] text-slate-500 leading-none">CHAT_ID</p>
+                      <p className={`text-[11px] font-medium ${telegramHasChatId ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {telegramHasChatId ? 'Detectado' : 'Pendiente'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto-detect Chat ID */}
+                <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs font-medium text-cyan-300">Auto-detección de Chat ID</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleTelegramDetectChatId}
+                      disabled={telegramDetecting || !telegramHasBotToken}
+                      className="bg-cyan-700 hover:bg-cyan-800 text-white text-[11px] h-7 disabled:opacity-50"
+                    >
+                      {telegramDetecting ? (
+                        <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Detectando...</>
+                      ) : (
+                        <><ScanLine className="w-3 h-3 mr-1.5" />Detectar Chat ID</>
+                      )}
+                    </Button>
+                  </div>
+
+                  {!telegramHasBotToken && (
+                    <p className="text-[10px] text-amber-400 bg-amber-950/15 border border-amber-800/20 rounded p-2">
+                      Requiere que TELEGRAM_BOT_TOKEN esté configurado en Vercel (Settings → Environment Variables)
+                    </p>
+                  )}
+
+                  {/* Detected chats */}
+                  {telegramDetectedChats.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] text-slate-400">Chats detectados (selecciona para ver detalles):</p>
+                      {telegramDetectedChats.map((chat, idx) => (
+                        <div key={idx} className="flex items-center gap-2 p-2 rounded bg-[#111827] border border-[#1e293b]">
+                          <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-emerald-400' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-400' : 'bg-cyan-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-white font-medium truncate">
+                              {chat.firstName || chat.title || chat.username || 'Sin nombre'}
+                            </p>
+                            <p className="text-[9px] text-slate-500">
+                              Tipo: {chat.type} · ID: <code className="text-amber-400">{chat.chatId}</code>
+                            </p>
+                          </div>
+                          <Badge className={`text-[8px] px-1 py-0 h-4 ${
+                            chat.type === 'private' ? 'bg-emerald-900/40 text-emerald-400' :
+                            chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-900/40 text-violet-400' :
+                            'bg-cyan-900/40 text-cyan-400'
+                          }`}>
+                            {chat.type}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Detection error */}
+                  {telegramDetectError && (
+                    <div className="flex items-start gap-2 p-2 rounded bg-red-950/15 border border-red-800/20">
+                      <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-red-400">{telegramDetectError}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleTelegramVerifyToken}
+                    disabled={!telegramHasBotToken}
+                    className="flex-1 bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b] text-xs disabled:opacity-50"
+                    size="sm"
+                  >
+                    <Wifi className="w-3.5 h-3.5 mr-1.5" />Verificar Token
+                  </Button>
+                  <Button
+                    onClick={handleTestAlert}
+                    disabled={!telegramConfigured || telegramTestSending}
+                    className="flex-1 bg-cyan-700 hover:bg-cyan-800 text-white text-xs disabled:opacity-50"
+                    size="sm"
+                  >
+                    {telegramTestSending ? (
+                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Enviando...</>
+                    ) : (
+                      <><Zap className="w-3.5 h-3.5 mr-1.5" />Enviar Alerta de Prueba</>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Info about how it works */}
+                <div className="p-3 rounded-lg bg-slate-900/30 border border-[#1e293b]">
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    <strong className="text-slate-400">¿Cómo funciona?</strong> Cuando se ejecuta un escaneo OSINT y los resultados contienen palabras clave de la Lista Negra (pestaña Alertas),
+                    el sistema envía automáticamente una alerta formateada a Telegram con los detalles del hallazgo, la fuente y la severidad.
+                    La auto-detección consulta la API de Telegram para identificar los chats donde el bot tiene conversaciones activas.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ────────────────────────────────────────────
@@ -3076,117 +3303,17 @@ export default function Home() {
               ALERTS TAB — Telegram Bot Alert Configuration
           ──────────────────────────────────────────── */}
           <TabsContent value="alerts" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-              {/* ── Telegram Config Status Card ── */}
-              <Card className="bg-[#111827] border-[#1e293b]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-white text-base">
-                    <Send className="w-5 h-5 text-cyan-400" />
-                    Configuración Telegram Bot
-                  </CardTitle>
-                  <CardDescription className="text-slate-400 text-xs">
-                    Estado de la conexión con el bot de alertas de Telegram
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Status indicator */}
-                  <div className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    telegramConfigured
-                      ? 'bg-emerald-950/20 border-emerald-800/30'
-                      : 'bg-red-950/20 border-red-800/30'
-                  }`}>
-                    {telegramConfigured ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-400 shrink-0" />
-                    )}
-                    <div>
-                      <p className={`text-sm font-medium ${telegramConfigured ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {telegramConfigured ? 'Telegram Bot Configurado' : 'Telegram Bot No Configurado'}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {telegramConfigured
-                          ? 'Las alertas se enviarán automáticamente cuando se detecten palabras clave'
-                          : 'Configura las variables de entorno para habilitar las alertas'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Config details */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
-                      <div className="flex items-center gap-2">
-                        {telegramHasBotToken ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        )}
-                        <span className="text-sm text-slate-300">TELEGRAM_BOT_TOKEN</span>
-                      </div>
-                      <span className={`text-xs ${telegramHasBotToken ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {telegramHasBotToken ? 'Configurado' : 'No configurado'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
-                      <div className="flex items-center gap-2">
-                        {telegramHasChatId ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        )}
-                        <span className="text-sm text-slate-300">TELEGRAM_CHAT_ID</span>
-                      </div>
-                      <span className={`text-xs ${telegramHasChatId ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {telegramHasChatId ? 'Configurado' : 'No configurado'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Test Alert Button */}
-                  <Button
-                    onClick={handleTestAlert}
-                    disabled={!telegramConfigured || alertLoading}
-                    className="w-full bg-cyan-700 hover:bg-cyan-800 text-white disabled:opacity-50"
-                  >
-                    {alertLoading ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Zap className="w-4 h-4 mr-2" />
-                    )}
-                    Enviar Alerta de Prueba
-                  </Button>
-
-                  {/* Setup instructions — always visible */}
-                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
-                    <p className="text-xs text-slate-400 font-medium mb-2">Instrucciones de configuración:</p>
-                    <ol className="text-xs text-slate-500 space-y-1.5 list-decimal list-inside">
-                      <li>Crear un bot en Telegram: abre @BotFather, escribe <code className="bg-slate-800 px-1 rounded text-cyan-400">/newbot</code>, sigue las instrucciones</li>
-                      <li>Copia el token que te da BotFather (formato: <code className="bg-slate-800 px-1 rounded text-cyan-400">123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>)</li>
-                      <li>Obtén tu Chat ID: envía <code className="bg-slate-800 px-1 rounded text-cyan-400">/start</code> a tu bot, luego visita <code className="bg-slate-800 px-1 rounded text-cyan-400 break-all">https://api.telegram.org/bot{'{TOKEN}'}/getUpdates</code> y busca <code className="bg-slate-800 px-1 rounded text-cyan-400">chat.id</code></li>
-                      <li>En Vercel: ve a tu proyecto → Settings → Environment Variables y agrega:
-                        <div className="mt-1 ml-4 space-y-1">
-                          <div className="flex items-center gap-1"><span className={`text-[10px] ${telegramHasBotToken ? 'text-emerald-400' : 'text-red-400'}`}>{telegramHasBotToken ? '✓' : '✗'}</span> <code className="bg-slate-800 px-1 rounded text-amber-400 text-[10px]">TELEGRAM_BOT_TOKEN</code> = tu_token</div>
-                          <div className="flex items-center gap-1"><span className={`text-[10px] ${telegramHasChatId ? 'text-emerald-400' : 'text-red-400'}`}>{telegramHasChatId ? '✓' : '✗'}</span> <code className="bg-slate-800 px-1 rounded text-amber-400 text-[10px]">TELEGRAM_CHAT_ID</code> = tu_chat_id</div>
-                        </div>
-                      </li>
-                      <li>Redespliega el proyecto en Vercel (Deployments → Redeploy) y recarga esta página</li>
-                    </ol>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* ── Keyword Blacklist Card ── */}
-              <Card className="bg-[#111827] border-[#1e293b]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-white text-base">
-                    <AlertTriangle className="w-5 h-5 text-amber-400" />
-                    Lista Negra de Palabras Clave
-                  </CardTitle>
-                  <CardDescription className="text-slate-400 text-xs">
-                    Palabras clave que activan alertas automáticas al detectarse en resultados OSINT
-                  </CardDescription>
-                </CardHeader>
+            {/* ── Keyword Blacklist Card ── */}
+            <Card className="bg-[#111827] border-[#1e293b]">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-white text-base">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  Lista Negra de Palabras Clave
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">
+                  Palabras clave que activan alertas automáticas al detectarse en resultados OSINT — las alertas se envían vía Telegram (ver Telegram Avanzado en Escaneo)
+                </CardDescription>
+              </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Add keyword input */}
                   <div className="flex gap-2">
@@ -3246,7 +3373,6 @@ export default function Home() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
 
             {/* ── Alert History Card ── */}
             <Card className="bg-[#111827] border-[#1e293b]">
