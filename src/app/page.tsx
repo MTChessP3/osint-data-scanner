@@ -517,6 +517,27 @@ export default function Home() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
 
+  // ── Escáner de Grupos (Telegram Group Scanner) states ──
+  const [groupScanLoading, setGroupScanLoading] = useState(false);
+  const [groupScanResults, setGroupScanResults] = useState<{
+    totalGroups: number;
+    totalBotMessages: number;
+    keywordsProcessed: number;
+    totalKeywords: number;
+    maxKeywordsPerScan: number;
+    detectedAlerts: Array<{
+      keyword: string;
+      sourceType: string;
+      sourceName: string;
+      sourceUrl: string;
+      messageText: string;
+      chatType: string;
+      timestamp: string;
+      telegramSent: boolean;
+    }>;
+  } | null>(null);
+  const [groupScanError, setGroupScanError] = useState<string | null>(null);
+
   // ── Ciberte Phishing Monitor states ──
   const [ciberteOnline, setCiberteOnline] = useState(false);
   const [ciberteSearchQuery, setCiberteSearchQuery] = useState('');
@@ -925,6 +946,37 @@ export default function Home() {
       }
     } catch { /* ignore */ }
     setBulkKeywordLoading(false);
+  }
+
+  // ── Escáner de Grupos: Scan Telegram groups for keyword matches ──
+  async function handleScanGroups() {
+    setGroupScanLoading(true);
+    setGroupScanError(null);
+    try {
+      const res = await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'scan_groups' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setGroupScanResults(data);
+          // Also update alert history from the scan
+          if (data.alertHistory) {
+            setAlertHistory(data.alertHistory);
+          }
+        } else {
+          setGroupScanError(data.error || 'Error al escanear grupos');
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setGroupScanError(errData.error || 'Error al escanear grupos');
+      }
+    } catch {
+      setGroupScanError('Error de conexión con el servidor');
+    }
+    setGroupScanLoading(false);
   }
 
   async function handleTestAlert() {
@@ -3900,99 +3952,276 @@ export default function Home() {
           </TabsContent>
 
           {/* ────────────────────────────────────────────
-              ALERTS TAB — Telegram Bot Alert Configuration
+              ALERTS TAB — Telegram Bot Alert Configuration + Group Scanner
           ──────────────────────────────────────────── */}
           <TabsContent value="alerts" className="space-y-6">
-            {/* ── Keyword Blacklist Card ── */}
+
+            {/* ══════════════════════════════════════════
+                ESCÁNER DE GRUPOS — Telegram Group Scanner
+            ══════════════════════════════════════════ */}
             <Card className="bg-[#111827] border-[#1e293b]">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-white text-base">
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
-                  Lista Negra de Palabras Clave
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
-                  Palabras clave que activan alertas automáticas al detectarse en resultados OSINT — las alertas se envían vía Telegram (ver Telegram Avanzado en Escaneo)
-                </CardDescription>
-              </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Bulk keyword textarea */}
-                  <div className="space-y-2">
-                    <textarea
-                      placeholder="Introduce tus palabras clave (una por línea o separadas por comas)&#10;&#10;Ejemplo:&#10;bancolombia&#10;contraseña filtrada&#10;datos personales, credenciales"
-                      value={bulkKeywordInput}
-                      onChange={e => setBulkKeywordInput(e.target.value)}
-                      className="w-full min-h-[100px] bg-[#0b0f19] border border-[#1e293b] text-white placeholder:text-slate-600 text-sm focus:border-amber-600 rounded-lg p-3 resize-y font-mono leading-relaxed"
-                      disabled={bulkKeywordLoading}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && e.ctrlKey) handleBulkAddKeywords();
-                      }}
-                    />
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] text-slate-600">
-                        Ctrl+Enter para agregar rápidamente
-                      </p>
-                      <Button
-                        onClick={handleBulkAddKeywords}
-                        disabled={!bulkKeywordInput.trim() || bulkKeywordLoading}
-                        className="bg-amber-700 hover:bg-amber-800 text-white text-xs h-8"
-                        size="sm"
-                      >
-                        {bulkKeywordLoading ? (
-                          <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Agregando...</>
-                        ) : (
-                          <><AlertTriangle className="w-3.5 h-3.5 mr-1.5" />Agregar Palabras Clave</>
-                        )}
-                      </Button>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-900/30 rounded-lg">
+                      <Send className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-white text-base">Escáner de Grupos</CardTitle>
+                      <CardDescription className="text-slate-400 text-xs">
+                        Busca menciones de palabras clave en grupos y canales de Telegram
+                      </CardDescription>
                     </div>
                   </div>
+                  <Badge className="bg-emerald-900/40 text-emerald-400 text-xs">
+                    {groupScanResults?.totalGroups ?? 0} grupo{(groupScanResults?.totalGroups ?? 0) !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Scan Button */}
+                <Button
+                  onClick={handleScanGroups}
+                  disabled={groupScanLoading || alertKeywords.length === 0}
+                  className="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-sm h-10"
+                >
+                  {groupScanLoading ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Escaneando Grupos...</>
+                  ) : (
+                    <><Search className="w-4 h-4 mr-2" />Escanear Grupos Ahora</>
+                  )}
+                </Button>
 
-                  {/* Keywords list */}
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {alertKeywords.length === 0 ? (
-                      <p className="text-xs text-slate-500 text-center py-4">No hay palabras clave configuradas</p>
-                    ) : (
-                      alertKeywords.map((keyword, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b] group hover:border-amber-800/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                            <span className="text-sm text-slate-200 font-mono">{keyword}</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 hover:bg-red-900/20 h-7 w-7 p-0"
-                            onClick={() => handleRemoveKeyword(keyword)}
-                            disabled={alertLoading}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </Button>
+                {/* Error message */}
+                {groupScanError && (
+                  <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/30 rounded-lg p-3">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <p className="text-xs text-red-400">{groupScanError}</p>
+                  </div>
+                )}
+
+                {/* Scan Results Stats */}
+                {groupScanResults && (
+                  <div className="space-y-3">
+                    {/* Status summary */}
+                    <div className={`flex items-center gap-2 p-3 rounded-lg border ${
+                      groupScanResults.detectedAlerts.length > 0
+                        ? 'bg-amber-900/15 border-amber-800/30'
+                        : 'bg-emerald-900/10 border-emerald-800/30'
+                    }`}>
+                      {groupScanResults.detectedAlerts.length > 0 ? (
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      )}
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+                          {groupScanResults.detectedAlerts.length > 0
+                            ? `${groupScanResults.detectedAlerts.length} alerta${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''} encontrada${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''}`
+                            : 'Sin alertas — ningún grupo mencionó las palabras clave'}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          <span className="text-xs text-slate-500">{groupScanResults.totalGroups} grupo{groupScanResults.totalGroups !== 1 ? 's' : ''} encontrado{groupScanResults.totalGroups !== 1 ? 's' : ''}</span>
+                          <span className="text-xs text-slate-600">•</span>
+                          <span className="text-xs text-slate-500">{groupScanResults.totalBotMessages} mensaje{groupScanResults.totalBotMessages !== 1 ? 's' : ''} bot</span>
                         </div>
-                      ))
+                      </div>
+                    </div>
+
+                    {/* Keywords processed info */}
+                    {groupScanResults.keywordsProcessed < groupScanResults.totalKeywords && (
+                      <p className="text-xs text-orange-400/80">
+                        Se procesaron {groupScanResults.keywordsProcessed} de {groupScanResults.totalKeywords} palabras clave (límite por escaneo). Vuelve a escanear para procesar más.
+                      </p>
                     )}
-                  </div>
 
-                  {/* Keyword count */}
-                  <div className="flex items-center justify-between pt-2 border-t border-[#1e293b]">
-                    <span className="text-xs text-slate-500">
-                      {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave activa{alertKeywords.length !== 1 ? 's' : ''}
-                    </span>
-                    <Badge variant="outline" className="text-amber-400 border-amber-800/50 text-[10px]">
-                      Coincidencia sin mayúsculas/minúsculas
+                    {/* How it works explanation */}
+                    <p className="text-xs text-slate-600">
+                      El escaneo usa 2 métodos: (1) Bot polling — mensajes en grupos donde el bot es miembro, y (2) Búsqueda web — grupos públicos de Telegram que mencionan las palabras clave. No necesitas agregar el bot a todos los grupos.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ══════════════════════════════════════════
+                PALABRAS CLAVE — Keyword Management
+            ══════════════════════════════════════════ */}
+            <Card className="bg-[#111827] border-[#1e293b]">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-white text-base">
+                    <AlertTriangle className="w-5 h-5 text-amber-400" />
+                    Palabras Clave
+                  </CardTitle>
+                  <Badge className="bg-amber-900/40 text-amber-400 text-xs">
+                    {alertKeywords.length} activa{alertKeywords.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Bulk keyword textarea */}
+                <div className="space-y-2">
+                  <textarea
+                    placeholder="Palabras clave (una por línea o separadas por comas)"
+                    value={bulkKeywordInput}
+                    onChange={e => setBulkKeywordInput(e.target.value)}
+                    className="w-full min-h-[80px] bg-[#0b0f19] border border-[#1e293b] text-white placeholder:text-slate-600 text-sm focus:border-amber-600 rounded-lg p-3 resize-y font-mono leading-relaxed"
+                    disabled={bulkKeywordLoading}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && e.ctrlKey) handleBulkAddKeywords();
+                    }}
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-slate-600">
+                      Ctrl+Enter para agregar
+                    </p>
+                    <Button
+                      onClick={handleBulkAddKeywords}
+                      disabled={!bulkKeywordInput.trim() || bulkKeywordLoading}
+                      className="bg-amber-700 hover:bg-amber-800 text-white text-xs h-7"
+                      size="sm"
+                    >
+                      {bulkKeywordLoading ? (
+                        <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Agregando...</>
+                      ) : (
+                        <><AlertTriangle className="w-3 h-3 mr-1" />Agregar</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Keywords as pills */}
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                  {alertKeywords.length === 0 ? (
+                    <p className="text-xs text-slate-500 text-center w-full py-4">No hay palabras clave configuradas</p>
+                  ) : (
+                    alertKeywords.map((keyword, idx) => (
+                      <span
+                        key={idx}
+                        className="group inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-900/20 border border-amber-800/30 text-xs font-mono text-amber-300 hover:border-amber-600/50 transition-colors cursor-default"
+                      >
+                        <AlertTriangle className="w-2.5 h-2.5 text-amber-500" />
+                        {keyword}
+                        <button
+                          className="ml-0.5 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity"
+                          onClick={() => handleRemoveKeyword(keyword)}
+                          title="Eliminar"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* Keyword count footer */}
+                <div className="flex items-center justify-between pt-2 border-t border-[#1e293b]">
+                  <span className="text-[10px] text-slate-600">
+                    {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave activa{alertKeywords.length !== 1 ? 's' : ''}
+                  </span>
+                  <Badge variant="outline" className="text-amber-400 border-amber-800/50 text-[10px]">
+                    Coincidencia sin mayúsculas/minúsculas
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ══════════════════════════════════════════
+                ALERTAS ENCONTRADAS — Detected Alerts from Group Scan
+            ══════════════════════════════════════════ */}
+            <Card className="bg-[#111827] border-[#1e293b]">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-white text-base">
+                    <Bell className="w-5 h-5 text-red-400" />
+                    Alertas Encontradas
+                  </CardTitle>
+                  {groupScanResults && groupScanResults.detectedAlerts.length > 0 && (
+                    <Badge className="bg-red-900/40 text-red-400 text-[10px]">
+                      {groupScanResults.detectedAlerts.length}
                     </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {!groupScanResults || groupScanResults.detectedAlerts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Bell className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">
+                      {!groupScanResults
+                        ? 'Sin alertas aún. Haz clic en "Escanear Grupos" para buscar menciones de palabras clave.'
+                        : 'No se encontraron menciones de palabras clave en este escaneo.'}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
+                    {groupScanResults.detectedAlerts.map((alert, idx) => {
+                      const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
+                        : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
+                        : alert.sourceType === 'bot' ? 'BOT'
+                        : alert.sourceType === 'user' ? 'USUARIO'
+                        : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
+                      const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
+                        : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
+                        : alert.sourceType === 'bot' ? 'bg-orange-900/30 text-orange-400 border-orange-800/30'
+                        : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
+                        : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                      return (
+                        <div key={idx} className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] hover:border-[#2a3a5a] transition-colors">
+                          {/* Header row */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="shrink-0">
+                              {alert.telegramSent ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-400" />
+                              )}
+                            </div>
+                            <span className="text-sm font-mono text-amber-400 font-medium">{alert.keyword}</span>
+                            <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
+                              {sourceBadge}
+                            </Badge>
+                            <span className="text-[10px] text-slate-600 ml-auto">
+                              {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {/* Source name */}
+                          <p className="text-xs text-slate-300 truncate mb-1">
+                            <span className="text-slate-500">Fuente:</span> {alert.sourceName}
+                          </p>
+                          {/* Message snippet */}
+                          {alert.messageText && (
+                            <p className="text-xs text-slate-500 line-clamp-2 mb-1">{alert.messageText}</p>
+                          )}
+                          {/* Source URL */}
+                          {alert.sourceUrl && (
+                            <a
+                              href={alert.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-cyan-400 hover:text-cyan-300 truncate block"
+                            >
+                              <ExternalLink className="w-2.5 h-2.5 inline mr-1" />{alert.sourceUrl}
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-            {/* ── Alert History Card ── */}
+            {/* ══════════════════════════════════════════
+                HISTORIAL DE ALERTAS — OSINT Alert History
+            ══════════════════════════════════════════ */}
             <Card className="bg-[#111827] border-[#1e293b]">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2 text-white text-base">
-                      <Bell className="w-5 h-5 text-blue-400" />
+                      <Clock className="w-5 h-5 text-blue-400" />
                       Historial de Alertas
                     </CardTitle>
                     <CardDescription className="text-slate-400 text-xs">
@@ -4075,14 +4304,14 @@ export default function Home() {
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-900/30 text-amber-400 text-xs font-bold">1</span>
                       <span className="text-sm font-medium text-slate-200">Detección</span>
                     </div>
-                    <p className="text-xs text-slate-500">El interceptor analiza todos los resultados OSINT buscando coincidencias con las palabras clave configuradas</p>
+                    <p className="text-xs text-slate-500">El escáner analiza mensajes de grupos Telegram y resultados web buscando coincidencias con las palabras clave</p>
                   </div>
                   <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-cyan-900/30 text-cyan-400 text-xs font-bold">2</span>
                       <span className="text-sm font-medium text-slate-200">Clasificación</span>
                     </div>
-                    <p className="text-xs text-slate-500">Se extrae metadata de la fuente (canal, grupo, web) y se determina la severidad del hallazgo</p>
+                    <p className="text-xs text-slate-500">Se extrae metadata de la fuente (canal, grupo, bot, web) y se determina la severidad del hallazgo</p>
                   </div>
                   <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
                     <div className="flex items-center gap-2 mb-2">

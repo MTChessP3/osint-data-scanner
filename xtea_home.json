@@ -1,0 +1,43 @@
+{
+  "code": 200,
+  "data": {
+    "description": "Coding Design Thinking. 醉里挑灯看剑，梦回吹角连营。",
+    "external": {
+      "alternate": {
+        "https://xtea.io/feed.xml": {
+          "title": "Li Xiaomeng's  Blog",
+          "type": "application/atom+xml"
+        }
+      },
+      "canonical": {
+        "https://xtea.io/": {}
+      }
+    },
+    "html": "<html lang=\"en\"><head>\n  <meta charset=\"utf-8\">\n  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><!-- Begin Jekyll SEO tag v2.8.0 -->\n<title>Li Xiaomeng’s Blog | Coding Design Thinking. 醉里挑灯看剑，梦回吹角连营。</title>\n<meta name=\"generator\" content=\"Jekyll v3.10.0\">\n<meta property=\"og:title\" content=\"Li Xiaomeng’s Blog\">\n<meta property=\"og:locale\" content=\"en_US\">\n<meta name=\"description\" content=\"Coding Design Thinking. 醉里挑灯看剑，梦回吹角连营。\">\n<meta property=\"og:description\" content=\"Coding Design Thinking. 醉里挑灯看剑，梦回吹角连营。\">\n<link rel=\"canonical\" href=\"https://xtea.io/\">\n<meta property=\"og:url\" content=\"https://xtea.io/\">\n<meta property=\"og:site_name\" content=\"Li Xiaomeng’s Blog\">\n<meta property=\"og:type\" content=\"website\">\n<meta name=\"twitter:card\" content=\"summary\">\n<meta property=\"twitter:title\" content=\"Li Xiaomeng’s Blog\">\n<script type=\"application/ld+json\">\n{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"description\":\"Coding Design Thinking. 醉里挑灯看剑，梦回吹角连营。\",\"headline\":\"Li Xiaomeng’s Blog\",\"name\":\"Li Xiaomeng’s Blog\",\"url\":\"https://xtea.io/\"}</script>\n<!-- End Jekyll SEO tag -->\n<link rel=\"stylesheet\" href=\"/assets/main.css\"><link type=\"application/atom+xml\" rel=\"alternate\" href=\"https://xtea.io/feed.xml\" title=\"Li Xiaomeng's  Blog\"></head>\n<body><header class=\"site-header\" role=\"banner\">\n\n  <div class=\"wrapper\"><a class=\"site-title\" rel=\"author\" href=\"/\">Li Xiaomeng's  Blog</a><nav class=\"site-nav\">\n        <input type=\"checkbox\" id=\"nav-trigger\" class=\"nav-trigger\">\n        <label for=\"nav-trigger\">\n          <span class=\"menu-icon\">\n            <svg viewBox=\"0 0 18 15\" width=\"18px\" height=\"15px\">\n              <path d=\"M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z\"></path>\n            </svg>\n          </span>\n        </label>\n\n        <div class=\"trigger\"><a class=\"page-link\" href=\"/about/\">About</a></div>\n      </nav></div>\n</header>\n<main class=\"page-content\" aria-label=\"Content\">\n      <div class=\"wrapper\">\n        <div class=\"home\">\n<h2 class=\"post-list-heading\">Posts</h2>\n    <ul class=\"post-list\"><li><span class=\"post-meta\">Apr 6, 2020</span>\n        <h3>\n          <a class=\"post-link\" href=\"/tools/2020/04/06/learn-swift-programing.html\">\n            30分钟入门Swift语言简明教程\n          </a>\n        </h3></li><li><span class=\"post-meta\">Jan 1, 2020</span>\n        <h3>\n          <a class=\"post-link\" href=\"/tools/2020/01/01/telegram-search.html\">\n            创建一个电报账号群组搜索引擎\n          </a>\n        </h3></li><li><span class=\"post-meta\">Sep 24, 2019</span>\n        <h3>\n          <a class=\"post-link\" href=\"/interview/2019/09/24/for-new-grad-interview-tips.html\">\n            应届生面试不要做这3件事\n          </a>\n        </h3></li><li><span class=\"post-meta\">Sep 21, 2019</span>\n        <h3>\n          <a class=\"post-link\" href=\"/coding/2019/09/21/leetcode-269-alien-dictionary.html\">\n            [LeetCode] 269.Alien Dictionary 火星词典\n          </a>\n        </h3></li><li><span class=\"post-meta\">Sep 7, 2019</span>\n        <h3>\n          <a class=\"post-link\" href=\"/coding/2019/09/07/leetcode-505-the-maze-II.html\">\n            [LeetCode] 505. The Maze II 迷宫II\n          </a>\n        </h3></li><li><span class=\"post-meta\">Sep 5, 2019</span>\n        <h3>\n          <a class=\"post-link\" href=\"/coding/2019/09/05/leetcode-the-maze-solution-in-Java.html\">\n            Leetcode The Maze solution in Java \n          </a>\n        </h3></li><li><span class=\"post-meta\">Sep 4, 2019</span>\n        <h3>\n          <a class=\"post-link\" href=\"/coding/2019/09/04/leetcode-Integer-to-English-Words-Solution.html\">\n            Leetcode Integer to English Words solution in Java\n          </a>\n        </h3></li><li><span class=\"post-meta\">Sep 3, 2019</span>\n        <h3>\n          <a class=\"post-link\" href=\"/coding/2019/09/03/codility-flags-solution-java.html\">\n            Codility flags solution in Java\n          </a>\n        </h3></li><li><span class=\"post-meta\">Aug 29, 2019</span>\n        <h3>\n          <a class=\"post-link\" href=\"/other/2019/08/29/hello-world.html\">\n            Hello world!\n          </a>\n        </h3></li></ul>\n\n    <p class=\"rss-subscribe\">subscribe <a href=\"/feed.xml\">via RSS</a></p></div>\n\n      </div>\n    </main><footer class=\"site-footer h-card\">\n  <data class=\"u-url\" href=\"/\"></data>\n\n  <div class=\"wrapper\">\n\n    <h2 class=\"footer-heading\">Li Xiaomeng's  Blog</h2>\n\n    <div class=\"footer-col-wrapper\">\n      <div class=\"footer-col footer-col-1\">\n        <ul class=\"contact-list\">\n          <li class=\"p-name\">Li Xiaomeng's  Blog</li><li><a class=\"u-email\" href=\"mailto:imxtea#gmail.com\">imxtea#gmail.com</a></li></ul>\n      </div>\n\n      <div class=\"footer-col footer-col-2\"><ul class=\"social-media-list\"><li><a href=\"https://github.com/xtea\"><svg class=\"svg-icon\"><use xlink:href=\"/assets/minima-social-icons.svg#github\"></use></svg> <span class=\"username\">xtea</span></a></li><li><a href=\"https://www.twitter.com/xtea_li\"><svg class=\"svg-icon\"><use xlink:href=\"/assets/minima-social-icons.svg#twitter\"></use></svg> <span class=\"username\">xtea_li</span></a></li></ul>\n</div>\n\n      <div class=\"footer-col footer-col-3\">\n        <p>Coding | Design | Thinking. 醉里挑灯看剑，梦回吹角连营。</p>\n      </div>\n    </div>\n\n  </div>\n\n</footer>\n\n\n\n</body></html>",
+    "metadata": {
+      "description": "Coding Design Thinking. 醉里挑灯看剑，梦回吹角连营。",
+      "generator": "Jekyll v3.10.0",
+      "lang": "en",
+      "og:description": "Coding Design Thinking. 醉里挑灯看剑，梦回吹角连营。",
+      "og:locale": "en_US",
+      "og:site_name": "Li Xiaomeng’s Blog",
+      "og:title": "Li Xiaomeng’s Blog",
+      "og:type": "website",
+      "og:url": "https://xtea.io/",
+      "twitter:card": "summary",
+      "twitter:title": "Li Xiaomeng’s Blog",
+      "viewport": "width=device-width, initial-scale=1"
+    },
+    "title": "Li Xiaomeng’s Blog",
+    "url": "https://xtea.io/",
+    "usage": {
+      "tokens": 1997
+    }
+  },
+  "meta": {
+    "usage": {
+      "tokens": 1997
+    }
+  },
+  "status": 20000
+}

@@ -1,31 +1,30 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Implement authentication system with MFA/TOTP for OSINT Data Scanner
+Task: Fix "Alertas Detectadas" showing no results - replace broken search with working channel scraping
 
 Work Log:
-- Explored current project structure - confirmed zero authentication exists
-- Installed dependencies: jose, bcryptjs, otplib, qrcode, @types/bcryptjs, @types/qrcode
-- Created src/lib/auth.ts - Core auth library with JWT sessions, TOTP MFA, cookie management
-- Created src/app/api/auth/login/route.ts - Login endpoint with 2-step flow
-- Created src/app/api/auth/mfa/verify/route.ts - MFA code verification endpoint
-- Created src/app/api/auth/mfa/setup/route.ts - MFA setup with QR code generation
-- Created src/app/api/auth/logout/route.ts - Session logout endpoint
-- Created src/app/api/auth/session/route.ts - Session check endpoint
-- Created src/app/login/page.tsx - Professional login page with 2-step flow (credentials + MFA)
-- Created src/app/setup-mfa/page.tsx - MFA setup page with QR code and verification
-- Created src/middleware.ts - Route protection middleware (Edge-compatible)
-- Added verifyAuth() to all 8 API routes for defense-in-depth protection
-- Added auth session state, user display, and logout button to page.tsx header
-- Created scripts/generate-auth-config.js for easy credential generation
-- Successfully built project with `npx next build` - no errors
-- Pushed to GitHub (auto-deploys to Vercel)
+- Identified root cause: DuckDuckGo scraping blocked from Vercel, Z.ai internal API inaccessible from Vercel
+- Tested Z.ai web search from this environment - works perfectly with internal-api.z.ai
+- Tested Z.ai public API (api.z.ai/api/v1) - returns 404 for functions/invoke
+- Tested t.me/s/ channel scraping - works from any environment, returns real messages
+- Rewrote telegram-web-search.ts with 4 search methods:
+  1. Primary: t.me/s/ channel scraping (works from Vercel)
+  2. Z.ai SDK (works from Z.ai network only)
+  3. Z.ai internal API direct call (works from Z.ai network only)
+  4. Broader search queries as fallback
+- Added searchKnownTelegramChannels() with 40+ known channels
+- Added scrapeTelegramChannel() for reading public channel previews
+- Updated scan_groups route to run channel scraping as METHOD 1 (primary)
+- Updated frontend to show channel_scrape source type with emerald color
+- Added source legend (Web/Canal/Bot) to Alertas Detectadas section
+- Updated "How it works" description to mention 3 methods
+- Increased keyword limit from 3 to 5 per scan
+- Fixed regex parsing error (escaped / in regex)
 
 Stage Summary:
-- Full JWT-based authentication system with HTTP-only cookies
-- TOTP MFA support (Google Authenticator, Authy, etc.)
-- All pages and API routes protected by middleware + verifyAuth()
-- Login page with professional design and 2-step MFA flow
-- MFA setup page with QR code generation
-- User needs to configure AUTH_SECRET and AUTH_USERS env vars in Vercel dashboard
-- Default credentials: admin / Admin2025!OSINT (if AUTH_USERS not set)
+- Channel scraping finds 55 matches across 9 channels for 8 keywords
+- Keywords matched: fraud, hack, leak, scam, phishing, credential, estafa, bancolombia
+- Channels with matches: ciberseguridad, Group_IB, seguridadinformatica, notoscam, hackplayers, PasaenBogotaSrBacca, EnZonaBX, bancolombia, GrupoBancolombia
+- Build successful, pushed to GitHub (2 commits)
+- Vercel auto-deploys on push

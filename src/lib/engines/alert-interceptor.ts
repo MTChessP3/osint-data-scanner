@@ -47,6 +47,19 @@ export function getAlertHistory() {
   return [...alertHistory];
 }
 
+// ── Add entry to alert history (used by scan_groups) ──
+
+export function addAlertHistoryEntry(entry: {
+  keyword: string;
+  sourceType: string;
+  sourceName: string;
+  timestamp: string;
+  telegramSent: boolean;
+}) {
+  alertHistory.unshift(entry);
+  if (alertHistory.length > 50) alertHistory.pop();
+}
+
 // ── Source Metadata Extraction ──
 
 interface SourceMetadata {
