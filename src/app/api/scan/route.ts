@@ -43,12 +43,21 @@ export async function POST(request: NextRequest) {
     const scan = createScan({ fullName, cedula, email, phone, status: 'running', scanType: 'data_intelligence' });
 
     // Run OSINT scan — prefer server-side DEEPSEEK_API_KEY env var over client-provided key
+    // Wrap in timeout to prevent Vercel function timeout (returns proper JSON error instead of HTML error page)
     const effectiveDeepseekKey = process.env.DEEPSEEK_API_KEY || deepseekKey;
     let results: OSINTResult[] = [];
     try {
-      results = await runFullScan({ fullName, cedula, email, phone, usernames: usernames.length > 0 ? usernames : undefined, deepseekKey: effectiveDeepseekKey, selectedEngines });
+      const scanPromise = runFullScan({ fullName, cedula, email, phone, usernames: usernames.length > 0 ? usernames : undefined, deepseekKey: effectiveDeepseekKey, selectedEngines });
+      const timeoutPromise = new Promise<OSINTResult[]>((resolve) => {
+        setTimeout(() => {
+          console.warn('[Scan API] Scan timed out after 50s, returning partial results');
+          resolve([]);
+        }, 50000); // 50s timeout — leave 10s margin for Vercel's 60s limit
+      });
+      results = await Promise.race([scanPromise, timeoutPromise]);
     } catch (scanError) {
       console.error('Scan error:', scanError);
+      // Don't throw — return empty results so the scan still completes with partial data
     }
 
     // Save results

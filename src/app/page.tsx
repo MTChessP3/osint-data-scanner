@@ -485,19 +485,72 @@ export default function Home() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
 
+  // ── Keywords localStorage persistence ──
+  const KEYWORDS_STORAGE_KEY = 'osint_alert_keywords';
+
+  function saveKeywordsToStorage() {
+    try {
+      localStorage.setItem(KEYWORDS_STORAGE_KEY, JSON.stringify(alertKeywords));
+    } catch { /* ignore */ }
+  }
+
+  function loadKeywordsFromStorage(): string[] {
+    try {
+      const stored = localStorage.getItem(KEYWORDS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch { /* ignore */ }
+    return [];
+  }
+
   // ── Fetch alert configuration ──
   async function fetchAlertConfig() {
+    let serverKeywords: string[] = [];
     try {
       const res = await fetch('/api/alerts');
       if (res.ok) {
         const data = await res.json();
-        setAlertKeywords(data.keywords || []);
+        serverKeywords = data.keywords || [];
         setTelegramConfigured(data.telegram?.configured || false);
         setTelegramHasBotToken(data.telegram?.hasBotToken || false);
         setTelegramHasChatId(data.telegram?.hasChatId || false);
         setAlertHistory(data.alertHistory || []);
       }
     } catch { /* ignore */ }
+
+    // Sync: if server has fewer keywords than localStorage (cold start reset),
+    // merge localStorage keywords into server and use the merged list
+    const storedKeywords = loadKeywordsFromStorage();
+    if (storedKeywords.length > 0 && storedKeywords.length > serverKeywords.length) {
+      const merged = [...new Set([...serverKeywords, ...storedKeywords])];
+      setAlertKeywords(merged);
+      // Sync merged keywords back to server
+      try {
+        await fetch('/api/alerts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'set_keywords', keywords: merged }),
+        });
+      } catch { /* ignore */ }
+      // Save merged list to localStorage
+      try { localStorage.setItem(KEYWORDS_STORAGE_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
+    } else if (serverKeywords.length > 0) {
+      setAlertKeywords(serverKeywords);
+      // Update localStorage with server keywords (in case server has newer data)
+      try { localStorage.setItem(KEYWORDS_STORAGE_KEY, JSON.stringify(serverKeywords)); } catch { /* ignore */ }
+    } else if (storedKeywords.length > 0) {
+      // Server has no keywords (cold start) but we have stored ones
+      setAlertKeywords(storedKeywords);
+      try {
+        await fetch('/api/alerts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'set_keywords', keywords: storedKeywords }),
+        });
+      } catch { /* ignore */ }
+    }
 
     // Also fetch Telegram bot info
     try {
@@ -523,6 +576,7 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setAlertKeywords(data.keywords);
+        saveKeywordsToStorage();
         setNewKeyword('');
       }
     } catch { /* ignore */ }
@@ -540,6 +594,7 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setAlertKeywords(data.keywords);
+        saveKeywordsToStorage();
       }
     } catch { /* ignore */ }
     setAlertLoading(false);
@@ -572,6 +627,7 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setAlertKeywords(data.keywords);
+        saveKeywordsToStorage();
         setBulkKeywordInput('');
       }
     } catch { /* ignore */ }
@@ -789,6 +845,9 @@ export default function Home() {
     setProgress(15); // Step 2: Enviando consulta
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -796,24 +855,59 @@ export default function Home() {
           fullName, cedula, email, phone, reportFormat,
           selectedEngines: Array.from(selectedEngines),
         }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       setProgress(85); // Step 3: Recibiendo resultados
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Error en el escaneo');
+        // Safely parse error — server might return non-JSON (e.g., Vercel timeout page)
+        let errorMsg = 'Error en el escaneo';
+        try {
+          const errData = await res.json();
+          errorMsg = errData.error || errorMsg;
+        } catch {
+          // Response was not JSON — try reading as text
+          try {
+            const errText = await res.text();
+            if (errText.includes('timeout') || errText.includes('Timed out')) {
+              errorMsg = 'El escaneo excedió el tiempo límite del servidor. Intenta con menos motores de búsqueda.';
+            } else if (errText.length > 0 && errText.length < 200) {
+              errorMsg = `Error del servidor: ${errText}`;
+            } else {
+              errorMsg = `Error del servidor (HTTP ${res.status}). Intenta nuevamente o usa menos motores.`;
+            }
+          } catch {
+            errorMsg = `Error del servidor (HTTP ${res.status}). Intenta nuevamente.`;
+          }
+        }
+        throw new Error(errorMsg);
       }
 
-      const data: ScanResponse = await res.json();
+      // Safely parse success response
+      let data: ScanResponse;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('El servidor devolvió una respuesta inválida. Intenta nuevamente.');
+      }
+
       setProgress(95); // Step 4: Procesando resultados
       setScanData(data);
       setProgress(100); // Step 5: Completado
       setActiveTab('results');
       fetchPastScans();
+
+      // Save keywords to localStorage after successful scan
+      saveKeywordsToStorage();
     } catch (err) {
       setProgress(0);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('El escaneo excedió el tiempo límite (90s). Intenta con menos motores de búsqueda.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Error desconocido');
+      }
     } finally {
       setLoading(false);
       // Progress bar stays visible at 100% — no auto-reset
