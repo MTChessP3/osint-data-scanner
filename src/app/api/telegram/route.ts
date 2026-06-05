@@ -174,10 +174,27 @@ export async function POST(request: NextRequest) {
           const updates = updatesData.result || [];
 
           if (updates.length === 0) {
+            // Check if CHAT_ID is already configured via env vars — if so, detection is unnecessary
+            const existingChatId = getChatId();
+            if (existingChatId) {
+              return NextResponse.json({
+                success: true,
+                detectedChats: [{ chatId: parseInt(existingChatId) || 0, type: 'private', firstName: 'Chat ya configurado' }],
+                botUsername: '',
+                totalUpdates: 0,
+                message: 'El Chat ID ya está configurado. No es necesario detectarlo nuevamente.',
+              });
+            }
+
             return NextResponse.json({
               success: false,
-              error: 'No se encontraron mensajes al bot. Por favor envía /start a tu bot en Telegram primero, luego intenta de nuevo.',
-              hint: 'Abre Telegram, busca tu bot por username, y envíale /start',
+              error: 'No se encontraron mensajes recientes al bot. Esto puede ocurrir si:',
+              hints: [
+                '1. No has enviado /start a tu bot — Abre Telegram, busca tu bot y envíale /start',
+                '2. El bot tiene un webhook activo — Los updates se envían al webhook en vez de getUpdates',
+                '3. Los updates fueron consumidos previamente — Los updates solo se leen una vez',
+              ],
+              alternative: 'Configura TELEGRAM_CHAT_ID directamente en Vercel → Settings → Environment Variables. El escaneo de canales funciona independientemente.',
             }, { status: 200 });
           }
 

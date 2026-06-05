@@ -1015,8 +1015,19 @@ export default function Home() {
         const data = await res.json();
         if (data.success && data.detectedChats?.length > 0) {
           setTelegramDetectedChats(data.detectedChats);
+          if (data.message) {
+            // CHAT_ID was already configured — refresh config
+            fetchAlertConfig();
+          }
         } else {
-          setTelegramDetectError(data.error || 'No se detectaron chats. Envía /start a tu bot primero.');
+          const errorParts = [data.error || 'No se detectaron chats'];
+          if (data.hints && Array.isArray(data.hints)) {
+            errorParts.push(...data.hints);
+          }
+          if (data.alternative) {
+            errorParts.push(data.alternative);
+          }
+          setTelegramDetectError(errorParts.join('\n'));
         }
       } else {
         const errData = await res.json().catch(() => ({}));
@@ -2888,81 +2899,97 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Step 2: Detect Chat ID */}
-                <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${telegramHasBotToken ? 'bg-cyan-900/30 text-cyan-400' : 'bg-slate-800 text-slate-500'}`}>2</span>
-                      <span className={`text-xs font-medium ${telegramHasBotToken ? 'text-cyan-300' : 'text-slate-500'}`}>
-                        Paso 2: Detectar Chat ID
-                      </span>
+                {/* Step 2: Detect Chat ID — Only shown when CHAT_ID is NOT yet configured */}
+                {!telegramHasChatId ? (
+                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${telegramHasBotToken ? 'bg-cyan-900/30 text-cyan-400' : 'bg-slate-800 text-slate-500'}`}>2</span>
+                        <span className={`text-xs font-medium ${telegramHasBotToken ? 'text-cyan-300' : 'text-slate-500'}`}>
+                          Paso 2: Detectar Chat ID
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleTelegramDetectChatId}
+                        disabled={telegramDetecting || !telegramHasBotToken}
+                        className="bg-cyan-700 hover:bg-cyan-800 text-white text-[11px] h-7 disabled:opacity-50"
+                      >
+                        {telegramDetecting ? (
+                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Detectando...</>
+                        ) : (
+                          <><ScanLine className="w-3 h-3 mr-1.5" />Detectar Chat ID</>
+                        )}
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={handleTelegramDetectChatId}
-                      disabled={telegramDetecting || !telegramHasBotToken}
-                      className="bg-cyan-700 hover:bg-cyan-800 text-white text-[11px] h-7 disabled:opacity-50"
-                    >
-                      {telegramDetecting ? (
-                        <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Detectando...</>
-                      ) : (
-                        <><ScanLine className="w-3 h-3 mr-1.5" />Detectar Chat ID</>
-                      )}
-                    </Button>
+
+                    {!telegramHasBotToken && (
+                      <p className="text-[10px] text-slate-600">
+                        Completa el Paso 1 primero para habilitar la detección
+                      </p>
+                    )}
+
+                    {telegramHasBotToken && !telegramHasChatId && (
+                      <p className="text-[10px] text-amber-400 bg-amber-950/15 border border-amber-800/20 rounded p-2">
+                        Envía <code className="text-amber-300">/start</code> a tu bot en Telegram antes de detectar. Busca <code className="text-amber-300">@{telegramBotInfo?.username || 'tu_bot'}</code> y envíale un mensaje.
+                      </p>
+                    )}
+
+                    {/* Detected chats — selectable! */}
+                    {telegramDetectedChats.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] text-slate-400">Chats detectados — haz clic para seleccionar como destino de alertas:</p>
+                        {telegramDetectedChats.map((chat, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectChat(chat.chatId)}
+                            className="w-full flex items-center gap-2 p-2 rounded bg-[#111827] border border-[#1e293b] hover:border-cyan-700/50 hover:bg-cyan-950/10 transition-colors text-left cursor-pointer group"
+                          >
+                            <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-emerald-400' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-400' : 'bg-cyan-400'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] text-white font-medium truncate group-hover:text-cyan-300 transition-colors">
+                                {chat.firstName || chat.title || chat.username || 'Sin nombre'}
+                              </p>
+                              <p className="text-[9px] text-slate-500">
+                                Tipo: {chat.type} · ID: <code className="text-amber-400">{chat.chatId}</code>
+                              </p>
+                            </div>
+                            <Badge className={`text-[8px] px-1 py-0 h-4 ${
+                              chat.type === 'private' ? 'bg-emerald-900/40 text-emerald-400' :
+                              chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-900/40 text-violet-400' :
+                              'bg-cyan-900/40 text-cyan-400'
+                            }`}>
+                              {chat.type}
+                            </Badge>
+                            <Check className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 transition-colors shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Detection error */}
+                    {telegramDetectError && (
+                      <div className="flex items-start gap-2 p-2 rounded bg-red-950/15 border border-red-800/20">
+                        <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
+                        <div className="text-[10px] text-red-400 whitespace-pre-line leading-relaxed">{telegramDetectError}</div>
+                      </div>
+                    )}
                   </div>
-
-                  {!telegramHasBotToken && (
-                    <p className="text-[10px] text-slate-600">
-                      Completa el Paso 1 primero para habilitar la detección
-                    </p>
-                  )}
-
-                  {telegramHasBotToken && !telegramHasChatId && (
-                    <p className="text-[10px] text-amber-400 bg-amber-950/15 border border-amber-800/20 rounded p-2">
-                      Envía <code className="text-amber-300">/start</code> a tu bot en Telegram antes de detectar. Busca <code className="text-amber-300">@{telegramBotInfo?.username || 'tu_bot'}</code> y envíale un mensaje.
-                    </p>
-                  )}
-
-                  {/* Detected chats — selectable! */}
-                  {telegramDetectedChats.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-[10px] text-slate-400">Chats detectados — haz clic para seleccionar como destino de alertas:</p>
-                      {telegramDetectedChats.map((chat, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleSelectChat(chat.chatId)}
-                          className="w-full flex items-center gap-2 p-2 rounded bg-[#111827] border border-[#1e293b] hover:border-cyan-700/50 hover:bg-cyan-950/10 transition-colors text-left cursor-pointer group"
-                        >
-                          <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-emerald-400' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-400' : 'bg-cyan-400'}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] text-white font-medium truncate group-hover:text-cyan-300 transition-colors">
-                              {chat.firstName || chat.title || chat.username || 'Sin nombre'}
-                            </p>
-                            <p className="text-[9px] text-slate-500">
-                              Tipo: {chat.type} · ID: <code className="text-amber-400">{chat.chatId}</code>
-                            </p>
-                          </div>
-                          <Badge className={`text-[8px] px-1 py-0 h-4 ${
-                            chat.type === 'private' ? 'bg-emerald-900/40 text-emerald-400' :
-                            chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-900/40 text-violet-400' :
-                            'bg-cyan-900/40 text-cyan-400'
-                          }`}>
-                            {chat.type}
-                          </Badge>
-                          <Check className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 transition-colors shrink-0" />
-                        </button>
-                      ))}
+                ) : (
+                  /* Chat ID already configured — show confirmation */
+                  <div className="p-3 rounded-lg bg-emerald-950/10 border border-emerald-800/20 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="text-xs font-medium text-emerald-300">Chat ID Configurado</span>
+                      <Badge className="bg-emerald-900/30 text-emerald-400 border border-emerald-800/30 text-[9px] ml-auto">
+                        {telegramChatIdSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
+                      </Badge>
                     </div>
-                  )}
-
-                  {/* Detection error */}
-                  {telegramDetectError && (
-                    <div className="flex items-start gap-2 p-2 rounded bg-red-950/15 border border-red-800/20">
-                      <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
-                      <p className="text-[10px] text-red-400">{telegramDetectError}</p>
-                    </div>
-                  )}
-                </div>
+                    <p className="text-[10px] text-slate-500">
+                      Las alertas se enviarán automáticamente al chat configurado cuando se detecten coincidencias de palabras clave.
+                    </p>
+                  </div>
+                )}
 
                 {/* Action buttons */}
                 <div className="flex gap-2">
