@@ -28,3 +28,54 @@ Stage Summary:
 - Channels with matches: ciberseguridad, Group_IB, seguridadinformatica, notoscam, hackplayers, PasaenBogotaSrBacca, EnZonaBX, bancolombia, GrupoBancolombia
 - Build successful, pushed to GitHub (2 commits)
 - Vercel auto-deploys on push
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Telegram Avanzado motor de búsqueda - Reemplazar DuckDuckGo roto con motor de escaneo avanzado
+
+Work Log:
+- Diagnosed root cause: DuckDuckGo HTML scraping blocked from Vercel serverless IPs
+- Previous Telegram XTEA engine only searched for usernames/profiles, NOT message content
+- No actual Telegram message scanning engine existed
+- Alert interceptor was being called but never found keyword matches in Telegram messages
+
+- Created new engine: src/lib/engines/telegram-advanced-scanner.ts
+  - Layer 1: Scrapes t.me/s/{channel} public preview pages (works from Vercel serverless)
+  - Layer 2: Discovers channels via Z.ai SDK web search + Google CSE API
+  - Layer 3: Normalized keyword matching (exact/partial/compound detection)
+  - 30+ known fraud/abuse monitoring channels included
+  - In-memory alert storage (last 200 alerts, survives warm instances)
+  - Severity auto-classification based on keyword category and match type
+
+- Updated src/lib/alert-keywords.ts with full mandatory keyword matrix:
+  - 7 categories: Identidad Corporativa, Marcas y Subsidiarias, Fraude Financiero,
+    Malware/Bypass, Ciberdelincuencia, Cuentas/Lavado, Formato/Logs
+  - 50+ keywords covering all user-specified vectors
+  - Text normalization (lowercase, NFD, accent removal, special char cleanup)
+  - matchKeywordAdvanced() returns ALL matches with category info and match type
+  - ensureKeywordsInitialized() merges mandatory matrix on first use
+  - getKeywordsByCategory() for frontend display
+
+- Created API: src/app/api/telegram/scan-advanced/route.ts
+  - GET: Retrieve current detected alerts + keyword categories
+  - POST: Trigger advanced scan with 50s timeout protection
+  - DELETE: Clear detected alerts
+
+- Updated frontend (src/app/page.tsx):
+  - New "Escanear Telegram Ahora" button with gradient styling
+  - Alertas Detectadas section with severity badges, match type indicators
+  - Scan summary grid (channels, messages, alerts, duration)
+  - Keywords by category display in management panel
+  - Alert History tab shows Telegram Advanced alerts alongside legacy alerts
+  - Direct "Ver en Telegram" links to t.me messages
+  - "Escanear Telegram Ahora" button in empty Alert History state
+
+- Deployed to GitHub: commit 366432b, auto-deploys to Vercel
+
+Stage Summary:
+- Core bug fixed: New Telegram Advanced Scanner replaces broken DuckDuckGo approach
+- Keyword matrix fully implemented with 7 attack vector categories
+- Real-time alerts with message ID, channel, text, keyword, timestamp
+- Dynamic keyword management (add/edit/delete) in Telegram Avanzado UI
+- Text normalization prevents false negatives from accent/case variations
+- Compound detection: brand + fraud keyword combinations trigger higher severity
