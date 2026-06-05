@@ -122,3 +122,27 @@ Stage Summary:
 - When CHAT_ID not configured and detection fails: Clear multi-line error with 3 possible causes and alternative
 - Backend returns success if CHAT_ID already exists via env vars even when getUpdates returns empty
 - Deployed to Vercel as commit ed16f65
+---
+Task ID: 1
+Agent: main
+Task: Fix Telegram keyword scanner - replace broken search with dynamic channel discovery + keyword highlighting
+
+Work Log:
+- Read current scan_groups implementation in /api/telegram/route.ts (3 methods: Z.ai search, hardcoded channel scraping, bot polling)
+- Identified root cause: Z.ai search queries were too narrow; hardcoded channel list missed most channels; scraping only 12 channels
+- Rewrote scan_groups to use 3-phase approach:
+  Phase 1: Z.ai web search with 4 query variants per keyword to DISCOVER channels dynamically
+  Phase 2: Scrape discovered + known channel t.me/s/ preview pages (up to 20 parallel) for actual messages
+  Phase 3: Bot polling (unchanged, with deleteWebhook fix)
+- Added matchedKeyword, matchedContext, messageId fields to alert objects
+- Added highlightKeywordInText() helper in frontend to highlight matched keywords with amber background
+- Updated Alertas Encontradas section to show full message text with highlighted keywords
+- Updated compact alert list in Escaneo tab with keyword highlighting
+- Updated "how it works" descriptions to reflect 3-phase approach
+- Better deduplication by keyword+messageText instead of keyword+sourceName
+- Build succeeded, pushed to GitHub/Vercel
+
+Stage Summary:
+- Complete rewrite of scan engine with dynamic channel discovery via Z.ai web search
+- Frontend now highlights keywords in message text with amber background
+- Deployed to Vercel via git push
