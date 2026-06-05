@@ -79,3 +79,25 @@ Stage Summary:
 - Dynamic keyword management (add/edit/delete) in Telegram Avanzado UI
 - Text normalization prevents false negatives from accent/case variations
 - Compound detection: brand + fraud keyword combinations trigger higher severity
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Make Telegram alert cards and metric cards clickable with detail modals
+
+Work Log:
+- Analyzed uploaded screenshot with VLM to identify the red-highlighted non-interactive elements
+- Identified 4 metric cards (Canales, Mensajes, Alertas, Duración) and alert entry cards as non-interactive
+- Added `tgAlertDetail` state for Telegram alert detail modal
+- Made all 4 metric cards clickable with cursor-pointer, hover effects, and onClick handlers that open detailModal with relevant information
+- Made alert entries in main section clickable with hover brightness effect and onClick to open tgAlertDetail modal
+- Made alert entries in Alertas tab clickable with same pattern
+- Added comprehensive tgAlertDetail Dialog with: severity badge, channel info, match info with explanations, full message text (scrollable), metadata (message ID, timestamp, alert sent status, severity), and action buttons (Ver en Telegram, Cerrar)
+- Added e.stopPropagation() on "Ver en Telegram" links to prevent parent click from firing
+- Committed and pushed to Vercel deployment
+
+Stage Summary:
+- All metric cards and alert entries are now interactive and clickable
+- Clicking a metric card shows relevant breakdown info in detailModal
+- Clicking an alert entry shows full details in a dedicated tgAlertDetail modal
+- Changes deployed to Vercel via git push
