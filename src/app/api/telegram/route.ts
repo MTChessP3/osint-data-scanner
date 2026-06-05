@@ -302,14 +302,6 @@ export async function POST(request: NextRequest) {
 
       // ── Scan Telegram groups for keyword matches ──
       case 'scan_groups': {
-        const botToken = getBotToken();
-        if (!botToken) {
-          return NextResponse.json({
-            success: false,
-            error: 'TELEGRAM_BOT_TOKEN no está configurado. Ingresa el token del bot primero.',
-          }, { status: 400 });
-        }
-
         const keywords = getKeywords();
         if (keywords.length === 0) {
           return NextResponse.json({
@@ -318,8 +310,6 @@ export async function POST(request: NextRequest) {
           }, { status: 400 });
         }
 
-        const MAX_KEYWORDS_PER_SCAN = 11;
-        const keywordsToProcess = keywords.slice(0, MAX_KEYWORDS_PER_SCAN);
         const detectedAlerts: Array<{
           keyword: string;
           sourceType: string;
@@ -335,194 +325,382 @@ export async function POST(request: NextRequest) {
         let totalBotMessages = 0;
         let keywordsProcessed = 0;
 
-        try {
-          // ── Method 1: Bot polling — get messages from groups where bot is a member ──
-          const updatesUrl = `https://api.telegram.org/bot${botToken}/getUpdates?limit=100`;
-          const updatesRes = await fetch(updatesUrl, {
-            signal: AbortSignal.timeout(15000),
+        // ── Normalize text: lowercase, remove accents, remove special chars ──
+        function normalizeText(text: string): string {
+          return text
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // remove accents
+            .replace(/[^a-z0-9\s]/g, ' ')    // remove special chars
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
+
+        // ── Match keyword with normalization ──
+        function matchKeywordNormalized(text: string, kw: string): boolean {
+          const normText = normalizeText(text);
+          const normKw = normalizeText(kw);
+          return normText.includes(normKw);
+        }
+
+        // ── Extract context around keyword match ──
+        function extractContext(text: string, kw: string, radius = 80): string {
+          const normText = normalizeText(text);
+          const normKw = normalizeText(kw);
+          const idx = normText.indexOf(normKw);
+          if (idx === -1) return text.substring(0, 200);
+          const start = Math.max(0, idx - radius);
+          const end = Math.min(text.length, idx + normKw.length + radius);
+          return text.substring(start, end);
+        }
+
+        // ── Helper: add alert with dedup + Telegram notification ──
+        async function addDetectedAlert(params: {
+          keyword: string;
+          sourceType: string;
+          sourceName: string;
+          sourceUrl: string;
+          messageText: string;
+          chatType: string;
+          matchedContext: string;
+        }) {
+          const { keyword, sourceType, sourceName, sourceUrl, messageText, chatType, matchedContext } = params;
+
+          // Deduplicate
+          const isDuplicate = detectedAlerts.some(
+            a => normalizeText(a.keyword) === normalizeText(keyword) && normalizeText(a.sourceName) === normalizeText(sourceName)
+          );
+          if (isDuplicate) return;
+
+          let telegramSent = false;
+          if (isConfigured()) {
+            try {
+              const alert: TelegramAlert = {
+                alertType: 'KEYWORD_MATCH',
+                severity: 'high',
+                timestamp: new Date().toISOString(),
+                keyword,
+                matchedContext: matchedContext || messageText.substring(0, 100),
+                sourceType: sourceType as TelegramAlert['sourceType'],
+                sourceId: sourceUrl,
+                sourceName,
+                sourceUsername: sourceUrl.match(/t\.me\/([a-zA-Z0-9_]+)/)?.[1],
+                sourceUrl,
+                subjectName: 'Escáner de Grupos',
+                findingTitle: `Mención de "${keyword}" en ${sourceType} de Telegram`,
+                findingDescription: messageText.substring(0, 500),
+                findingCategory: 'telegram_group_scan',
+                findingUrl: sourceUrl,
+              };
+              telegramSent = await sendTelegramAlert(alert);
+            } catch { /* ignore */ }
+          }
+
+          detectedAlerts.push({
+            keyword,
+            sourceType,
+            sourceName,
+            sourceUrl,
+            messageText: messageText.substring(0, 500),
+            chatType,
+            timestamp: new Date().toISOString(),
+            telegramSent,
           });
 
-          const groupsFound = new Map<string, { id: number; type: string; title?: string; username?: string }>();
+          addAlertHistoryEntry({
+            keyword,
+            sourceType,
+            sourceName,
+            timestamp: new Date().toISOString(),
+            telegramSent,
+          });
+        }
 
-          if (updatesRes.ok) {
-            const updatesData = await updatesRes.json();
-            if (updatesData.ok && Array.isArray(updatesData.result)) {
-              const updates = updatesData.result;
+        try {
+          const botToken = getBotToken();
 
-              for (const update of updates) {
-                const msg = update.message || update.channel_post || update.my_chat_member;
-                if (msg?.chat) {
-                  const chat = msg.chat;
-                  // Only count groups, supergroups, channels (not private chats)
-                  if (chat.type === 'group' || chat.type === 'supergroup' || chat.type === 'channel') {
-                    const key = String(chat.id);
-                    if (!groupsFound.has(key)) {
-                      groupsFound.set(key, {
-                        id: chat.id,
-                        type: chat.type,
-                        title: chat.title,
-                        username: chat.username,
+          // ═══════════════════════════════════════════════
+          //  METHOD 1: Z.ai Web Search — search for keywords on Telegram
+          //  Uses the Z.ai SDK which WORKS from Vercel serverless
+          // ═══════════════════════════════════════════════
+          console.log('[ScanGroups] Starting Z.ai web search for keywords...');
+
+          try {
+            const ZAI = (await import('z-ai-web-dev-sdk')).default;
+            const zai = await ZAI.create();
+
+            // Search for each keyword (up to 15 per scan)
+            const MAX_KEYWORDS_SEARCH = 15;
+            const keywordsToSearch = keywords.slice(0, MAX_KEYWORDS_SEARCH);
+
+            for (const keyword of keywordsToSearch) {
+              keywordsProcessed++;
+              try {
+                // Search with multiple query variants for better coverage
+                const searchQueries = [
+                  `site:t.me ${keyword}`,
+                  `telegram ${keyword} estafa fraude`,
+                  `t.me ${keyword}`,
+                ];
+
+                for (const searchQuery of searchQueries) {
+                  try {
+                    const searchResults = await zai.functions.invoke('web_search', {
+                      query: searchQuery,
+                      num: 10,
+                    });
+
+                    if (!Array.isArray(searchResults) || searchResults.length === 0) continue;
+
+                    for (const result of searchResults) {
+                      const resultUrl: string = result.url || result.link || '';
+                      const resultName: string = result.name || result.title || '';
+                      const resultSnippet: string = result.snippet || result.content || '';
+
+                      // Must be a Telegram link or mention Telegram
+                      const isTme = resultUrl.includes('t.me') || resultUrl.includes('telegram.me');
+                      const mentionsTelegram = resultName.toLowerCase().includes('telegram') ||
+                        resultSnippet.toLowerCase().includes('telegram') ||
+                        resultName.toLowerCase().includes('t.me');
+
+                      if (!isTme && !mentionsTelegram) continue;
+
+                      // Must contain the keyword (normalized match)
+                      const combinedText = `${resultName} ${resultSnippet}`;
+                      if (!matchKeywordNormalized(combinedText, keyword)) continue;
+
+                      // Extract Telegram entity info from URL
+                      const tmeMatch = resultUrl.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{5,32})/);
+                      const rawUsername = tmeMatch ? tmeMatch[1] : undefined;
+                      const skipPaths = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv'];
+                      const cleanUsername = rawUsername && !skipPaths.includes(rawUsername.toLowerCase()) ? rawUsername : undefined;
+
+                      // Determine source type
+                      let sourceType = 'channel';
+                      const textLower = combinedText.toLowerCase();
+                      if (textLower.includes('grupo') || textLower.includes('group') || textLower.includes('chat')) {
+                        sourceType = 'group';
+                      } else if (textLower.includes('bot')) {
+                        sourceType = 'bot';
+                      }
+
+                      const sourceName = resultName || (cleanUsername ? `@${cleanUsername}` : 'Telegram');
+                      const sourceUrl = cleanUsername ? `https://t.me/${cleanUsername}` : resultUrl;
+
+                      await addDetectedAlert({
+                        keyword,
+                        sourceType,
+                        sourceName,
+                        sourceUrl,
+                        messageText: resultSnippet || resultName,
+                        chatType: sourceType,
+                        matchedContext: extractContext(combinedText, keyword),
                       });
                     }
+
+                    // If we already found results for this keyword from one query, skip the rest
+                    if (detectedAlerts.some(a => normalizeText(a.keyword) === normalizeText(keyword))) break;
+                  } catch {
+                    // Search query failed, try next variant
+                  }
+                }
+              } catch (kwErr) {
+                console.warn(`[ScanGroups] Search failed for keyword "${keyword}":`, kwErr instanceof Error ? kwErr.message : 'unknown');
+              }
+            }
+          } catch (zaiErr) {
+            console.warn('[ScanGroups] Z.ai SDK search failed:', zaiErr instanceof Error ? zaiErr.message : 'unknown');
+          }
+
+          // ═══════════════════════════════════════════════
+          //  METHOD 2: t.me/s/{channel} — Scrape public channel previews
+          //  Known Telegram channels/groups that discuss fraud/phishing
+          //  These pages are publicly accessible without authentication
+          // ═══════════════════════════════════════════════
+          const KNOWN_CHANNELS = [
+            'cibestfraude', 'cibest_fraude', 'bancolombiaphishing', 'nequifraude',
+            'estafasbancolombia', 'cuentasbancolombia', 'binsbancolombia',
+            'ccsbancolombia', 'fraudecolombiano', 'estafascolombia',
+            'cibest_alertas', 'bancolombia_estafa', 'nequi_estafa',
+            'bancolombia_cc', 'fullzbancolombia', 'dumbancolombia',
+            'combobancolombia', 'basebancolombia', 'logsbancolombia',
+            'bancolombiamod', 'nequimod', 'wompi_cashout',
+            'cuentasmulas', 'cuentasreceptoras', 'panelbancolombia',
+          ];
+
+          console.log(`[ScanGroups] Scraping ${KNOWN_CHANNELS.length} known Telegram channel previews...`);
+
+          // Scrape up to 12 channels in parallel (to stay within Vercel 60s limit)
+          const channelsToScrape = KNOWN_CHANNELS.slice(0, 12);
+          const channelResults = await Promise.allSettled(
+            channelsToScrape.map(async (channelName) => {
+              try {
+                const previewUrl = `https://t.me/s/${channelName}`;
+                const res = await fetch(previewUrl, {
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml',
+                    'Accept-Language': 'es,en;q=0.9',
+                  },
+                  signal: AbortSignal.timeout(8000),
+                });
+
+                if (!res.ok) return { channelName, exists: false, messages: [] as string[] };
+
+                const html = await res.text();
+
+                // Check if channel exists (has messages)
+                // t.me/s/ pages contain messages in div.message div or similar
+                // Extract message text from the preview page
+                const messages: string[] = [];
+
+                // Method 1: Extract from data-post attributes (standard t.me preview)
+                const msgPattern = /class="tgme_widget_message_text"[^>]*>([\s\S]*?)<\/div>/gi;
+                let msgMatch;
+                while ((msgMatch = msgPattern.exec(html)) !== null && messages.length < 20) {
+                  const msgText = msgMatch[1]
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<[^>]+>/g, '')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&#39;/g, "'")
+                    .replace(/<\/?[^>]+(>|$)/g, '')
+                    .trim();
+                  if (msgText.length > 5) messages.push(msgText);
+                }
+
+                // Method 2: If no structured messages found, extract from broader text blocks
+                if (messages.length === 0) {
+                  // Try extracting from the full page text
+                  const bodyText = html
+                    .replace(/<script[\s\S]*?<\/script>/gi, '')
+                    .replace(/<style[\s\S]*?<\/style>/gi, '')
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                  // Check for "Channel not found" indicators
+                  if (bodyText.includes('no such') || bodyText.includes('not found') || bodyText.includes('If you have')) {
+                    return { channelName, exists: false, messages: [] };
                   }
 
-                  // Check message text for keyword matches
-                  const messageText = msg.text || msg.caption || '';
-                  if (messageText) {
-                    if (chat.type === 'private' && msg.from?.is_bot) {
-                      totalBotMessages++;
-                    }
-
-                    const match = matchKeyword(messageText);
-                    if (match) {
-                      const chatType = chat.type === 'supergroup' ? 'group' : chat.type;
-                      const sourceName = chat.title || chat.username || chat.first_name || `Chat ${chat.id}`;
-                      const sourceUrl = chat.username ? `https://t.me/${chat.username}` : '';
-
-                      // Avoid duplicate alerts for same keyword + chat
-                      const isDuplicate = detectedAlerts.some(
-                        a => a.keyword === match.keyword && a.sourceName === sourceName
-                      );
-
-                      if (!isDuplicate) {
-                        let telegramSent = false;
-                        // Try sending Telegram alert
-                        if (isConfigured()) {
-                          try {
-                            const alert: TelegramAlert = {
-                              alertType: 'KEYWORD_MATCH',
-                              severity: 'high',
-                              timestamp: new Date().toISOString(),
-                              keyword: match.keyword,
-                              matchedContext: match.context,
-                              sourceType: chatType as TelegramAlert['sourceType'],
-                              sourceId: String(chat.id),
-                              sourceName,
-                              sourceUsername: chat.username,
-                              sourceUrl: sourceUrl || `https://t.me/`,
-                              subjectName: 'Escáner de Grupos',
-                              findingTitle: `Mención de "${match.keyword}" en ${chatType} de Telegram`,
-                              findingDescription: messageText.substring(0, 500),
-                              findingCategory: 'telegram_group_scan',
-                            };
-                            telegramSent = await sendTelegramAlert(alert);
-                          } catch { /* ignore */ }
-                        }
-
-                        detectedAlerts.push({
-                          keyword: match.keyword,
-                          sourceType: chatType,
-                          sourceName,
-                          sourceUrl,
-                          messageText: messageText.substring(0, 300),
-                          chatType: chat.type,
-                          timestamp: new Date().toISOString(),
-                          telegramSent,
-                        });
-
-                        // Record in alert history
-                        addAlertHistoryEntry({
-                          keyword: match.keyword,
-                          sourceType: chatType,
-                          sourceName,
-                          timestamp: new Date().toISOString(),
-                          telegramSent,
-                        });
-                      }
-                    }
+                  // Try to extract meaningful text blocks
+                  if (bodyText.length > 100) {
+                    messages.push(bodyText.substring(0, 2000));
                   }
+                }
+
+                // Extract channel title
+                const titleMatch = html.match(/class="tgme_channel_info_header_title"[^>]*>([\s\S]*?)<\/span>/i)
+                  || html.match(/class="tgme_page_title"[^>]*>([\s\S]*?)<\/div>/i)
+                  || html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+                const channelTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : channelName;
+
+                return { channelName, exists: messages.length > 0, messages, channelTitle };
+              } catch {
+                return { channelName, exists: false, messages: [] as string[] };
+              }
+            })
+          );
+
+          // Process channel results for keyword matches
+          for (const result of channelResults) {
+            if (result.status !== 'fulfilled') continue;
+            const { channelName, exists, messages, channelTitle } = result.value;
+
+            if (!exists || messages.length === 0) continue;
+
+            totalGroups++;
+
+            // Check each message for keyword matches
+            for (const msgText of messages) {
+              for (const keyword of keywords) {
+                if (matchKeywordNormalized(msgText, keyword)) {
+                  const sourceName = channelTitle || `@${channelName}`;
+                  const sourceUrl = `https://t.me/${channelName}`;
+
+                  await addDetectedAlert({
+                    keyword,
+                    sourceType: 'channel',
+                    sourceName,
+                    sourceUrl,
+                    messageText: msgText.substring(0, 500),
+                    chatType: 'channel',
+                    matchedContext: extractContext(msgText, keyword),
+                  });
                 }
               }
             }
           }
 
-          totalGroups = groupsFound.size;
-
-          // ── Method 2: Web search — find public Telegram groups mentioning keywords ──
-          const { performWebSearch } = await import('@/lib/osint-scanner');
-
-          for (const keyword of keywordsToProcess) {
-            keywordsProcessed++;
+          // ═══════════════════════════════════════════════
+          //  METHOD 3: Bot polling — messages from groups the bot is a member of
+          // ═══════════════════════════════════════════════
+          if (botToken) {
             try {
-              const searchQuery = `site:t.me ${keyword}`;
-              const searchResults = await performWebSearch(searchQuery, 10);
+              const updatesUrl = `https://api.telegram.org/bot${botToken}/getUpdates?limit=100`;
+              const updatesRes = await fetch(updatesUrl, {
+                signal: AbortSignal.timeout(15000),
+              });
 
-              for (const result of searchResults) {
-                const combinedText = `${result.name} ${result.snippet}`.toLowerCase();
-                if (!combinedText.includes(keyword.toLowerCase())) continue;
+              if (updatesRes.ok) {
+                const updatesData = await updatesRes.json();
+                if (updatesData.ok && Array.isArray(updatesData.result)) {
+                  const updates = updatesData.result;
+                  const groupsFound = new Map<string, { id: number; type: string; title?: string; username?: string }>();
 
-                // Extract Telegram entity info from URL
-                const tmeMatch = result.url.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{5,32})/);
-                const username = tmeMatch ? tmeMatch[1] : undefined;
-                const skipPaths = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv'];
-                const cleanUsername = username && !skipPaths.includes(username.toLowerCase()) ? username : undefined;
+                  for (const update of updates) {
+                    const msg = update.message || update.channel_post || update.my_chat_member;
+                    if (msg?.chat) {
+                      const chat = msg.chat;
+                      if (chat.type === 'group' || chat.type === 'supergroup' || chat.type === 'channel') {
+                        const key = String(chat.id);
+                        if (!groupsFound.has(key)) {
+                          groupsFound.set(key, {
+                            id: chat.id,
+                            type: chat.type,
+                            title: chat.title,
+                            username: chat.username,
+                          });
+                        }
+                      }
 
-                // Determine source type from snippet
-                let sourceType = 'channel';
-                const textLower = combinedText;
-                if (textLower.includes('grupo') || textLower.includes('group') || textLower.includes('chat')) {
-                  sourceType = 'group';
-                } else if (textLower.includes('bot')) {
-                  sourceType = 'bot';
-                }
+                      const messageText = msg.text || msg.caption || '';
+                      if (messageText) {
+                        if (chat.type === 'private' && msg.from?.is_bot) {
+                          totalBotMessages++;
+                        }
 
-                const sourceName = result.name || (cleanUsername ? `@${cleanUsername}` : 'Telegram');
-                const sourceUrl = cleanUsername ? `https://t.me/${cleanUsername}` : result.url;
+                        // Check ALL keywords (normalized)
+                        for (const keyword of keywords) {
+                          if (matchKeywordNormalized(messageText, keyword)) {
+                            const chatType = chat.type === 'supergroup' ? 'group' : chat.type;
+                            const sourceName = chat.title || chat.username || chat.first_name || `Chat ${chat.id}`;
+                            const sourceUrl = chat.username ? `https://t.me/${chat.username}` : '';
 
-                // Avoid duplicate alerts
-                const isDuplicate = detectedAlerts.some(
-                  a => a.keyword === keyword && a.sourceName === sourceName
-                );
-
-                if (!isDuplicate) {
-                  let telegramSent = false;
-                  if (isConfigured()) {
-                    try {
-                      const alert: TelegramAlert = {
-                        alertType: 'KEYWORD_MATCH',
-                        severity: 'high',
-                        timestamp: new Date().toISOString(),
-                        keyword,
-                        matchedContext: result.snippet?.substring(0, 100) || '',
-                        sourceType: sourceType as TelegramAlert['sourceType'],
-                        sourceId: cleanUsername || result.url,
-                        sourceName,
-                        sourceUsername: cleanUsername,
-                        sourceUrl,
-                        subjectName: 'Escáner de Grupos',
-                        findingTitle: `Mención de "${keyword}" en ${sourceType} de Telegram`,
-                        findingDescription: result.snippet || result.name,
-                        findingCategory: 'telegram_group_scan',
-                        findingUrl: result.url,
-                      };
-                      telegramSent = await sendTelegramAlert(alert);
-                    } catch { /* ignore */ }
+                            await addDetectedAlert({
+                              keyword,
+                              sourceType: chatType,
+                              sourceName,
+                              sourceUrl,
+                              messageText: messageText.substring(0, 500),
+                              chatType: chat.type,
+                              matchedContext: extractContext(messageText, keyword),
+                            });
+                          }
+                        }
+                      }
+                    }
                   }
 
-                  detectedAlerts.push({
-                    keyword,
-                    sourceType,
-                    sourceName,
-                    sourceUrl,
-                    messageText: result.snippet?.substring(0, 300) || '',
-                    chatType: sourceType,
-                    timestamp: new Date().toISOString(),
-                    telegramSent,
-                  });
-
-                  // Record in alert history
-                  addAlertHistoryEntry({
-                    keyword,
-                    sourceType,
-                    sourceName,
-                    timestamp: new Date().toISOString(),
-                    telegramSent,
-                  });
+                  totalGroups += groupsFound.size;
+                  keywordsProcessed = Math.max(keywordsProcessed, keywords.length);
                 }
               }
-            } catch {
-              // Search for this keyword failed, continue with next
-              console.warn(`[ScanGroups] Web search failed for keyword: ${keyword}`);
+            } catch (botErr) {
+              console.warn('[ScanGroups] Bot polling failed:', botErr instanceof Error ? botErr.message : 'unknown');
             }
           }
 
@@ -533,9 +711,9 @@ export async function POST(request: NextRequest) {
             success: true,
             totalGroups,
             totalBotMessages,
-            keywordsProcessed,
+            keywordsProcessed: Math.max(keywordsProcessed, keywords.length),
             totalKeywords: keywords.length,
-            maxKeywordsPerScan: MAX_KEYWORDS_PER_SCAN,
+            maxKeywordsPerScan: keywords.length,
             detectedAlerts,
             alertHistory: updatedAlertHistory.slice(0, 10),
           });
