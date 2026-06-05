@@ -339,6 +339,42 @@ function RiskGauge({ score, label, color }: { score: number; label: string; colo
 // ══════════════════════════════════════════════════════════
 
 export default function Home() {
+  // ── Helper: highlight keyword in text with React span ──
+  function highlightKeywordInText(text: string, keyword: string): JSX.Element | string {
+    if (!keyword || !text) return text;
+    const normText = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ');
+    const normKw = keyword.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').trim();
+    const idx = normText.indexOf(normKw);
+    if (idx === -1) return text;
+
+    // Map normalized index back to original text (approximate)
+    let origStart = -1;
+    let normPos = 0;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
+      if (normPos === idx) { origStart = i; break; }
+      normPos += ch.length;
+    }
+    if (origStart === -1) return text;
+
+    // Find end position
+    let origEnd = origStart;
+    let matchLen = 0;
+    while (origEnd < text.length && matchLen < normKw.length) {
+      const ch = text[origEnd].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ');
+      matchLen += ch.length || (normKw[matchLen] === ' ' ? 1 : 0);
+      origEnd++;
+    }
+
+    return (
+      <>
+        {text.substring(0, origStart)}
+        <span className="bg-amber-500/30 text-amber-300 font-bold px-0.5 rounded">{text.substring(origStart, origEnd)}</span>
+        {text.substring(origEnd)}
+      </>
+    );
+  }
+
   // ── Auth session state ──
   const [authUser, setAuthUser] = useState<{ username: string; email?: string; role: string } | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -493,6 +529,9 @@ export default function Home() {
     keywordsProcessed: number;
     totalKeywords: number;
     maxKeywordsPerScan: number;
+    channelsDiscovered?: number;
+    channelsScraped?: number;
+    zaiSearchUsed?: boolean;
     detectedAlerts: Array<{
       keyword: string;
       sourceType: string;
@@ -502,6 +541,9 @@ export default function Home() {
       chatType: string;
       timestamp: string;
       telegramSent: boolean;
+      matchedKeyword?: string;
+      matchedContext?: string;
+      messageId?: string;
     }>;
   } | null>(null);
   const [groupScanError, setGroupScanError] = useState<string | null>(null);
@@ -2778,7 +2820,7 @@ export default function Home() {
                       </Badge>
                     </div>
                     <p className="text-[10px] text-slate-500">
-                      Escanea grupos y canales de Telegram buscando menciones de las palabras clave configuradas. Se usan 2 métodos: (1) Bot polling — mensajes en grupos donde el bot es miembro, y (2) Búsqueda web — grupos públicos de Telegram.
+                      Escanea grupos y canales de Telegram buscando menciones de las palabras clave configuradas. 3 fases: (1) Búsqueda web Z.ai para descubrir canales, (2) Scraping de vistas previas públicas para leer mensajes, (3) Bot polling. La palabra clave se resalta en los hallazgos.
                     </p>
                     <Button
                       onClick={handleScanGroups}
@@ -2840,15 +2882,16 @@ export default function Home() {
                                 : alert.sourceType === 'bot' ? 'bg-orange-900/30 text-orange-400 border-orange-800/30'
                                 : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
                                 : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                              const kw = alert.matchedKeyword || alert.keyword;
                               return (
-                                <div key={idx} className="p-2 rounded-lg bg-[#111827] border border-[#1e293b] hover:border-[#2a3a5a] transition-colors">
+                                <div key={idx} className="p-2 rounded-lg bg-[#111827] border border-[#1e293b] hover:border-amber-800/40 transition-colors">
                                   <div className="flex items-center gap-1.5 mb-1">
                                     {alert.telegramSent ? (
                                       <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
                                     ) : (
                                       <XCircle className="w-3 h-3 text-red-400 shrink-0" />
                                     )}
-                                    <span className="text-[11px] font-mono text-amber-400 font-medium">{alert.keyword}</span>
+                                    <span className="bg-amber-500/20 text-amber-400 font-mono font-bold text-[10px] px-1 py-0.5 rounded">{kw}</span>
                                     <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${badgeColor}`}>
                                       {sourceBadge}
                                     </Badge>
@@ -2858,7 +2901,7 @@ export default function Home() {
                                   </div>
                                   <p className="text-[10px] text-slate-400 truncate">{alert.sourceName}</p>
                                   {alert.messageText && (
-                                    <p className="text-[10px] text-slate-600 line-clamp-1">{alert.messageText}</p>
+                                    <p className="text-[10px] text-slate-500 line-clamp-2">{highlightKeywordInText(alert.messageText.substring(0, 200), kw)}</p>
                                   )}
                                   {alert.sourceUrl && (
                                     <a href={alert.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-cyan-400 hover:text-cyan-300 truncate block mt-0.5">
@@ -2878,9 +2921,7 @@ export default function Home() {
                 {/* Info about how it works */}
                 <div className="p-3 rounded-lg bg-slate-900/30 border border-[#1e293b]">
                   <p className="text-[10px] text-slate-500 leading-relaxed">
-                    <strong className="text-slate-400">¿Cómo funciona?</strong> Cuando se ejecuta un escaneo OSINT y los resultados contienen palabras clave de la Lista Negra (pestaña Alertas),
-                    el sistema envía automáticamente una alerta formateada a Telegram con los detalles del hallazgo, la fuente y la severidad.
-                    La auto-detección consulta la API de Telegram (<code className="text-cyan-400">getUpdates</code>) para identificar los chats donde el bot tiene conversaciones activas.
+                    <strong className="text-slate-400">¿Cómo funciona?</strong> El escaneo usa 3 fases: (1) <strong className="text-cyan-400/80">Búsqueda web Z.ai</strong> — busca cada palabra clave en la web para descubrir canales de Telegram relevantes; (2) <strong className="text-cyan-400/80">Scraping de canales</strong> — accede a las páginas de vista previa públicas (t.me/s/) de los canales descubiertos y conocidos para extraer mensajes reales; (3) <strong className="text-cyan-400/80">Bot polling</strong> — lee mensajes de grupos donde el bot es miembro. La palabra clave encontrada se resalta en los resultados.
                   </p>
                   <p className="text-[10px] text-slate-600 mt-1.5">
                     <strong>Configuración persistente:</strong> Para que la configuración sobreviva reinicios del servidor, agrega <code className="text-cyan-600">TELEGRAM_BOT_TOKEN</code> y <code className="text-cyan-600">TELEGRAM_CHAT_ID</code> como Environment Variables en Vercel Dashboard → Settings.
@@ -3875,7 +3916,7 @@ export default function Home() {
 
                     {/* How it works explanation */}
                     <p className="text-xs text-slate-600">
-                      El escaneo usa 2 métodos: (1) Bot polling — mensajes en grupos donde el bot es miembro, y (2) Búsqueda web — grupos públicos de Telegram que mencionan las palabras clave. No necesitas agregar el bot a todos los grupos.
+                      El escaneo usa 3 fases: (1) Búsqueda web Z.ai para descubrir canales, (2) Scraping de canales t.me/s/ para leer mensajes reales, (3) Bot polling para grupos donde el bot es miembro. Las palabras clave se resaltan en los resultados.
                     </p>
                   </div>
                 )}
@@ -3975,11 +4016,18 @@ export default function Home() {
                     <Bell className="w-5 h-5 text-red-400" />
                     Alertas Encontradas
                   </CardTitle>
-                  {groupScanResults && groupScanResults.detectedAlerts.length > 0 && (
-                    <Badge className="bg-red-900/40 text-red-400 text-[10px]">
-                      {groupScanResults.detectedAlerts.length}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {groupScanResults?.channelsDiscovered !== undefined && (
+                      <Badge className="bg-cyan-900/40 text-cyan-400 text-[10px]">
+                        {groupScanResults.channelsDiscovered} canales descubiertos
+                      </Badge>
+                    )}
+                    {groupScanResults && groupScanResults.detectedAlerts.length > 0 && (
+                      <Badge className="bg-red-900/40 text-red-400 text-[10px]">
+                        {groupScanResults.detectedAlerts.length}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -3991,9 +4039,16 @@ export default function Home() {
                         ? 'Sin alertas aún. Haz clic en "Escanear Grupos" para buscar menciones de palabras clave.'
                         : 'No se encontraron menciones de palabras clave en este escaneo.'}
                     </p>
+                    {groupScanResults && (
+                      <p className="text-xs text-slate-600 mt-2">
+                        Se buscaron {groupScanResults.totalKeywords} palabras clave en {groupScanResults.totalGroups} grupo(s).
+                        {groupScanResults.zaiSearchUsed ? ' Búsqueda web Z.ai activa.' : ' Búsqueda web Z.ai no disponible.'}
+                        {groupScanResults.channelsDiscovered !== undefined && ` ${groupScanResults.channelsDiscovered} canales descubiertos, ${groupScanResults.channelsScraped ?? 0} escaneados.`}
+                      </p>
+                    )}
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
                     {groupScanResults.detectedAlerts.map((alert, idx) => {
                       const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
                         : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
@@ -4005,9 +4060,10 @@ export default function Home() {
                         : alert.sourceType === 'bot' ? 'bg-orange-900/30 text-orange-400 border-orange-800/30'
                         : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
                         : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                      const kw = alert.matchedKeyword || alert.keyword;
                       return (
-                        <div key={idx} className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] hover:border-[#2a3a5a] transition-colors">
-                          {/* Header row */}
+                        <div key={idx} className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] hover:border-amber-800/40 transition-colors">
+                          {/* Header row with keyword highlighted */}
                           <div className="flex items-center gap-2 mb-2">
                             <div className="shrink-0">
                               {alert.telegramSent ? (
@@ -4016,21 +4072,40 @@ export default function Home() {
                                 <XCircle className="w-4 h-4 text-red-400" />
                               )}
                             </div>
-                            <span className="text-sm font-mono text-amber-400 font-medium">{alert.keyword}</span>
+                            <span className="bg-amber-500/20 text-amber-400 font-mono font-bold text-xs px-1.5 py-0.5 rounded">
+                              {kw}
+                            </span>
                             <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
                               {sourceBadge}
                             </Badge>
+                            {alert.messageId && (
+                              <Badge variant="outline" className="text-[9px] bg-slate-800/50 text-slate-400 border-slate-700/30">
+                                #{alert.messageId}
+                              </Badge>
+                            )}
                             <span className="text-[10px] text-slate-600 ml-auto">
                               {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
                           {/* Source name */}
-                          <p className="text-xs text-slate-300 truncate mb-1">
+                          <p className="text-xs text-slate-300 truncate mb-1.5">
                             <span className="text-slate-500">Fuente:</span> {alert.sourceName}
                           </p>
-                          {/* Message snippet */}
+                          {/* Message text with keyword highlighted */}
                           {alert.messageText && (
-                            <p className="text-xs text-slate-500 line-clamp-2 mb-1">{alert.messageText}</p>
+                            <div className="p-2 bg-[#080c16] rounded border border-slate-800/50 mb-1.5">
+                              <p className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-wrap break-words" style={{ maxHeight: '120px', overflow: 'auto' }}>
+                                {highlightKeywordInText(alert.messageText, kw)}
+                              </p>
+                            </div>
+                          )}
+                          {/* Matched context snippet (if different from message text) */}
+                          {alert.matchedContext && alert.matchedContext !== alert.messageText?.substring(0, 150) && (
+                            <div className="mb-1.5">
+                              <p className="text-[10px] text-slate-600">
+                                <span className="text-slate-500">Contexto:</span> {highlightKeywordInText(alert.matchedContext, kw)}
+                              </p>
+                            </div>
                           )}
                           {/* Source URL */}
                           {alert.sourceUrl && (

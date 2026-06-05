@@ -310,6 +310,7 @@ export async function POST(request: NextRequest) {
           }, { status: 400 });
         }
 
+        // ── Alert type with matched keyword info for highlighting ──
         const detectedAlerts: Array<{
           keyword: string;
           sourceType: string;
@@ -319,39 +320,162 @@ export async function POST(request: NextRequest) {
           chatType: string;
           timestamp: string;
           telegramSent: boolean;
+          matchedKeyword: string;     // The exact keyword that matched (for highlighting)
+          matchedContext: string;     // Context snippet around the match
+          messageId?: string;         // Telegram message ID if available
         }> = [];
 
         let totalGroups = 0;
         let totalBotMessages = 0;
         let keywordsProcessed = 0;
+        const discoveredChannels = new Set<string>(); // Dynamically discovered channel usernames
 
         // ── Normalize text: lowercase, remove accents, remove special chars ──
         function normalizeText(text: string): string {
           return text
             .toLowerCase()
             .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '') // remove accents
-            .replace(/[^a-z0-9\s]/g, ' ')    // remove special chars
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
         }
 
-        // ── Match keyword with normalization ──
-        function matchKeywordNormalized(text: string, kw: string): boolean {
-          const normText = normalizeText(text);
-          const normKw = normalizeText(kw);
-          return normText.includes(normKw);
+        // ── Match keyword with normalization — returns the matched keyword or null ──
+        function findMatchingKeyword(text: string): string | null {
+          for (const kw of keywords) {
+            if (normalizeText(text).includes(normalizeText(kw))) {
+              return kw;
+            }
+          }
+          return null;
         }
 
-        // ── Extract context around keyword match ──
-        function extractContext(text: string, kw: string, radius = 80): string {
+        // ── Extract context around keyword match with highlighted position ──
+        function extractContext(text: string, kw: string, radius = 100): string {
           const normText = normalizeText(text);
           const normKw = normalizeText(kw);
           const idx = normText.indexOf(normKw);
-          if (idx === -1) return text.substring(0, 200);
+          if (idx === -1) return text.substring(0, 250);
           const start = Math.max(0, idx - radius);
           const end = Math.min(text.length, idx + normKw.length + radius);
           return text.substring(start, end);
+        }
+
+        // ── Highlight keyword in text for display ──
+        function highlightKeyword(text: string, kw: string): string {
+          const normText = normalizeText(text);
+          const normKw = normalizeText(kw);
+          const idx = normText.indexOf(normKw);
+          if (idx === -1) return text;
+          // Map normalized index back to original text position
+          // Use a simpler approach: find the keyword in original text with case-insensitive search
+          const origIdx = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').indexOf(normKw);
+          if (origIdx === -1) return text;
+          // Find the actual end in original text
+          let endIdx = origIdx;
+          let normLen = 0;
+          while (endIdx < text.length && normLen < normKw.length) {
+            const ch = text[endIdx].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            normLen += ch === '' ? 0 : (ch === ' ' && normKw[normLen] === ' ' ? 1 : ch.length);
+            endIdx++;
+          }
+          return text.substring(0, origIdx) + '⟨' + text.substring(origIdx, endIdx) + '⟩' + text.substring(endIdx);
+        }
+
+        // ── Scrape a t.me/s/ channel preview page and extract messages ──
+        async function scrapeChannelPreview(channelName: string): Promise<{
+          exists: boolean;
+          messages: Array<{ text: string; msgId?: string }>;
+          channelTitle: string;
+        }> {
+          try {
+            const previewUrl = `https://t.me/s/${channelName}`;
+            const res = await fetch(previewUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
+                'Accept-Language': 'es-419,es;q=0.9,en;q=0.8',
+                'Cache-Control': 'no-cache',
+              },
+              signal: AbortSignal.timeout(10000),
+            });
+
+            if (!res.ok) return { exists: false, messages: [], channelTitle: channelName };
+
+            const html = await res.text();
+
+            // Check for "Channel not found"
+            if (html.includes('no such') || html.includes('not found') || html.includes('If you have Telegram')) {
+              // Actually "If you have Telegram" means it exists but the page is a redirect —
+              // check more carefully for actual not-found indicators
+              if (html.includes('page_post_channel_title') === false && html.includes('tgme_channel_info') === false) {
+                // Could be a private channel or not found — try to extract from body text
+                const bodyText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+                if (bodyText.includes('not found') || bodyText.includes('If you have')) {
+                  // This is the standard "open in app" page, not necessarily "not found"
+                  // Try to extract messages anyway
+                }
+              }
+            }
+
+            const messages: Array<{ text: string; msgId?: string }> = [];
+
+            // Extract messages from tgme_widget_message_text divs
+            const msgPattern = /class="tgme_widget_message_text"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
+            let msgMatch;
+            while ((msgMatch = msgPattern.exec(html)) !== null && messages.length < 30) {
+              const msgHtml = msgMatch[1];
+              const msgText = msgHtml
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<\/?[a-zA-Z][^>]*>/g, '')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num)))
+                .trim();
+              if (msgText.length > 3) {
+                // Try to extract message ID from the surrounding HTML
+                const surroundingHtml = html.substring(Math.max(0, msgMatch.index - 500), msgMatch.index);
+                const idMatch = surroundingHtml.match(/data-post="[^\/]*\/(\d+)"/);
+                messages.push({ text: msgText, msgId: idMatch?.[1] });
+              }
+            }
+
+            // Fallback: try another pattern for message text
+            if (messages.length === 0) {
+              const fallbackPattern = /tgme_widget_message_text[^>]*>([\s\S]*?)<\/div>/gi;
+              let fbMatch;
+              while ((fbMatch = fallbackPattern.exec(html)) !== null && messages.length < 30) {
+                const msgText = fbMatch[1]
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .replace(/<[^>]+>/g, '')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&lt;/g, '<')
+                  .replace(/&gt;/g, '>')
+                  .replace(/&quot;/g, '"')
+                  .replace(/&#39;/g, "'")
+                  .trim();
+                if (msgText.length > 3) {
+                  messages.push({ text: msgText });
+                }
+              }
+            }
+
+            // Extract channel title
+            let channelTitle = channelName;
+            const titleMatch = html.match(/class="tgme_channel_info_header_title"[^>]*>([\s\S]*?)<\/span>/i)
+              || html.match(/class="tgme_page_title"[^>]*>([\s\S]*?)<\/div>/i);
+            if (titleMatch) {
+              channelTitle = titleMatch[1].replace(/<[^>]+>/g, '').trim() || channelName;
+            }
+
+            return { exists: messages.length > 0, messages, channelTitle };
+          } catch {
+            return { exists: false, messages: [], channelTitle: channelName };
+          }
         }
 
         // ── Helper: add alert with dedup + Telegram notification ──
@@ -363,12 +487,14 @@ export async function POST(request: NextRequest) {
           messageText: string;
           chatType: string;
           matchedContext: string;
+          messageId?: string;
         }) {
-          const { keyword, sourceType, sourceName, sourceUrl, messageText, chatType, matchedContext } = params;
+          const { keyword, sourceType, sourceName, sourceUrl, messageText, chatType, matchedContext, messageId } = params;
 
-          // Deduplicate
+          // Deduplicate by keyword + messageText (more precise)
+          const msgKey = normalizeText(messageText).substring(0, 100);
           const isDuplicate = detectedAlerts.some(
-            a => normalizeText(a.keyword) === normalizeText(keyword) && normalizeText(a.sourceName) === normalizeText(sourceName)
+            a => normalizeText(a.keyword) === normalizeText(keyword) && normalizeText(a.messageText).substring(0, 100) === msgKey
           );
           if (isDuplicate) return;
 
@@ -390,7 +516,7 @@ export async function POST(request: NextRequest) {
                 findingTitle: `Mención de "${keyword}" en ${sourceType} de Telegram`,
                 findingDescription: messageText.substring(0, 500),
                 findingCategory: 'telegram_group_scan',
-                findingUrl: sourceUrl,
+                findingUrl: messageId ? `${sourceUrl}/${messageId}` : sourceUrl,
               };
               telegramSent = await sendTelegramAlert(alert);
             } catch { /* ignore */ }
@@ -400,11 +526,14 @@ export async function POST(request: NextRequest) {
             keyword,
             sourceType,
             sourceName,
-            sourceUrl,
-            messageText: messageText.substring(0, 500),
+            sourceUrl: messageId ? `${sourceUrl}/${messageId}` : sourceUrl,
+            messageText: messageText.substring(0, 800),
             chatType,
             timestamp: new Date().toISOString(),
             telegramSent,
+            matchedKeyword: keyword,
+            matchedContext: matchedContext || messageText.substring(0, 150),
+            messageId,
           });
 
           addAlertHistoryEntry({
@@ -419,35 +548,38 @@ export async function POST(request: NextRequest) {
         try {
           const botToken = getBotToken();
 
-          // ═══════════════════════════════════════════════
-          //  METHOD 1: Z.ai Web Search — search for keywords on Telegram
-          //  Uses the Z.ai SDK which WORKS from Vercel serverless
-          // ═══════════════════════════════════════════════
-          console.log('[ScanGroups] Starting Z.ai web search for keywords...');
+          // ═══════════════════════════════════════════════════════════════
+          //  PHASE 1: Z.ai Web Search — Discover Telegram channels by keyword
+          //  Search for each keyword, extract channel usernames from results,
+          //  then scrape those channels' preview pages for actual messages
+          // ═══════════════════════════════════════════════════════════════
+          console.log('[ScanGroups] Phase 1: Z.ai web search to discover Telegram channels...');
 
+          let zaiAvailable = false;
           try {
             const ZAI = (await import('z-ai-web-dev-sdk')).default;
             const zai = await ZAI.create();
+            zaiAvailable = true;
 
-            // Search for each keyword (up to 15 per scan)
-            const MAX_KEYWORDS_SEARCH = 15;
+            const MAX_KEYWORDS_SEARCH = Math.min(keywords.length, 20);
             const keywordsToSearch = keywords.slice(0, MAX_KEYWORDS_SEARCH);
 
             for (const keyword of keywordsToSearch) {
               keywordsProcessed++;
               try {
-                // Search with multiple query variants for better coverage
+                // Multiple search query variants for better coverage
                 const searchQueries = [
-                  `site:t.me ${keyword}`,
-                  `telegram ${keyword} estafa fraude`,
-                  `t.me ${keyword}`,
+                  `telegram ${keyword} estafa fraude colombia`,
+                  `t.me ${keyword} fraude`,
+                  `telegram canal ${keyword}`,
+                  `${keyword} estafa telegram grupo`,
                 ];
 
                 for (const searchQuery of searchQueries) {
                   try {
                     const searchResults = await zai.functions.invoke('web_search', {
                       query: searchQuery,
-                      num: 10,
+                      num: 15,
                     });
 
                     if (!Array.isArray(searchResults) || searchResults.length === 0) continue;
@@ -457,49 +589,68 @@ export async function POST(request: NextRequest) {
                       const resultName: string = result.name || result.title || '';
                       const resultSnippet: string = result.snippet || result.content || '';
 
-                      // Must be a Telegram link or mention Telegram
+                      // Extract Telegram channel/group usernames from URLs
+                      const tmeMatch = resultUrl.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{5,32})/);
+                      if (tmeMatch) {
+                        const rawUsername = tmeMatch[1];
+                        const skipPaths = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv', 'confirmphone', 'setlanguage'];
+                        if (!skipPaths.includes(rawUsername.toLowerCase())) {
+                          discoveredChannels.add(rawUsername);
+                        }
+                      }
+
+                      // Also check snippets for t.me/username patterns
+                      const snippetMatches = resultSnippet.match(/t\.me\/([a-zA-Z0-9_]{5,32})/g);
+                      if (snippetMatches) {
+                        for (const m of snippetMatches) {
+                          const username = m.replace('t.me/', '');
+                          const skipPaths = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv'];
+                          if (!skipPaths.includes(username.toLowerCase())) {
+                            discoveredChannels.add(username);
+                          }
+                        }
+                      }
+
+                      // Also check for @username patterns
+                      const atMatches = resultSnippet.match(/@([a-zA-Z0-9_]{5,32})/g);
+                      if (atMatches) {
+                        for (const m of atMatches) {
+                          const username = m.replace('@', '');
+                          discoveredChannels.add(username);
+                        }
+                      }
+
+                      // If the search result itself mentions the keyword and is Telegram-related,
+                      // also create a direct alert from the search snippet
                       const isTme = resultUrl.includes('t.me') || resultUrl.includes('telegram.me');
                       const mentionsTelegram = resultName.toLowerCase().includes('telegram') ||
                         resultSnippet.toLowerCase().includes('telegram') ||
-                        resultName.toLowerCase().includes('t.me');
+                        resultSnippet.toLowerCase().includes('t.me');
 
-                      if (!isTme && !mentionsTelegram) continue;
+                      if ((isTme || mentionsTelegram) && normalizeText(`${resultName} ${resultSnippet}`).includes(normalizeText(keyword))) {
+                        const tmeUrlMatch = resultUrl.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{5,32})/);
+                        const cleanUsername = tmeUrlMatch?.[1];
 
-                      // Must contain the keyword (normalized match)
-                      const combinedText = `${resultName} ${resultSnippet}`;
-                      if (!matchKeywordNormalized(combinedText, keyword)) continue;
+                        let sourceType = 'channel';
+                        const textLower = `${resultName} ${resultSnippet}`.toLowerCase();
+                        if (textLower.includes('grupo') || textLower.includes('group') || textLower.includes('chat')) {
+                          sourceType = 'group';
+                        }
 
-                      // Extract Telegram entity info from URL
-                      const tmeMatch = resultUrl.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{5,32})/);
-                      const rawUsername = tmeMatch ? tmeMatch[1] : undefined;
-                      const skipPaths = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv'];
-                      const cleanUsername = rawUsername && !skipPaths.includes(rawUsername.toLowerCase()) ? rawUsername : undefined;
+                        const sourceName = resultName || (cleanUsername ? `@${cleanUsername}` : 'Telegram');
+                        const sourceUrl = cleanUsername ? `https://t.me/${cleanUsername}` : resultUrl;
 
-                      // Determine source type
-                      let sourceType = 'channel';
-                      const textLower = combinedText.toLowerCase();
-                      if (textLower.includes('grupo') || textLower.includes('group') || textLower.includes('chat')) {
-                        sourceType = 'group';
-                      } else if (textLower.includes('bot')) {
-                        sourceType = 'bot';
+                        await addDetectedAlert({
+                          keyword,
+                          sourceType,
+                          sourceName,
+                          sourceUrl,
+                          messageText: resultSnippet || resultName,
+                          chatType: sourceType,
+                          matchedContext: extractContext(`${resultName} ${resultSnippet}`, keyword),
+                        });
                       }
-
-                      const sourceName = resultName || (cleanUsername ? `@${cleanUsername}` : 'Telegram');
-                      const sourceUrl = cleanUsername ? `https://t.me/${cleanUsername}` : resultUrl;
-
-                      await addDetectedAlert({
-                        keyword,
-                        sourceType,
-                        sourceName,
-                        sourceUrl,
-                        messageText: resultSnippet || resultName,
-                        chatType: sourceType,
-                        matchedContext: extractContext(combinedText, keyword),
-                      });
                     }
-
-                    // If we already found results for this keyword from one query, skip the rest
-                    if (detectedAlerts.some(a => normalizeText(a.keyword) === normalizeText(keyword))) break;
                   } catch {
                     // Search query failed, try next variant
                   }
@@ -512,11 +663,12 @@ export async function POST(request: NextRequest) {
             console.warn('[ScanGroups] Z.ai SDK search failed:', zaiErr instanceof Error ? zaiErr.message : 'unknown');
           }
 
-          // ═══════════════════════════════════════════════
-          //  METHOD 2: t.me/s/{channel} — Scrape public channel previews
-          //  Known Telegram channels/groups that discuss fraud/phishing
-          //  These pages are publicly accessible without authentication
-          // ═══════════════════════════════════════════════
+          // ═══════════════════════════════════════════════════════════════
+          //  PHASE 2: Scrape discovered + known channel previews
+          //  Use t.me/s/{channel} to get actual messages from public channels
+          // ═══════════════════════════════════════════════════════════════
+
+          // Known fraud-related channels (as a baseline — dynamically discovered channels are added too)
           const KNOWN_CHANNELS = [
             'cibestfraude', 'cibest_fraude', 'bancolombiaphishing', 'nequifraude',
             'estafasbancolombia', 'cuentasbancolombia', 'binsbancolombia',
@@ -526,82 +678,20 @@ export async function POST(request: NextRequest) {
             'combobancolombia', 'basebancolombia', 'logsbancolombia',
             'bancolombiamod', 'nequimod', 'wompi_cashout',
             'cuentasmulas', 'cuentasreceptoras', 'panelbancolombia',
+            'fraudebancario', 'estafas_nequi', 'phishingbancolombia',
+            'davivienda_estafa', 'bbva_estafa', 'colpatria_fraude',
           ];
 
-          console.log(`[ScanGroups] Scraping ${KNOWN_CHANNELS.length} known Telegram channel previews...`);
+          // Merge discovered channels with known ones (discovered channels first = higher priority)
+          const allChannels = [...discoveredChannels, ...KNOWN_CHANNELS.filter(c => !discoveredChannels.has(c))];
+          console.log(`[ScanGroups] Phase 2: Scraping ${allChannels.length} channel previews (${discoveredChannels.size} discovered + ${KNOWN_CHANNELS.length} known)...`);
 
-          // Scrape up to 12 channels in parallel (to stay within Vercel 60s limit)
-          const channelsToScrape = KNOWN_CHANNELS.slice(0, 12);
+          // Scrape up to 20 channels in parallel (respecting Vercel 60s limit)
+          const channelsToScrape = allChannels.slice(0, 20);
           const channelResults = await Promise.allSettled(
             channelsToScrape.map(async (channelName) => {
-              try {
-                const previewUrl = `https://t.me/s/${channelName}`;
-                const res = await fetch(previewUrl, {
-                  headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml',
-                    'Accept-Language': 'es,en;q=0.9',
-                  },
-                  signal: AbortSignal.timeout(8000),
-                });
-
-                if (!res.ok) return { channelName, exists: false, messages: [] as string[] };
-
-                const html = await res.text();
-
-                // Check if channel exists (has messages)
-                // t.me/s/ pages contain messages in div.message div or similar
-                // Extract message text from the preview page
-                const messages: string[] = [];
-
-                // Method 1: Extract from data-post attributes (standard t.me preview)
-                const msgPattern = /class="tgme_widget_message_text"[^>]*>([\s\S]*?)<\/div>/gi;
-                let msgMatch;
-                while ((msgMatch = msgPattern.exec(html)) !== null && messages.length < 20) {
-                  const msgText = msgMatch[1]
-                    .replace(/<br\s*\/?>/gi, '\n')
-                    .replace(/<[^>]+>/g, '')
-                    .replace(/&amp;/g, '&')
-                    .replace(/&lt;/g, '<')
-                    .replace(/&gt;/g, '>')
-                    .replace(/&quot;/g, '"')
-                    .replace(/&#39;/g, "'")
-                    .replace(/<\/?[^>]+(>|$)/g, '')
-                    .trim();
-                  if (msgText.length > 5) messages.push(msgText);
-                }
-
-                // Method 2: If no structured messages found, extract from broader text blocks
-                if (messages.length === 0) {
-                  // Try extracting from the full page text
-                  const bodyText = html
-                    .replace(/<script[\s\S]*?<\/script>/gi, '')
-                    .replace(/<style[\s\S]*?<\/style>/gi, '')
-                    .replace(/<[^>]+>/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-
-                  // Check for "Channel not found" indicators
-                  if (bodyText.includes('no such') || bodyText.includes('not found') || bodyText.includes('If you have')) {
-                    return { channelName, exists: false, messages: [] };
-                  }
-
-                  // Try to extract meaningful text blocks
-                  if (bodyText.length > 100) {
-                    messages.push(bodyText.substring(0, 2000));
-                  }
-                }
-
-                // Extract channel title
-                const titleMatch = html.match(/class="tgme_channel_info_header_title"[^>]*>([\s\S]*?)<\/span>/i)
-                  || html.match(/class="tgme_page_title"[^>]*>([\s\S]*?)<\/div>/i)
-                  || html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-                const channelTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : channelName;
-
-                return { channelName, exists: messages.length > 0, messages, channelTitle };
-              } catch {
-                return { channelName, exists: false, messages: [] as string[] };
-              }
+              const result = await scrapeChannelPreview(channelName);
+              return { channelName, ...result };
             })
           );
 
@@ -615,31 +705,39 @@ export async function POST(request: NextRequest) {
             totalGroups++;
 
             // Check each message for keyword matches
-            for (const msgText of messages) {
-              for (const keyword of keywords) {
-                if (matchKeywordNormalized(msgText, keyword)) {
-                  const sourceName = channelTitle || `@${channelName}`;
-                  const sourceUrl = `https://t.me/${channelName}`;
+            for (const msg of messages) {
+              const matchedKw = findMatchingKeyword(msg.text);
+              if (matchedKw) {
+                const sourceName = channelTitle || `@${channelName}`;
+                const sourceUrl = `https://t.me/${channelName}`;
 
-                  await addDetectedAlert({
-                    keyword,
-                    sourceType: 'channel',
-                    sourceName,
-                    sourceUrl,
-                    messageText: msgText.substring(0, 500),
-                    chatType: 'channel',
-                    matchedContext: extractContext(msgText, keyword),
-                  });
-                }
+                await addDetectedAlert({
+                  keyword: matchedKw,
+                  sourceType: 'channel',
+                  sourceName,
+                  sourceUrl,
+                  messageText: msg.text.substring(0, 800),
+                  chatType: 'channel',
+                  matchedContext: extractContext(msg.text, matchedKw),
+                  messageId: msg.msgId,
+                });
               }
             }
           }
 
-          // ═══════════════════════════════════════════════
-          //  METHOD 3: Bot polling — messages from groups the bot is a member of
-          // ═══════════════════════════════════════════════
+          // ═══════════════════════════════════════════════════════════════
+          //  PHASE 3: Bot polling — messages from groups the bot is a member of
+          // ═══════════════════════════════════════════════════════════════
           if (botToken) {
             try {
+              // Delete webhook first to allow getUpdates to work
+              try {
+                await fetch(`https://api.telegram.org/bot${botToken}/deleteWebhook`, {
+                  method: 'POST',
+                  signal: AbortSignal.timeout(5000),
+                });
+              } catch { /* ignore */ }
+
               const updatesUrl = `https://api.telegram.org/bot${botToken}/getUpdates?limit=100`;
               const updatesRes = await fetch(updatesUrl, {
                 signal: AbortSignal.timeout(15000),
@@ -675,7 +773,7 @@ export async function POST(request: NextRequest) {
 
                         // Check ALL keywords (normalized)
                         for (const keyword of keywords) {
-                          if (matchKeywordNormalized(messageText, keyword)) {
+                          if (normalizeText(messageText).includes(normalizeText(keyword))) {
                             const chatType = chat.type === 'supergroup' ? 'group' : chat.type;
                             const sourceName = chat.title || chat.username || chat.first_name || `Chat ${chat.id}`;
                             const sourceUrl = chat.username ? `https://t.me/${chat.username}` : '';
@@ -685,9 +783,10 @@ export async function POST(request: NextRequest) {
                               sourceType: chatType,
                               sourceName,
                               sourceUrl,
-                              messageText: messageText.substring(0, 500),
+                              messageText: messageText.substring(0, 800),
                               chatType: chat.type,
                               matchedContext: extractContext(messageText, keyword),
+                              messageId: msg.message_id?.toString(),
                             });
                           }
                         }
@@ -696,7 +795,6 @@ export async function POST(request: NextRequest) {
                   }
 
                   totalGroups += groupsFound.size;
-                  keywordsProcessed = Math.max(keywordsProcessed, keywords.length);
                 }
               }
             } catch (botErr) {
@@ -704,17 +802,24 @@ export async function POST(request: NextRequest) {
             }
           }
 
+          keywordsProcessed = Math.max(keywordsProcessed, keywords.length);
+
           // Get updated alert history
           const updatedAlertHistory = getAlertHistory();
+
+          console.log(`[ScanGroups] Scan complete: ${detectedAlerts.length} alerts, ${totalGroups} groups, ${keywordsProcessed}/${keywords.length} keywords processed, ${discoveredChannels.size} channels discovered`);
 
           return NextResponse.json({
             success: true,
             totalGroups,
             totalBotMessages,
-            keywordsProcessed: Math.max(keywordsProcessed, keywords.length),
+            keywordsProcessed,
             totalKeywords: keywords.length,
             maxKeywordsPerScan: keywords.length,
             detectedAlerts,
+            channelsDiscovered: discoveredChannels.size,
+            channelsScraped: channelsToScrape.length,
+            zaiSearchUsed: zaiAvailable,
             alertHistory: updatedAlertHistory.slice(0, 10),
           });
 
