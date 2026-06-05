@@ -2767,6 +2767,114 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* ── ESCANEAR GRUPOS AHORA — Trigger scan directly from Telegram Avanzado ── */}
+                {telegramConfigured && (
+                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-emerald-900/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Send className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-medium text-emerald-300">Consulta contra Telegram</span>
+                      <Badge variant="outline" className="text-[9px] text-slate-500 border-slate-700 ml-auto">
+                        {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Escanea grupos y canales de Telegram buscando menciones de las palabras clave configuradas. Se usan 2 métodos: (1) Bot polling — mensajes en grupos donde el bot es miembro, y (2) Búsqueda web — grupos públicos de Telegram.
+                    </p>
+                    <Button
+                      onClick={handleScanGroups}
+                      disabled={groupScanLoading || alertKeywords.length === 0}
+                      className="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-sm h-10"
+                    >
+                      {groupScanLoading ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Escaneando Grupos...</>
+                      ) : (
+                        <><Search className="w-4 h-4 mr-2" />Escanear Grupos Ahora</>
+                      )}
+                    </Button>
+
+                    {/* Scan error */}
+                    {groupScanError && (
+                      <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/30 rounded-lg p-2">
+                        <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
+                        <p className="text-[10px] text-red-400">{groupScanError}</p>
+                      </div>
+                    )}
+
+                    {/* Scan Results Summary */}
+                    {groupScanResults && (
+                      <div className="space-y-2">
+                        <div className={`flex items-center gap-2 p-2.5 rounded-lg border ${
+                          groupScanResults.detectedAlerts.length > 0
+                            ? 'bg-amber-900/15 border-amber-800/30'
+                            : 'bg-emerald-900/10 border-emerald-800/30'
+                        }`}>
+                          {groupScanResults.detectedAlerts.length > 0 ? (
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          )}
+                          <div className="flex-1">
+                            <p className={`text-xs font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+                              {groupScanResults.detectedAlerts.length > 0
+                                ? `${groupScanResults.detectedAlerts.length} alerta${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''} encontrada${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''}`
+                                : 'Sin alertas — ningún grupo mencionó las palabras clave'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="text-[10px] text-slate-500">{groupScanResults.totalGroups} grupo{groupScanResults.totalGroups !== 1 ? 's' : ''}</span>
+                              <span className="text-[10px] text-slate-600">•</span>
+                              <span className="text-[10px] text-slate-500">{groupScanResults.keywordsProcessed}/{groupScanResults.totalKeywords} palabras procesadas</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Detected alerts list */}
+                        {groupScanResults.detectedAlerts.length > 0 && (
+                          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
+                            {groupScanResults.detectedAlerts.map((alert, idx) => {
+                              const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
+                                : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
+                                : alert.sourceType === 'bot' ? 'BOT'
+                                : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
+                              const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
+                                : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
+                                : alert.sourceType === 'bot' ? 'bg-orange-900/30 text-orange-400 border-orange-800/30'
+                                : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
+                                : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                              return (
+                                <div key={idx} className="p-2 rounded-lg bg-[#111827] border border-[#1e293b] hover:border-[#2a3a5a] transition-colors">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    {alert.telegramSent ? (
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                                    ) : (
+                                      <XCircle className="w-3 h-3 text-red-400 shrink-0" />
+                                    )}
+                                    <span className="text-[11px] font-mono text-amber-400 font-medium">{alert.keyword}</span>
+                                    <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${badgeColor}`}>
+                                      {sourceBadge}
+                                    </Badge>
+                                    <span className="text-[9px] text-slate-600 ml-auto">
+                                      {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 truncate">{alert.sourceName}</p>
+                                  {alert.messageText && (
+                                    <p className="text-[10px] text-slate-600 line-clamp-1">{alert.messageText}</p>
+                                  )}
+                                  {alert.sourceUrl && (
+                                    <a href={alert.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-cyan-400 hover:text-cyan-300 truncate block mt-0.5">
+                                      <ExternalLink className="w-2 h-2 inline mr-0.5" />{alert.sourceUrl}
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Info about how it works */}
                 <div className="p-3 rounded-lg bg-slate-900/30 border border-[#1e293b]">
                   <p className="text-[10px] text-slate-500 leading-relaxed">
