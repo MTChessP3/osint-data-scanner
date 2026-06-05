@@ -101,3 +101,24 @@ Stage Summary:
 - Clicking a metric card shows relevant breakdown info in detailModal
 - Clicking an alert entry shows full details in a dedicated tgAlertDetail modal
 - Changes deployed to Vercel via git push
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix "No se encontraron mensajes al bot" error in Telegram Avanzado
+
+Work Log:
+- Analyzed screenshot showing error "No se encontraron mensajes al bot" in Paso 2 section
+- Identified root cause: CHAT_ID already configured via Vercel Env vars but Paso 2 section still visible and user clicked it
+- detect_chat_id uses getUpdates which fails when no recent messages or webhook is active
+- Fixed frontend: Hide "Paso 2: Detectar Chat ID" when CHAT_ID already configured, show green confirmation instead
+- Fixed backend: When CHAT_ID already exists via env vars, detect_chat_id returns success instead of error
+- Improved error messages: Multi-line error with specific causes (webhook active, updates consumed, etc.) and alternative solution
+- Updated error display to handle multi-line errors with whitespace-pre-line
+- Build verified successful, pushed to Vercel
+
+Stage Summary:
+- When CHAT_ID is already configured: Paso 2 section replaced with green "Chat ID Configurado" confirmation
+- When CHAT_ID not configured and detection fails: Clear multi-line error with 3 possible causes and alternative
+- Backend returns success if CHAT_ID already exists via env vars even when getUpdates returns empty
+- Deployed to Vercel as commit ed16f65
