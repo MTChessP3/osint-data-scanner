@@ -60,6 +60,20 @@ export function addAlertHistoryEntry(entry: {
   if (alertHistory.length > 50) alertHistory.pop();
 }
 
+// ── Remove specific entries from alert history by index ──
+
+export function removeAlertHistoryEntries(indices: number[]): number {
+  const toRemove = new Set(indices);
+  const removed = alertHistory.splice(0, alertHistory.length, ...alertHistory.filter((_, i) => !toRemove.has(i)));
+  return toRemove.size;
+}
+
+// ── Clear entire alert history ──
+
+export function clearAlertHistory(): void {
+  alertHistory.length = 0;
+}
+
 // ── Source Metadata Extraction ──
 
 interface SourceMetadata {

@@ -13,7 +13,7 @@ import { verifyAuth } from '@/lib/auth';
 import { getKeywords, addKeyword, removeKeyword, setKeywords } from '@/lib/alert-keywords';
 import { isTelegramConfigured, testTelegramAlert } from '@/lib/telegram-alerts';
 import { hasBotToken as runtimeHasBotToken, hasChatId as runtimeHasChatId } from '@/lib/telegram-runtime-config';
-import { getAlertHistory } from '@/lib/engines/alert-interceptor';
+import { getAlertHistory, removeAlertHistoryEntries, clearAlertHistory } from '@/lib/engines/alert-interceptor';
 
 // ── GET: Retrieve alert configuration ──
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   const hasBotToken = runtimeHasBotToken();
   const hasChatId = runtimeHasChatId();
 
-  const history = getAlertHistory().slice(0, 10);
+  const history = getAlertHistory();
 
   return NextResponse.json({
     keywords,
@@ -107,5 +107,53 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Alerts API] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// ── DELETE: Remove alert history entries ──
+
+export async function DELETE(request: NextRequest) {
+  const auth = await verifyAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { indices, clearAll } = body;
+
+    if (clearAll) {
+      clearAlertHistory();
+      return NextResponse.json({
+        success: true,
+        message: 'Historial de alertas eliminado completamente',
+        alertHistory: [],
+      });
+    }
+
+    if (!Array.isArray(indices) || indices.length === 0) {
+      return NextResponse.json({
+        error: 'Se requiere un array de índices o clearAll=true',
+      }, { status: 400 });
+    }
+
+    // Validate indices are within bounds
+    const currentHistory = getAlertHistory();
+    const validIndices = indices.filter((i: number) => i >= 0 && i < currentHistory.length);
+    if (validIndices.length === 0) {
+      return NextResponse.json({
+        error: 'Ningún índice válido proporcionado',
+      }, { status: 400 });
+    }
+
+    const removedCount = removeAlertHistoryEntries(validIndices);
+    return NextResponse.json({
+      success: true,
+      removedCount,
+      alertHistory: getAlertHistory().slice(0, 50),
+    });
+  } catch (error) {
+    console.error('[Alerts API] DELETE error:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

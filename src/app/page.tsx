@@ -501,6 +501,14 @@ export default function Home() {
   const [alertLoading, setAlertLoading] = useState(false);
   const [alertHistory, setAlertHistory] = useState<Array<{ keyword: string; sourceType: string; sourceName: string; timestamp: string; telegramSent: boolean }>>([]);
 
+  // ── Alert selection & sorting states ──
+  const [selectedAlertIndices, setSelectedAlertIndices] = useState<Set<number>>(new Set());
+  const [alertsSortOrder, setAlertsSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [selectedHistoryIndices, setSelectedHistoryIndices] = useState<Set<number>>(new Set());
+  const [historySortOrder, setHistorySortOrder] = useState<'desc' | 'asc'>('desc');
+  const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
+  const [deleteHistoryLoading, setDeleteHistoryLoading] = useState(false);
+
   // ── Telegram Avanzado states (in Scan tab) ──
   const [telegramBotInfo, setTelegramBotInfo] = useState<{ username: string; firstName: string; id: number } | null>(null);
   const [telegramDetecting, setTelegramDetecting] = useState(false);
@@ -573,6 +581,34 @@ export default function Home() {
   }
 
   // ── Fetch alert configuration ──
+  // ── Delete selected history entries ──
+  async function handleDeleteHistoryEntries() {
+    if (selectedHistoryIndices.size === 0) return;
+    setDeleteHistoryLoading(true);
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ indices: Array.from(selectedHistoryIndices) }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAlertHistory(data.alertHistory || []);
+        setSelectedHistoryIndices(new Set());
+        setShowDeleteHistoryModal(false);
+      }
+    } catch { /* ignore */ }
+    setDeleteHistoryLoading(false);
+  }
+
+  // ── Delete selected found alerts (client-side) ──
+  function handleDeleteSelectedAlerts() {
+    if (!groupScanResults || selectedAlertIndices.size === 0) return;
+    const remaining = groupScanResults.detectedAlerts.filter((_, i) => !selectedAlertIndices.has(i));
+    setGroupScanResults({ ...groupScanResults, detectedAlerts: remaining });
+    setSelectedAlertIndices(new Set());
+  }
+
   async function fetchAlertConfig() {
     let serverKeywords: string[] = [];
     try {
@@ -4070,6 +4106,49 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+                {/* Toolbar: Sort + Bulk Delete — only when alerts exist */}
+                {groupScanResults && groupScanResults.detectedAlerts.length > 0 && (
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#1e293b]">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedAlertIndices.size === groupScanResults.detectedAlerts.length && groupScanResults.detectedAlerts.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedAlertIndices(new Set(groupScanResults.detectedAlerts.map((_, i) => i)));
+                          } else {
+                            setSelectedAlertIndices(new Set());
+                          }
+                        }}
+                        className="border-slate-600 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                      />
+                      <span className="text-[10px] text-slate-500">
+                        {selectedAlertIndices.size > 0 ? `${selectedAlertIndices.size} seleccionada${selectedAlertIndices.size !== 1 ? 's' : ''}` : 'Seleccionar todas'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px] text-slate-400 hover:text-white gap-1 px-2"
+                        onClick={() => setAlertsSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                      >
+                        {alertsSortOrder === 'desc' ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                        Fecha {alertsSortOrder === 'desc' ? '↓' : '↑'}
+                      </Button>
+                      {selectedAlertIndices.size > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-6 text-[10px] gap-1 px-2"
+                          onClick={handleDeleteSelectedAlerts}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Eliminar ({selectedAlertIndices.size})
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {!groupScanResults || groupScanResults.detectedAlerts.length === 0 ? (
@@ -4088,7 +4167,6 @@ export default function Home() {
                           Se buscaron {groupScanResults.totalKeywords} palabras clave en {groupScanResults.totalGroups} grupo(s).
                           {groupScanResults.channelsDiscovered !== undefined && ` ${groupScanResults.channelsDiscovered} canales descubiertos, ${groupScanResults.channelsScraped ?? 0} escaneados, ${groupScanResults.channelsWithMessages ?? 0} con mensajes.`}
                         </p>
-                        {/* Show diagnostics when no results or technical issues */}
                         {groupScanResults.diagnostics && groupScanResults.diagnostics.length > 0 && (
                           <div className="space-y-1">
                             {groupScanResults.diagnostics.map((diag, di) => (
@@ -4102,79 +4180,103 @@ export default function Home() {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
-                    {groupScanResults.detectedAlerts.map((alert, idx) => {
-                      const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
-                        : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
-                        : alert.sourceType === 'bot' ? 'BOT'
-                        : alert.sourceType === 'user' ? 'USUARIO'
-                        : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
-                      const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
-                        : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
-                        : alert.sourceType === 'bot' ? 'bg-orange-900/30 text-orange-400 border-orange-800/30'
-                        : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
-                        : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
-                      const kw = alert.matchedKeyword || alert.keyword;
-                      return (
-                        <div key={idx} className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] hover:border-amber-800/40 transition-colors">
-                          {/* Header row with keyword highlighted */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="shrink-0">
-                              {alert.telegramSent ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                              ) : (
-                                <XCircle className="w-4 h-4 text-red-400" />
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
+                    {[...groupScanResults.detectedAlerts]
+                      .map((alert, originalIdx) => ({ alert, originalIdx }))
+                      .sort((a, b) => {
+                        const dateA = new Date(a.alert.timestamp).getTime();
+                        const dateB = new Date(b.alert.timestamp).getTime();
+                        return alertsSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+                      })
+                      .map(({ alert, originalIdx }) => {
+                        const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
+                          : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
+                          : alert.sourceType === 'bot' ? 'BOT'
+                          : alert.sourceType === 'user' ? 'USUARIO'
+                          : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
+                        const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
+                          : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
+                          : alert.sourceType === 'bot' ? 'bg-orange-900/30 text-orange-400 border-orange-800/30'
+                          : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
+                          : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                        const kw = alert.matchedKeyword || alert.keyword;
+                        const isSelected = selectedAlertIndices.has(originalIdx);
+                        return (
+                          <div key={originalIdx} className={`flex gap-2 p-3 rounded-lg bg-[#0b0f19] border transition-colors ${isSelected ? 'border-red-800/50 bg-red-950/10' : 'border-[#1e293b] hover:border-amber-800/40'}`}>
+                            <div className="shrink-0 pt-0.5">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  setSelectedAlertIndices(prev => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add(originalIdx);
+                                    else next.delete(originalIdx);
+                                    return next;
+                                  });
+                                }}
+                                className="border-slate-600 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {/* Header row with keyword highlighted */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="shrink-0">
+                                  {alert.telegramSent ? (
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4 text-red-400" />
+                                  )}
+                                </div>
+                                <span className="bg-amber-500/20 text-amber-400 font-mono font-bold text-xs px-1.5 py-0.5 rounded">
+                                  {kw}
+                                </span>
+                                <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
+                                  {sourceBadge}
+                                </Badge>
+                                {alert.messageId && (
+                                  <Badge variant="outline" className="text-[9px] bg-slate-800/50 text-slate-400 border-slate-700/30">
+                                    #{alert.messageId}
+                                  </Badge>
+                                )}
+                                <span className="text-[10px] text-slate-600 ml-auto">
+                                  {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              {/* Source name */}
+                              <p className="text-xs text-slate-300 truncate mb-1.5">
+                                <span className="text-slate-500">Fuente:</span> {alert.sourceName}
+                              </p>
+                              {/* Message text with keyword highlighted */}
+                              {alert.messageText && (
+                                <div className="p-2 bg-[#080c16] rounded border border-slate-800/50 mb-1.5">
+                                  <p className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-wrap break-words" style={{ maxHeight: '120px', overflow: 'auto' }}>
+                                    {highlightKeywordInText(alert.messageText, kw)}
+                                  </p>
+                                </div>
+                              )}
+                              {/* Matched context snippet */}
+                              {alert.matchedContext && alert.matchedContext !== alert.messageText?.substring(0, 150) && (
+                                <div className="mb-1.5">
+                                  <p className="text-[10px] text-slate-600">
+                                    <span className="text-slate-500">Contexto:</span> {highlightKeywordInText(alert.matchedContext, kw)}
+                                  </p>
+                                </div>
+                              )}
+                              {/* Source URL */}
+                              {alert.sourceUrl && (
+                                <a
+                                  href={alert.sourceUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-cyan-400 hover:text-cyan-300 truncate block"
+                                >
+                                  <ExternalLink className="w-2.5 h-2.5 inline mr-1" />{alert.sourceUrl}
+                                </a>
                               )}
                             </div>
-                            <span className="bg-amber-500/20 text-amber-400 font-mono font-bold text-xs px-1.5 py-0.5 rounded">
-                              {kw}
-                            </span>
-                            <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
-                              {sourceBadge}
-                            </Badge>
-                            {alert.messageId && (
-                              <Badge variant="outline" className="text-[9px] bg-slate-800/50 text-slate-400 border-slate-700/30">
-                                #{alert.messageId}
-                              </Badge>
-                            )}
-                            <span className="text-[10px] text-slate-600 ml-auto">
-                              {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </span>
                           </div>
-                          {/* Source name */}
-                          <p className="text-xs text-slate-300 truncate mb-1.5">
-                            <span className="text-slate-500">Fuente:</span> {alert.sourceName}
-                          </p>
-                          {/* Message text with keyword highlighted */}
-                          {alert.messageText && (
-                            <div className="p-2 bg-[#080c16] rounded border border-slate-800/50 mb-1.5">
-                              <p className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-wrap break-words" style={{ maxHeight: '120px', overflow: 'auto' }}>
-                                {highlightKeywordInText(alert.messageText, kw)}
-                              </p>
-                            </div>
-                          )}
-                          {/* Matched context snippet (if different from message text) */}
-                          {alert.matchedContext && alert.matchedContext !== alert.messageText?.substring(0, 150) && (
-                            <div className="mb-1.5">
-                              <p className="text-[10px] text-slate-600">
-                                <span className="text-slate-500">Contexto:</span> {highlightKeywordInText(alert.matchedContext, kw)}
-                              </p>
-                            </div>
-                          )}
-                          {/* Source URL */}
-                          {alert.sourceUrl && (
-                            <a
-                              href={alert.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[10px] text-cyan-400 hover:text-cyan-300 truncate block"
-                            >
-                              <ExternalLink className="w-2.5 h-2.5 inline mr-1" />{alert.sourceUrl}
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 )}
               </CardContent>
@@ -4195,16 +4297,61 @@ export default function Home() {
                       Últimas alertas disparadas por el interceptor de palabras clave
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]"
-                    onClick={() => fetchAlertConfig()}
-                  >
-                    <ScanLine className="w-3.5 h-3.5 mr-1.5" />
-                    Actualizar
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]"
+                      onClick={() => fetchAlertConfig()}
+                    >
+                      <ScanLine className="w-3.5 h-3.5 mr-1.5" />
+                      Actualizar
+                    </Button>
+                  </div>
                 </div>
+                {/* Toolbar: Sort + Bulk Delete — only when history exists */}
+                {alertHistory.length > 0 && (
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#1e293b]">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedHistoryIndices.size === alertHistory.length && alertHistory.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedHistoryIndices(new Set(alertHistory.map((_, i) => i)));
+                          } else {
+                            setSelectedHistoryIndices(new Set());
+                          }
+                        }}
+                        className="border-slate-600 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                      />
+                      <span className="text-[10px] text-slate-500">
+                        {selectedHistoryIndices.size > 0 ? `${selectedHistoryIndices.size} seleccionada${selectedHistoryIndices.size !== 1 ? 's' : ''}` : 'Seleccionar todas'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px] text-slate-400 hover:text-white gap-1 px-2"
+                        onClick={() => setHistorySortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                      >
+                        {historySortOrder === 'desc' ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                        Fecha {historySortOrder === 'desc' ? '↓' : '↑'}
+                      </Button>
+                      {selectedHistoryIndices.size > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-6 text-[10px] gap-1 px-2"
+                          onClick={() => setShowDeleteHistoryModal(true)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Eliminar ({selectedHistoryIndices.size})
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {alertHistory.length === 0 ? (
@@ -4215,46 +4362,112 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {alertHistory.map((alert, idx) => {
-                      const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
-                        : alert.sourceType === 'group' || alert.sourceType === 'chat' ? 'CHAT/GROUP'
-                        : alert.sourceType === 'bot' ? 'BOT'
-                        : alert.sourceType === 'user' ? 'USUARIO'
-                        : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
-                      const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
-                        : alert.sourceType === 'group' || alert.sourceType === 'chat' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
-                        : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
-                        : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
-                      return (
-                        <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
-                          <div className="shrink-0">
-                            {alert.telegramSent ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-red-400" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-mono text-amber-400 font-medium">{alert.keyword}</span>
-                              <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
-                                {sourceBadge}
-                              </Badge>
+                    {[...alertHistory]
+                      .map((alert, originalIdx) => ({ alert, originalIdx }))
+                      .sort((a, b) => {
+                        const dateA = new Date(a.alert.timestamp).getTime();
+                        const dateB = new Date(b.alert.timestamp).getTime();
+                        return historySortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+                      })
+                      .map(({ alert, originalIdx }) => {
+                        const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
+                          : alert.sourceType === 'group' || alert.sourceType === 'chat' ? 'CHAT/GROUP'
+                          : alert.sourceType === 'bot' ? 'BOT'
+                          : alert.sourceType === 'user' ? 'USUARIO'
+                          : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
+                        const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
+                          : alert.sourceType === 'group' || alert.sourceType === 'chat' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
+                          : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
+                          : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                        const isSelected = selectedHistoryIndices.has(originalIdx);
+                        return (
+                          <div key={originalIdx} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${isSelected ? 'bg-red-950/10 border-red-800/50' : 'bg-[#0b0f19] border-[#1e293b] hover:border-slate-700'}`}>
+                            <div className="shrink-0">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  setSelectedHistoryIndices(prev => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add(originalIdx);
+                                    else next.delete(originalIdx);
+                                    return next;
+                                  });
+                                }}
+                                className="border-slate-600 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                              />
                             </div>
-                            <p className="text-xs text-slate-500 truncate mt-0.5">{alert.sourceName}</p>
+                            <div className="shrink-0">
+                              {alert.telegramSent ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-mono text-amber-400 font-medium">{alert.keyword}</span>
+                                <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
+                                  {sourceBadge}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-500 truncate mt-0.5">{alert.sourceName}</p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-[10px] text-slate-600">
+                                {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
                           </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-[10px] text-slate-600">
-                              {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* ── Delete History Confirmation Modal ── */}
+            <Dialog open={showDeleteHistoryModal} onOpenChange={setShowDeleteHistoryModal}>
+              <DialogContent className="bg-[#111827] border-[#1e293b] text-white">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-red-400">
+                    <AlertTriangle className="w-5 h-5" />
+                    Confirmar Eliminación
+                  </DialogTitle>
+                  <DialogDescription className="text-slate-400">
+                    ¿Está seguro de que desea eliminar permanentemente {selectedHistoryIndices.size} registro{selectedHistoryIndices.size !== 1 ? 's' : ''} del historial?
+                    Esta acción no se puede deshacer.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-2">
+                  <p className="text-xs text-slate-500">
+                    Se eliminarán las alertas seleccionadas del historial de forma permanente. Los registros de alertas enviadas a Telegram no se verán afectados.
+                  </p>
+                </div>
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-[#1e293b] text-slate-400 hover:text-white"
+                    onClick={() => setShowDeleteHistoryModal(false)}
+                    disabled={deleteHistoryLoading}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteHistoryEntries}
+                    disabled={deleteHistoryLoading}
+                  >
+                    {deleteHistoryLoading ? (
+                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Eliminando...</>
+                    ) : (
+                      <><Trash2 className="w-3.5 h-3.5 mr-1.5" />Eliminar Definitivamente</>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* ── How It Works Card ── */}
             <Card className="bg-[#111827] border-[#1e293b]">
