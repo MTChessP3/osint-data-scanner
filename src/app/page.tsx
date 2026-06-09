@@ -534,6 +534,7 @@ export default function Home() {
     channelsWithMessages?: number;
     zaiSearchUsed?: boolean;
     technicalIssues?: boolean;
+    partialSuccess?: boolean;
     diagnostics?: Array<{ phase: string; status: string; details: string }>;
     detectedAlerts: Array<{
       keyword: string;
@@ -2847,10 +2848,14 @@ export default function Home() {
                     )}
                     {/* Technical issues warning with diagnostics link */}
                     {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
-                      <div className="space-y-1.5 bg-red-900/20 border border-red-800/30 rounded-lg p-2">
+                      <div className={`space-y-1.5 rounded-lg p-2 ${groupScanResults.partialSuccess ? 'bg-amber-900/20 border border-amber-800/30' : 'bg-red-900/20 border border-red-800/30'}`}>
                         <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
-                          <p className="text-[10px] text-red-400 font-medium">Problemas técnicos detectados</p>
+                          <AlertTriangle className={`w-3 h-3 shrink-0 ${groupScanResults.partialSuccess ? 'text-amber-400' : 'text-red-400'}`} />
+                          <p className={`text-[10px] font-medium ${groupScanResults.partialSuccess ? 'text-amber-400' : 'text-red-400'}`}>
+                            {groupScanResults.partialSuccess
+                              ? 'Escaneo parcial — algunos métodos no estuvieron disponibles'
+                              : 'Problemas técnicos detectados'}
+                          </p>
                         </div>
                         {groupScanResults.diagnostics?.map((diag, di) => (
                           <div key={di} className={`text-[9px] px-2 py-1 rounded ${diag.status === 'ok' ? 'bg-emerald-900/10 text-emerald-400/80' : diag.status === 'error' ? 'bg-red-900/15 text-red-400' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-amber-900/10 text-amber-400/80'}`}>
@@ -3898,10 +3903,14 @@ export default function Home() {
                 )}
                 {/* Technical issues warning with diagnostics */}
                 {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
-                  <div className="space-y-2 bg-red-900/20 border border-red-800/30 rounded-lg p-3">
+                  <div className={`space-y-2 rounded-lg p-3 ${groupScanResults.partialSuccess ? 'bg-amber-900/20 border border-amber-800/30' : 'bg-red-900/20 border border-red-800/30'}`}>
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-                      <p className="text-xs text-red-400 font-medium">Problemas técnicos detectados — revisa los diagnósticos</p>
+                      <AlertTriangle className={`w-4 h-4 shrink-0 ${groupScanResults.partialSuccess ? 'text-amber-400' : 'text-red-400'}`} />
+                      <p className={`text-xs font-medium ${groupScanResults.partialSuccess ? 'text-amber-400' : 'text-red-400'}`}>
+                        {groupScanResults.partialSuccess
+                          ? 'Escaneo parcial — algunos métodos no estuvieron disponibles'
+                          : 'Problemas técnicos detectados — revisa los diagnósticos'}
+                      </p>
                     </div>
                     {groupScanResults.diagnostics?.map((diag, di) => (
                       <div key={di} className={`text-[10px] px-2.5 py-1.5 rounded ${diag.status === 'ok' ? 'bg-emerald-900/10 text-emerald-400/80' : diag.status === 'error' ? 'bg-red-900/15 text-red-400' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-amber-900/10 text-amber-400/80'}`}>
