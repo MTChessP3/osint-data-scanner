@@ -196,3 +196,26 @@ Stage Summary:
 - Build verified successful
 - Deployed to Vercel via git push (commit 9fe3e03)
 - Key insight: the 503→200 fix is the most critical change - it ensures diagnostics data always reaches the frontend
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix Telegram scanner - Z.ai config not found, 0 keyword matches, rate limiting
+
+Work Log:
+- Analyzed user screenshot showing diagnostics: Z.ai ERROR (config not found), 50 channels scraped, 3 with messages, 0 keyword matches
+- Root cause 1: Z.ai SDK fails on Vercel because /etc/.z-ai-config doesn't exist there. SDK needs env vars.
+  -> Fix: Load /etc/.z-ai-config into process.env (ZAI_TOKEN, ZAI_USER_ID, ZAI_CHAT_ID) BEFORE calling ZAI.create()
+- Root cause 2: 47/50 KNOWN_CHANNELS were fake/inactive channels with no messages
+  -> Fix: Replaced with verified real channels (DailyEstafa, ciberseguridad, Losqueinvierten, DescuentosTech, etc.)
+  -> Testing shows 17+ keyword matches per scan with new channels (was 0)
+- Root cause 3: Rate limiting (429 errors) from 5 search queries × 30 keywords = 150 API calls
+  -> Fix: Reduced to 2 queries per keyword, max 15 keywords, longer backoff delays
+- Root cause 4: t.me/s/Channel URLs not extracting channel name properly
+  -> Fix: Added regex for t.me/s/{channel} format before t.me/{channel} format
+- UI improvement: Differentiate partial success (amber) vs total failure (red) in diagnostics display
+
+Stage Summary:
+- Local testing confirms: DailyEstafa=5 matches, ciberseguridad=3 matches, Losqueinvierten=8 matches, bancolombia=1 match
+- Build successful, deployed to Vercel (commit 74e9bcd)
+- Key fix: Z.ai config loading into env vars is the critical change for Vercel deployment
