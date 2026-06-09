@@ -219,3 +219,45 @@ Stage Summary:
 - Local testing confirms: DailyEstafa=5 matches, ciberseguridad=3 matches, Losqueinvierten=8 matches, bancolombia=1 match
 - Build successful, deployed to Vercel (commit 74e9bcd)
 - Key fix: Z.ai config loading into env vars is the critical change for Vercel deployment
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: UX/UI optimization - Checkboxes, bulk delete, date sorting for Alertas Encontradas & Historial de Alertas
+
+Work Log:
+- Analyzed user screenshot showing current Alertas Encontradas and Historial de Alertas UI
+- Read all relevant code sections: page.tsx (lines 4086-4360), alerts/route.ts, alert-interceptor.ts
+- Identified missing functionality: no checkboxes, no bulk delete, no date sorting
+
+Backend changes:
+- Added removeAlertHistoryEntries(indices) and clearAlertHistory() to alert-interceptor.ts
+- Added DELETE handler to /api/alerts: supports { indices: number[] } and { clearAll: true }
+- Changed GET /api/alerts to return full history (was limited to 10)
+
+Frontend - Alertas Encontradas:
+- Added selectedAlertIndices (Set<number>) and alertsSortOrder ('desc'|'asc') state
+- Added toolbar with: master checkbox, selection count, date sort toggle, delete button
+- Added individual checkbox per alert card with red selection highlight
+- Sorting by timestamp: desc (default) = newest first, asc = oldest first
+- Delete removes from client-side groupScanResults.detectedAlerts
+
+Frontend - Historial de Alertas:
+- Added selectedHistoryIndices (Set<number>) and historySortOrder ('desc'|'asc') state
+- Added toolbar with: master checkbox, selection count, date sort toggle, delete button
+- Added individual checkbox per history entry with red selection highlight
+- Delete opens confirmation modal before calling DELETE /api/alerts
+- Confirmation modal: "Confirmar Eliminación" with warning + Cancel/Eliminar buttons
+
+UI/UX design decisions:
+- Toolbar only visible when items exist (clean empty state)
+- Delete button only visible when ≥1 items selected (floating action)
+- Consistent red checkbox styling across both modules
+- Selected items get red border highlight (border-red-800/50)
+- Sort toggle uses ChevronDown/ChevronUp icons + ↓/↑ arrows
+- Confirmation modal prevents accidental deletion in Historial
+
+Stage Summary:
+- Build successful, deployed to Vercel (commit 7b4aebd)
+- All 4 requested features implemented: checkboxes, select-all, bulk delete, date sorting
+- Confirmation modal added for Historial deletion
