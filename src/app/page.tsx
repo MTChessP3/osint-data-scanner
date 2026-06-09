@@ -531,7 +531,10 @@ export default function Home() {
     maxKeywordsPerScan: number;
     channelsDiscovered?: number;
     channelsScraped?: number;
+    channelsWithMessages?: number;
     zaiSearchUsed?: boolean;
+    technicalIssues?: boolean;
+    diagnostics?: Array<{ phase: string; status: string; details: string }>;
     detectedAlerts: Array<{
       keyword: string;
       sourceType: string;
@@ -4032,19 +4035,32 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 {!groupScanResults || groupScanResults.detectedAlerts.length === 0 ? (
-                  <div className="text-center py-8">
+                  <div className="text-center py-6">
                     <Bell className="w-8 h-8 text-slate-600 mx-auto mb-2" />
                     <p className="text-sm text-slate-500">
                       {!groupScanResults
                         ? 'Sin alertas aún. Haz clic en "Escanear Grupos" para buscar menciones de palabras clave.'
-                        : 'No se encontraron menciones de palabras clave en este escaneo.'}
+                        : groupScanResults.technicalIssues
+                          ? 'Escaneo completado con problemas técnicos. Revisa los diagnósticos abajo.'
+                          : 'No se encontraron menciones de palabras clave en este escaneo.'}
                     </p>
                     {groupScanResults && (
-                      <p className="text-xs text-slate-600 mt-2">
-                        Se buscaron {groupScanResults.totalKeywords} palabras clave en {groupScanResults.totalGroups} grupo(s).
-                        {groupScanResults.zaiSearchUsed ? ' Búsqueda web Z.ai activa.' : ' Búsqueda web Z.ai no disponible.'}
-                        {groupScanResults.channelsDiscovered !== undefined && ` ${groupScanResults.channelsDiscovered} canales descubiertos, ${groupScanResults.channelsScraped ?? 0} escaneados.`}
-                      </p>
+                      <div className="mt-3 text-left space-y-2">
+                        <p className="text-xs text-slate-500 text-center">
+                          Se buscaron {groupScanResults.totalKeywords} palabras clave en {groupScanResults.totalGroups} grupo(s).
+                          {groupScanResults.channelsDiscovered !== undefined && ` ${groupScanResults.channelsDiscovered} canales descubiertos, ${groupScanResults.channelsScraped ?? 0} escaneados, ${groupScanResults.channelsWithMessages ?? 0} con mensajes.`}
+                        </p>
+                        {/* Show diagnostics when no results or technical issues */}
+                        {groupScanResults.diagnostics && groupScanResults.diagnostics.length > 0 && (
+                          <div className="space-y-1">
+                            {groupScanResults.diagnostics.map((diag, di) => (
+                              <div key={di} className={`text-[10px] p-1.5 rounded ${diag.status === 'ok' ? 'bg-emerald-900/10 text-emerald-400/70' : diag.status === 'error' ? 'bg-red-900/15 text-red-400/80' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-amber-900/10 text-amber-400/70'}`}>
+                                <span className="font-mono font-bold">{diag.phase}</span>: <span className={diag.status === 'error' ? 'text-red-300' : 'text-slate-400'}>{diag.details}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : (
