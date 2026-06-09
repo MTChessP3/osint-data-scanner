@@ -710,20 +710,21 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'scan_groups' }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setGroupScanResults(data);
-          // Also update alert history from the scan
-          if (data.alertHistory) {
-            setAlertHistory(data.alertHistory);
-          }
-        } else {
-          setGroupScanError(data.error || 'Error al escanear grupos');
+      const data = await res.json().catch(() => ({}));
+
+      // Always set results if diagnostics data is present (even on partial failures)
+      if (data.diagnostics || data.detectedAlerts || data.totalGroups !== undefined) {
+        setGroupScanResults(data);
+        // Also update alert history from the scan
+        if (data.alertHistory) {
+          setAlertHistory(data.alertHistory);
         }
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        setGroupScanError(errData.error || 'Error al escanear grupos');
+        // If there's also an error message, show it alongside the diagnostics
+        if (!data.success && data.error) {
+          setGroupScanError(data.error);
+        }
+      } else if (!res.ok || !data.success) {
+        setGroupScanError(data.error || 'Error al escanear grupos');
       }
     } catch {
       setGroupScanError('Error de conexión con el servidor');
@@ -2838,10 +2839,24 @@ export default function Home() {
                     </Button>
 
                     {/* Scan error */}
-                    {groupScanError && (
+                    {groupScanError && !groupScanResults?.technicalIssues && (
                       <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/30 rounded-lg p-2">
                         <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
                         <p className="text-[10px] text-red-400">{groupScanError}</p>
+                      </div>
+                    )}
+                    {/* Technical issues warning with diagnostics link */}
+                    {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
+                      <div className="space-y-1.5 bg-red-900/20 border border-red-800/30 rounded-lg p-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
+                          <p className="text-[10px] text-red-400 font-medium">Problemas técnicos detectados</p>
+                        </div>
+                        {groupScanResults.diagnostics?.map((diag, di) => (
+                          <div key={di} className={`text-[9px] px-2 py-1 rounded ${diag.status === 'ok' ? 'bg-emerald-900/10 text-emerald-400/80' : diag.status === 'error' ? 'bg-red-900/15 text-red-400' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-amber-900/10 text-amber-400/80'}`}>
+                            <span className="font-mono font-bold">{diag.phase}</span>: {diag.details}
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -3875,10 +3890,24 @@ export default function Home() {
                 </Button>
 
                 {/* Error message */}
-                {groupScanError && (
+                {groupScanError && !groupScanResults?.technicalIssues && (
                   <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/30 rounded-lg p-3">
                     <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
                     <p className="text-xs text-red-400">{groupScanError}</p>
+                  </div>
+                )}
+                {/* Technical issues warning with diagnostics */}
+                {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
+                  <div className="space-y-2 bg-red-900/20 border border-red-800/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                      <p className="text-xs text-red-400 font-medium">Problemas técnicos detectados — revisa los diagnósticos</p>
+                    </div>
+                    {groupScanResults.diagnostics?.map((diag, di) => (
+                      <div key={di} className={`text-[10px] px-2.5 py-1.5 rounded ${diag.status === 'ok' ? 'bg-emerald-900/10 text-emerald-400/80' : diag.status === 'error' ? 'bg-red-900/15 text-red-400' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-amber-900/10 text-amber-400/80'}`}>
+                        <span className="font-mono font-bold">{diag.phase}</span>: {diag.details}
+                      </div>
+                    ))}
                   </div>
                 )}
 

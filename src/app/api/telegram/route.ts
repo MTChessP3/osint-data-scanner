@@ -554,20 +554,25 @@ export async function POST(request: NextRequest) {
           let botApiOk = false;
           let botApiError = '';
 
-          // Validate Z.ai SDK
-          try {
-            const ZAI = (await import('z-ai-web-dev-sdk')).default;
-            const zai = await ZAI.create();
-            zaiAvailable = true;
-            // Test with a quick search
-            const testResult = await zai.functions.invoke('web_search', { query: 'test', num: 1 });
-            if (!Array.isArray(testResult)) {
-              zaiAvailable = false;
-              zaiError = 'Z.ai web_search returned non-array response';
+          // Validate Z.ai SDK — try multiple times with backoff
+          for (let zaiAttempt = 0; zaiAttempt < 3 && !zaiAvailable; zaiAttempt++) {
+            try {
+              if (zaiAttempt > 0) {
+                await new Promise(r => setTimeout(r, 1000 * zaiAttempt));
+              }
+              const ZAI = (await import('z-ai-web-dev-sdk')).default;
+              const zai = await ZAI.create();
+              // Test with a quick search
+              const testResult = await zai.functions.invoke('web_search', { query: 'test', num: 1 });
+              if (Array.isArray(testResult)) {
+                zaiAvailable = true;
+              } else {
+                zaiError = 'Z.ai web_search returned non-array response (attempt ' + (zaiAttempt + 1) + ')';
+              }
+            } catch (err) {
+              zaiError = err instanceof Error ? err.message : 'SDK import/init failed (attempt ' + (zaiAttempt + 1) + ')';
+              console.warn(`[ScanGroups] Z.ai SDK validation attempt ${zaiAttempt + 1} failed:`, zaiError);
             }
-          } catch (err) {
-            zaiError = err instanceof Error ? err.message : 'SDK import/init failed';
-            console.warn('[ScanGroups] Z.ai SDK validation failed:', zaiError);
           }
 
           // Validate Telegram Bot API
@@ -916,11 +921,12 @@ export async function POST(request: NextRequest) {
           console.log(`[ScanGroups] Scan complete: ${detectedAlerts.length} alerts, ${totalGroups} groups, ${keywordsProcessed}/${keywords.length} keywords, ${discoveredChannels.size} discovered, ${channelsScraped} scraped`);
 
           // Determine if the scan had technical issues that prevented results
-          const hasTechnicalIssues = !zaiAvailable || (channelsScraped === 0 && !botToken);
-          const responseStatus = hasTechnicalIssues && detectedAlerts.length === 0 ? 503 : 200;
+          // Only mark as technical issue if ALL methods failed (not just Z.ai)
+          const allMethodsFailed = !zaiAvailable && channelsScraped === 0 && (!botToken || !botApiOk);
+          const hasPartialIssues = (!zaiAvailable || channelsScraped === 0) && detectedAlerts.length === 0;
 
           const responseBody: Record<string, unknown> = {
-            success: true,
+            success: detectedAlerts.length > 0 || !allMethodsFailed,
             totalGroups,
             totalBotMessages,
             keywordsProcessed,
@@ -935,13 +941,17 @@ export async function POST(request: NextRequest) {
             alertHistory: updatedAlertHistory.slice(0, 10),
           };
 
-          if (hasTechnicalIssues && detectedAlerts.length === 0) {
+          if (allMethodsFailed) {
             responseBody.success = false;
-            responseBody.error = 'No se pudieron obtener resultados debido a problemas técnicos. Revisa los diagnósticos para más detalles.';
+            responseBody.error = 'No se pudieron obtener resultados: Z.ai SDK no disponible, scraping de canales sin resultados, y Bot API no configurada. Revisa los diagnósticos para más detalles.';
             (responseBody as Record<string, unknown>).technicalIssues = true;
+          } else if (hasPartialIssues) {
+            (responseBody as Record<string, unknown>).technicalIssues = true;
+            (responseBody as Record<string, unknown>).partialSuccess = true;
           }
 
-          return NextResponse.json(responseBody, { status: responseStatus });
+          // Always return 200 so frontend can access diagnostics data
+          return NextResponse.json(responseBody, { status: 200 });
 
         } catch (fetchError) {
           console.error('[ScanGroups] Fatal error:', fetchError);
