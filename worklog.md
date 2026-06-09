@@ -171,3 +171,28 @@ Stage Summary:
 - Complete rewrite with validation, diagnostics, backoff, proper error codes
 - Frontend now shows exactly WHY no results were found (which phase failed)
 - Deployed to Vercel
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix "No se pudieron obtener resultados debido a problemas técnicos" Telegram scanner error
+
+Work Log:
+- Analyzed user screenshot showing error message in Telegram Avanzado section
+- Identified root cause: API returned HTTP 503 when Z.ai SDK unavailable, but frontend only processes res.ok (200-299) responses for diagnostics data
+- When 503 returned, frontend went to else branch and only set groupScanError, losing all diagnostics data
+- Diagnosed secondary issue: hasTechnicalIssues flag triggered on ANY Z.ai failure, even if Phase 2 (channel scraping) could work fine
+- Z.ai SDK validation (Phase 0) had no retry logic - single failure marked entire scan as failed
+
+Fixes Applied:
+1. API route.ts: Always return HTTP 200 with full diagnostics (never 503) so frontend always receives data
+2. API route.ts: Better technical issue classification - only allMethodsFailed when ALL 3 methods fail, added partialSuccess for partial issues
+3. API route.ts: Z.ai SDK Phase 0 validation now retries 3 times with exponential backoff (1s, 2s, 3s)
+4. Frontend page.tsx: Always set groupScanResults when diagnostics/detectedAlerts data present, even on partial failures
+5. Frontend page.tsx: Inline diagnostics breakdown shown in error area when technicalIssues detected (both UI locations)
+6. Frontend page.tsx: Error message no longer hides when technicalIssues is true (shows diagnostics instead)
+
+Stage Summary:
+- Build verified successful
+- Deployed to Vercel via git push (commit 9fe3e03)
+- Key insight: the 503→200 fix is the most critical change - it ensures diagnostics data always reaches the frontend
