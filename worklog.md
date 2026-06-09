@@ -146,3 +146,28 @@ Stage Summary:
 - Complete rewrite of scan engine with dynamic channel discovery via Z.ai web search
 - Frontend now highlights keywords in message text with amber background
 - Deployed to Vercel via git push
+---
+Task ID: 2
+Agent: main
+Task: Comprehensive fix of Telegram scanner based on user's detailed bug report
+
+Work Log:
+- Analyzed user's uploaded screenshot showing "Sin alertas" with 1 group and 11/11 keywords processed
+- Identified root causes: no global search, no connection validation, no diagnostics, no error handling
+- Rewrote scan_groups with Phase 0 (connection validation), Phase 1 (Z.ai with 5 query variants + backoff), Phase 2 (batched scraping of 50 channels), Phase 3 (bot polling)
+- Added exponential backoff between keywords (300ms base) and search queries (200ms base)
+- Added Z.ai SDK validation test (test search before real scan)
+- Added Bot API getMe validation
+- Return detailed diagnostics per phase: phase name, status (ok/partial/error/skipped), details string
+- Return HTTP 503 with technicalIssues=true when infrastructure fails (Z.ai down, no scraping possible)
+- Return HTTP 500 with diagnostics on fatal errors
+- Frontend shows diagnostics panel when no results found (colored by status)
+- Expanded KNOWN_CHANNELS from ~30 to ~50 Colombian fraud channels
+- Better channel not-found detection (check tgme_widget_message_text presence vs just text matching)
+- Removed leftover /api/ciberte/route.ts that was still in the codebase
+- Build succeeded, deployed to Vercel
+
+Stage Summary:
+- Complete rewrite with validation, diagnostics, backoff, proper error codes
+- Frontend now shows exactly WHY no results were found (which phase failed)
+- Deployed to Vercel
