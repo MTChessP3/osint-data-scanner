@@ -54,7 +54,7 @@ next-env.d.ts
 
 # IDE / Editor
 .claude
-.z-ai-config
+# .z-ai-config is needed for deployment - contains session config
 local-*
 prompt
 test
