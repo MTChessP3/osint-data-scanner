@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   const status = getConfigStatus();
 
   // If bot token exists, verify it's valid by calling getMe
-  let botInfo = null;
+  let botInfo: { username: string; firstName: string; id: number } | null = null;
   const botToken = getBotToken();
   if (botToken) {
     try {
@@ -327,6 +327,9 @@ export async function POST(request: NextRequest) {
           isOfficial?: boolean;
           riskTags?: string[];
           discoverySource?: string;
+          channelUsername?: string;
+          subscriberCount?: number;
+          messageDate?: string;
         }> = [];
 
         let totalGroups = 0;
@@ -334,6 +337,33 @@ export async function POST(request: NextRequest) {
         let keywordsProcessed = 0;
         const discoveredChannels = new Set<string>();
         const scanDiagnostics: Array<{ phase: string; status: string; details: string }> = [];
+
+        // ── Expanded Official/Verified corporate channels (all lowercase for matching) ──
+        const OFFICIAL_CHANNELS_SET = new Set([
+          'bancolombia', 'bancolombia_comunica', 'bancolombiaempresas',
+          'bancolombia_ayuda', 'bancolombiainversion',
+          'nequi', 'nequicol', 'nequiayuda', 'nequicuentas',
+          'wompi_co', 'wompicol', 'banistmo',
+          'bancoagricola', 'grupo_cibest', 'cibest',
+          'davivienda', 'daviviendaayuda',
+          'bancodebogota', 'bancobogota',
+          'bbva_colombia', 'scotiabankcol', 'colpatria',
+          // Original mixed-case entries for backward compatibility
+          'Bancolombia', 'NequiCol', 'BancoAgricolaSV', 'BancolombiaEmpresas',
+        ]);
+
+        // ── Fraud/security monitoring channels — always scrape these (high-priority) ──
+        const MONITORING_CHANNELS = [
+          'DailyEstafa', 'estafascolombia', 'INCIBE017Informacion',
+          'ciberseguridad', 'criptonoticias', 'group_ib',
+          'notoscam', 'hackplayers', 'seguridadinformatica',
+          'threatpost', 'TheHackersNews', 'BleepinComputer',
+          'fraudebancario', 'ciberseguridadcol', 'seguridadcolombia',
+          'binancespanishanuncios', 'Bandec97',
+          'DescuentosTech', 'Losqueinvierten',
+          'querellaafectadoscontrafxwinning', 'INCIBE017',
+          'PasaenBogotaSrBacca', 'EnZonaBX',
+        ];
 
         // ── Normalize text: lowercase, remove accents, remove special chars ──
         function normalizeText(text: string): string {
@@ -346,14 +376,15 @@ export async function POST(request: NextRequest) {
             .trim();
         }
 
-        // ── Match keyword with normalization — returns the matched keyword or null ──
-        function findMatchingKeyword(text: string): string | null {
+        // ── Match keyword with normalization — returns ALL matched keywords ──
+        function findAllMatchingKeywords(text: string): string[] {
+          const matches: string[] = [];
           for (const kw of keywords) {
             if (normalizeText(text).includes(normalizeText(kw))) {
-              return kw;
+              matches.push(kw);
             }
           }
-          return null;
+          return matches;
         }
 
         // ── Extract context around keyword match ──
@@ -367,21 +398,95 @@ export async function POST(request: NextRequest) {
           return text.substring(start, end);
         }
 
-        // ── Exponential backoff delay ──
-        function backoffDelay(attempt: number, baseMs = 500): Promise<void> {
-          const delay = Math.min(baseMs * Math.pow(2, attempt), 8000);
-          return new Promise(resolve => setTimeout(resolve, delay));
+        // ── Check if a channel name is official ──
+        function isOfficialChannel(channelName: string): boolean {
+          if (OFFICIAL_CHANNELS_SET.has(channelName)) return true;
+          const nameLower = channelName.toLowerCase();
+          if (OFFICIAL_CHANNELS_SET.has(nameLower)) return true;
+          const officialIndicators = ['oficial', 'official', 'verified', 'verificado', '_comunica', 'empresas'];
+          if (officialIndicators.some(ind => nameLower.includes(ind))) return true;
+          return false;
         }
 
-        // ── Scrape a t.me/s/ channel preview page and extract messages ──
-        async function scrapeChannelPreview(channelName: string): Promise<{
+        // ── Classify channel risk level (with impersonator detection) ──
+        function classifyChannelRisk(channelName: string, snippet?: string): {
+          riskLevel: 'high' | 'medium' | 'low';
+          isOfficial: boolean;
+          riskTags: string[];
+        } {
+          const nameLower = channelName.toLowerCase();
+          const snippetLower = (snippet || '').toLowerCase();
+          const riskTags: string[] = [];
+          const isOfficial = isOfficialChannel(channelName);
+
+          // ── Impersonator detection ──
+          // If channel username contains any keyword AND is NOT official → high risk impersonator
+          const nameContainsKeyword = keywords.some(kw => {
+            const kwNorm = normalizeText(kw);
+            return normalizeText(nameLower).includes(kwNorm);
+          });
+
+          // If channel starts with "fake" + keyword → impersonator
+          const isFakeChannel = keywords.some(kw => {
+            return nameLower.startsWith('fake' + normalizeText(kw));
+          });
+
+          // If channel has _soporte, _ayuda, _oficial suffix but is NOT in official list → impersonator
+          const suspiciousSuffix = ['_soporte', 'soporte', '_oficial', 'oficial', '_ayuda', 'ayuda'];
+          const hasSuspiciousSuffix = suspiciousSuffix.some(suffix => nameLower.endsWith(suffix));
+          const isImpersonator = (nameContainsKeyword && !isOfficial && hasSuspiciousSuffix) || isFakeChannel;
+
+          if (isImpersonator) {
+            riskTags.push('impersonacion');
+            return { riskLevel: 'high', isOfficial: false, riskTags };
+          }
+
+          // High-risk indicators in snippet or channel name
+          const highRiskTerms = ['estafa', 'scam', 'fraude', 'phishing', 'robo', 'hack', 'filtro', 'venda', 'venta', 'datos', 'filtracion', 'credential', 'password', 'contrasena', 'clon', 'clonacion', 'tarjeta', 'cuenta'];
+          const mediumRiskTerms = ['sospech', 'alerta', 'cuidado', 'aviso', 'precaucion', 'estafador', 'engano', 'enganoso', 'spam', 'malware', 'virus', 'ransomware'];
+
+          for (const term of highRiskTerms) {
+            if (nameLower.includes(term) || snippetLower.includes(term)) {
+              riskTags.push(term);
+            }
+          }
+          for (const term of mediumRiskTerms) {
+            if (nameLower.includes(term) || snippetLower.includes(term)) {
+              riskTags.push(term);
+            }
+          }
+
+          if (isOfficial) {
+            return { riskLevel: 'low', isOfficial: true, riskTags: [] };
+          }
+
+          if (riskTags.some(t => highRiskTerms.includes(t))) {
+            return { riskLevel: 'high', isOfficial: false, riskTags };
+          }
+
+          if (riskTags.length > 0) {
+            return { riskLevel: 'medium', isOfficial: false, riskTags };
+          }
+
+          return { riskLevel: 'medium', isOfficial: false, riskTags: [] };
+        }
+
+        // ── Username regex: allow 3-32 chars (was 5-32) ──
+        const USERNAME_REGEX_STRICT = /^[a-zA-Z0-9_]{3,32}$/;
+        const SKIP_PATHS = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv', 'confirmphone', 'setlanguage'];
+
+        // ── Scrape a t.me/s/ channel preview page and extract messages (with pagination) ──
+        async function scrapeChannelPreview(channelName: string, beforeMsgId?: number): Promise<{
           exists: boolean;
-          messages: Array<{ text: string; msgId?: string }>;
+          messages: Array<{ text: string; msgId?: string; messageDate?: string }>;
           channelTitle: string;
           subscriberCount?: number;
+          channelUsername?: string;
+          oldestMsgId?: number;
         }> {
           try {
-            const previewUrl = `https://t.me/s/${channelName}`;
+            const params = beforeMsgId ? `?before=${beforeMsgId}` : '';
+            const previewUrl = `https://t.me/s/${channelName}${params}`;
             const res = await fetch(previewUrl, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -393,15 +498,11 @@ export async function POST(request: NextRequest) {
             });
 
             if (!res.ok) {
-              console.log(`[scrapeChannelPreview] ${channelName} returned HTTP ${res.status}`);
               return { exists: false, messages: [], channelTitle: channelName };
             }
 
             const html = await res.text();
 
-            // Check for actual "channel not found" page — distinguish from "open in app" page
-            // A real channel page will have tgme_widget_message_text classes
-            // A not-found page will have different structure
             const hasMessages = html.includes('tgme_widget_message_text');
             const hasChannelInfo = html.includes('tgme_channel_info') || html.includes('tgme_page_title');
 
@@ -409,13 +510,12 @@ export async function POST(request: NextRequest) {
               return { exists: false, messages: [], channelTitle: channelName };
             }
 
-            const messages: Array<{ text: string; msgId?: string }> = [];
+            const messages: Array<{ text: string; msgId?: string; messageDate?: string }> = [];
 
-            // Extract messages from tgme_widget_message_text divs — try multiple patterns
-            // Pattern 1: Full message text div
+            // Extract messages from tgme_widget_message_text divs
             const msgPattern1 = /class="tgme_widget_message_text"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
             let msgMatch;
-            while ((msgMatch = msgPattern1.exec(html)) !== null && messages.length < 30) {
+            while ((msgMatch = msgPattern1.exec(html)) !== null && messages.length < 40) {
               const msgHtml = msgMatch[1];
               const msgText = msgHtml
                 .replace(/<br\s*\/?>/gi, '\n')
@@ -428,9 +528,18 @@ export async function POST(request: NextRequest) {
                 .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num)))
                 .trim();
               if (msgText.length > 3) {
-                const surroundingHtml = html.substring(Math.max(0, msgMatch.index - 500), msgMatch.index);
+                const surroundingHtml = html.substring(Math.max(0, msgMatch.index - 800), msgMatch.index);
                 const idMatch = surroundingHtml.match(/data-post="[^\/]*\/(\d+)"/);
-                messages.push({ text: msgText, msgId: idMatch?.[1] });
+
+                // Extract message timestamp from tgme_widget_message_date or datetime attribute
+                let messageDate: string | undefined;
+                const dateMatch = surroundingHtml.match(/tgme_widget_message_date[^>]*href="[^"]*\/(\d+)"[^>]*><time[^>]*datetime="([^"]*)"/i)
+                  || surroundingHtml.match(/datetime="([^"]*)"/i);
+                if (dateMatch) {
+                  messageDate = dateMatch[2] || dateMatch[1];
+                }
+
+                messages.push({ text: msgText, msgId: idMatch?.[1], messageDate });
               }
             }
 
@@ -438,7 +547,7 @@ export async function POST(request: NextRequest) {
             if (messages.length === 0) {
               const msgPattern2 = /tgme_widget_message_text[^>]*>([\s\S]*?)<\/div>/gi;
               let fbMatch;
-              while ((fbMatch = msgPattern2.exec(html)) !== null && messages.length < 30) {
+              while ((fbMatch = msgPattern2.exec(html)) !== null && messages.length < 40) {
                 const msgText = fbMatch[1]
                   .replace(/<br\s*\/?>/gi, '\n')
                   .replace(/<[^>]+>/g, '')
@@ -473,11 +582,35 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            return { exists: messages.length > 0, messages, channelTitle, subscriberCount };
+            // Find the oldest message ID for pagination
+            let oldestMsgId: number | undefined;
+            if (messages.length > 0) {
+              const allIds = messages.map(m => m.msgId ? parseInt(m.msgId) : Infinity).filter(id => id !== Infinity);
+              if (allIds.length > 0) {
+                oldestMsgId = Math.min(...allIds);
+              }
+            }
+
+            return {
+              exists: messages.length > 0,
+              messages,
+              channelTitle,
+              subscriberCount,
+              channelUsername: channelName,
+              oldestMsgId,
+            };
           } catch (err) {
             console.log(`[scrapeChannelPreview] ${channelName} error: ${err instanceof Error ? err.message : 'unknown'}`);
             return { exists: false, messages: [], channelTitle: channelName };
           }
+        }
+
+        // ── Dedup key: keyword + channelUsername + messageText[:100] ──
+        const seenDedupKeys = new Set<string>();
+        function makeDedupKey(keyword: string, channelUsername: string | undefined, messageText: string): string {
+          const msgKey = normalizeText(messageText).substring(0, 100);
+          const chKey = (channelUsername || '').toLowerCase();
+          return `${normalizeText(keyword)}|${chKey}|${msgKey}`;
         }
 
         // ── Helper: add alert with dedup + Telegram notification ──
@@ -490,15 +623,16 @@ export async function POST(request: NextRequest) {
           chatType: string;
           matchedContext: string;
           messageId?: string;
+          channelUsername?: string;
+          subscriberCount?: number;
+          messageDate?: string;
         }) {
-          const { keyword, sourceType, sourceName, sourceUrl, messageText, chatType, matchedContext, messageId } = params;
+          const { keyword, sourceType, sourceName, sourceUrl, messageText, chatType, matchedContext, messageId, channelUsername, subscriberCount, messageDate } = params;
 
-          // Deduplicate by keyword + messageText (more precise)
-          const msgKey = normalizeText(messageText).substring(0, 100);
-          const isDuplicate = detectedAlerts.some(
-            a => normalizeText(a.keyword) === normalizeText(keyword) && normalizeText(a.messageText).substring(0, 100) === msgKey
-          );
-          if (isDuplicate) return;
+          // Deduplicate by keyword + channelUsername + messageText[:100]
+          const dedupKey = makeDedupKey(keyword, channelUsername, messageText);
+          if (seenDedupKeys.has(dedupKey)) return;
+          seenDedupKeys.add(dedupKey);
 
           let telegramSent = false;
           if (isConfigured()) {
@@ -512,7 +646,7 @@ export async function POST(request: NextRequest) {
                 sourceType: sourceType as TelegramAlert['sourceType'],
                 sourceId: sourceUrl,
                 sourceName,
-                sourceUsername: sourceUrl.match(/t\.me\/([a-zA-Z0-9_]+)/)?.[1],
+                sourceUsername: channelUsername || sourceUrl.match(/t\.me\/([a-zA-Z0-9_]{3,32})/)?.[1],
                 sourceUrl,
                 subjectName: 'Escáner de Grupos',
                 findingTitle: `Mención de "${keyword}" en ${sourceType} de Telegram`,
@@ -536,6 +670,9 @@ export async function POST(request: NextRequest) {
             matchedKeyword: keyword,
             matchedContext: matchedContext || messageText.substring(0, 150),
             messageId,
+            channelUsername,
+            subscriberCount,
+            messageDate,
           });
 
           addAlertHistoryEntry({
@@ -551,14 +688,14 @@ export async function POST(request: NextRequest) {
           const botToken = getBotToken();
 
           // ═══════════════════════════════════════════════════════════════
-          //  PHASE 0: Validate connections
+          //  PHASE 0: Quick Validation (NO test search)
           // ═══════════════════════════════════════════════════════════════
           let zaiAvailable = false;
           let zaiError = '';
           let botApiOk = false;
           let botApiError = '';
 
-          // Validate Z.ai SDK — ensure env vars are set from config file first
+          // Load Z.ai config from /etc/.z-ai-config
           try {
             const fs = await import('fs');
             const configPaths = ['/etc/.z-ai-config'];
@@ -577,25 +714,16 @@ export async function POST(request: NextRequest) {
             }
           } catch { /* fs not available */ }
 
-          // Try Z.ai SDK initialization with retries
-          for (let zaiAttempt = 0; zaiAttempt < 3 && !zaiAvailable; zaiAttempt++) {
-            try {
-              if (zaiAttempt > 0) {
-                await new Promise(r => setTimeout(r, 1000 * zaiAttempt));
-              }
-              const ZAI = (await import('z-ai-web-dev-sdk')).default;
-              const zai = await ZAI.create();
-              // Test with a quick search
-              const testResult = await zai.functions.invoke('web_search', { query: 'test', num: 1 });
-              if (Array.isArray(testResult)) {
-                zaiAvailable = true;
-              } else {
-                zaiError = 'Z.ai web_search returned non-array response (attempt ' + (zaiAttempt + 1) + ')';
-              }
-            } catch (err) {
-              zaiError = err instanceof Error ? err.message : 'SDK import/init failed (attempt ' + (zaiAttempt + 1) + ')';
-              console.warn(`[ScanGroups] Z.ai SDK validation attempt ${zaiAttempt + 1} failed:`, zaiError);
-            }
+          // Try Z.ai SDK initialization — skip test search, just try-catch on actual searches
+          try {
+            const ZAI = (await import('z-ai-web-dev-sdk')).default;
+            const zai = await ZAI.create();
+            // Mark as available; actual search failures will be caught per-query
+            zaiAvailable = true;
+            console.log('[ScanGroups] Z.ai SDK initialized successfully (no test search)');
+          } catch (err) {
+            zaiError = err instanceof Error ? err.message : 'SDK import/init failed';
+            console.warn('[ScanGroups] Z.ai SDK init failed:', zaiError);
           }
 
           // Validate Telegram Bot API
@@ -622,97 +750,94 @@ export async function POST(request: NextRequest) {
           });
 
           // ═══════════════════════════════════════════════════════════════
-          //  PHASE 1: Z.ai Web Search — Discover Telegram channels by keyword
+          //  PHASE 1: Multi-Strategy Global Web Search
           // ═══════════════════════════════════════════════════════════════
           let phase1ResultsCount = 0;
           let phase1Errors = 0;
 
           if (zaiAvailable) {
-            console.log('[ScanGroups] Phase 1: Z.ai web search to discover Telegram channels...');
+            console.log('[ScanGroups] Phase 1: Multi-strategy Z.ai web search...');
             try {
               const ZAI = (await import('z-ai-web-dev-sdk')).default;
               const zai = await ZAI.create();
 
-              const MAX_KEYWORDS_SEARCH = keywords.length;
-              const keywordsToSearch = keywords.slice(0, MAX_KEYWORDS_SEARCH);
+              const keywordsToSearch = keywords.slice(0, keywords.length);
 
               for (let ki = 0; ki < keywordsToSearch.length; ki++) {
                 const keyword = keywordsToSearch[ki];
                 keywordsProcessed++;
 
-                // Exponential backoff between keywords to avoid rate limiting
-                if (ki > 0) await backoffDelay(Math.min(ki, 5), 500);
+                // Reduced backoff: 600ms between keywords
+                if (ki > 0) await new Promise(r => setTimeout(r, 600));
 
                 try {
-                  // Deep global search queries — diverse strategies to discover suspicious channels
+                  // 5 broader search queries (reduced from 6, wider coverage)
                   const searchQueries = [
-                    `site:t.me ${keyword} estafa fraude scam`,
-                    `site:t.me "${keyword}" grupo canal`,
-                    `"${keyword}" telegram estafa fraude phishing`,
-                    `"${keyword}" telegram venta datos filtro`,
-                    `"${keyword}" telegram clonacion cuenta robo`,
-                    `telegram "${keyword}" sospechoso alerta`,
+                    `site:t.me "${keyword}"`,
+                    `"${keyword}" telegram canal grupo`,
+                    `"${keyword}" telegram estafa fraude scam phishing`,
+                    `t.me "${keyword}"`,
+                    `"${keyword}" telegram venta datos filtro robo cuenta`,
                   ];
 
                   for (let qi = 0; qi < searchQueries.length; qi++) {
                     const searchQuery = searchQueries[qi];
                     try {
-                      // Longer backoff between search queries to avoid 429
-                      if (qi > 0) await backoffDelay(qi, 800);
+                      // Reduced backoff: 400ms between queries
+                      if (qi > 0) await new Promise(r => setTimeout(r, 400));
 
                       const searchResults = await zai.functions.invoke('web_search', {
                         query: searchQuery,
-                        num: 8,
+                        num: 10,
                       });
 
                       if (!Array.isArray(searchResults) || searchResults.length === 0) continue;
 
                       for (const result of searchResults) {
-                        const resultUrl: string = result.url || result.link || '';
-                        const resultName: string = result.name || result.title || '';
-                        const resultSnippet: string = result.snippet || result.content || '';
+                        const resultUrl: string = result.url || (result as unknown as Record<string, string>).link || '';
+                        const resultName: string = result.name || (result as unknown as Record<string, string>).title || '';
+                        const resultSnippet: string = result.snippet || (result as unknown as Record<string, string>).content || '';
 
-                        // Extract Telegram channel/group usernames from URLs
-                        // Handle both t.me/Channel and t.me/s/Channel formats
-                        const tmeMatch = resultUrl.match(/(?:t\.me|telegram\.me)\/s\/([a-zA-Z0-9_]{5,32})/)
-                          || resultUrl.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{5,32})/);
+                        // Extract Telegram channel/group usernames from URLs (3-32 chars)
+                        const tmeMatch = resultUrl.match(/(?:t\.me|telegram\.me)\/s\/([a-zA-Z0-9_]{3,32})/)
+                          || resultUrl.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{3,32})/);
                         if (tmeMatch) {
                           const rawUsername = tmeMatch[1];
-                          const skipPaths = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv', 'confirmphone', 'setlanguage'];
-                          if (!skipPaths.includes(rawUsername.toLowerCase())) {
+                          if (!SKIP_PATHS.includes(rawUsername.toLowerCase())) {
                             discoveredChannels.add(rawUsername);
                           }
                         }
 
-                        // Also check snippets for t.me/username patterns
-                        const snippetMatches = resultSnippet.match(/t\.me\/([a-zA-Z0-9_]{5,32})/g);
-                        if (snippetMatches) {
-                          for (const m of snippetMatches) {
+                        // Check snippets for t.me/username patterns (3-32 chars)
+                        const snippetTmeMatches = resultSnippet.match(/t\.me\/([a-zA-Z0-9_]{3,32})/g);
+                        if (snippetTmeMatches) {
+                          for (const m of snippetTmeMatches) {
                             const username = m.replace('t.me/', '');
-                            const skipPaths = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv'];
-                            if (!skipPaths.includes(username.toLowerCase())) {
+                            if (!SKIP_PATHS.includes(username.toLowerCase()) && USERNAME_REGEX_STRICT.test(username)) {
                               discoveredChannels.add(username);
                             }
                           }
                         }
 
-                        // Also check for @username patterns
-                        const atMatches = resultSnippet.match(/@([a-zA-Z0-9_]{5,32})/g);
+                        // Check for @username patterns (3-32 chars)
+                        const atMatches = resultSnippet.match(/@([a-zA-Z0-9_]{3,32})/g);
                         if (atMatches) {
                           for (const m of atMatches) {
                             const username = m.replace('@', '');
-                            discoveredChannels.add(username);
+                            if (USERNAME_REGEX_STRICT.test(username)) {
+                              discoveredChannels.add(username);
+                            }
                           }
                         }
 
-                        // If the search result mentions the keyword and is Telegram-related, create alert
+                        // If the search result mentions the keyword AND is Telegram-related, create alert immediately
                         const isTme = resultUrl.includes('t.me') || resultUrl.includes('telegram.me');
                         const mentionsTelegram = resultName.toLowerCase().includes('telegram') ||
                           resultSnippet.toLowerCase().includes('telegram') ||
                           resultSnippet.toLowerCase().includes('t.me');
 
                         if ((isTme || mentionsTelegram) && normalizeText(`${resultName} ${resultSnippet}`).includes(normalizeText(keyword))) {
-                          const tmeUrlMatch = resultUrl.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{5,32})/);
+                          const tmeUrlMatch = resultUrl.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{3,32})/);
                           const cleanUsername = tmeUrlMatch?.[1];
 
                           let sourceType = 'channel';
@@ -733,6 +858,7 @@ export async function POST(request: NextRequest) {
                             messageText: resultSnippet || resultName,
                             chatType: sourceType,
                             matchedContext: extractContext(`${resultName} ${resultSnippet}`, keyword),
+                            channelUsername: cleanUsername,
                           });
                           // Enrich the last alert with risk classification
                           const lastAlert = detectedAlerts[detectedAlerts.length - 1];
@@ -748,8 +874,12 @@ export async function POST(request: NextRequest) {
                     } catch (searchErr) {
                       phase1Errors++;
                       console.warn(`[ScanGroups] Search query "${searchQuery}" failed:`, searchErr instanceof Error ? searchErr.message : 'unknown');
-                      // Apply backoff on error
-                      await backoffDelay(phase1Errors, 1000);
+                      // On error, if Z.ai SDK itself failed, mark unavailable
+                      if (searchErr instanceof Error && (searchErr.message.includes('401') || searchErr.message.includes('403'))) {
+                        zaiAvailable = false;
+                        zaiError = 'Auth failed during search';
+                        break;
+                      }
                     }
                   }
                 } catch (kwErr) {
@@ -759,7 +889,9 @@ export async function POST(request: NextRequest) {
               }
             } catch (zaiErr) {
               phase1Errors++;
-              console.warn('[ScanGroups] Z.ai SDK search failed:', zaiErr instanceof Error ? zaiErr.message : 'unknown');
+              zaiAvailable = false;
+              zaiError = zaiErr instanceof Error ? zaiErr.message : 'unknown';
+              console.warn('[ScanGroups] Z.ai SDK search failed:', zaiError);
             }
           }
 
@@ -770,82 +902,102 @@ export async function POST(request: NextRequest) {
           });
 
           // ═══════════════════════════════════════════════════════════════
-          //  PHASE 2: Scrape discovered + known channel previews
+          //  PHASE 1.5: Direct Channel Probing (NEW — Critical for finding impersonators)
           // ═══════════════════════════════════════════════════════════════
+          let phase15ChannelsFound = 0;
+          let phase15Alerts = 0;
+          let phase15Errors = 0;
 
-          // ── Official/Verified corporate channels — results from these are low-priority ──
-          const OFFICIAL_CHANNELS = new Set([
-            'bancolombia', 'Bancolombia', 'bancolombia_comunica',
-            'nequi', 'nequicuentas', 'NequiCol',
-            'wompi_co', 'wompicol', 'banistmo',
-            'BancoAgricolaSV', 'grupo_cibest',
-            'BancolombiaEmpresas', 'bancolombiainversion',
-          ]);
+          console.log('[ScanGroups] Phase 1.5: Direct channel probing for impersonator patterns...');
+          for (let ki = 0; ki < keywords.length; ki++) {
+            const keyword = keywords[ki];
+            // Normalize keyword for use in channel names (lowercase, no spaces/special chars)
+            const kwNorm = normalizeText(keyword).replace(/\s+/g, '');
 
-          // ── Fraud/security monitoring channels — always scrape these (high-priority) ──
-          const MONITORING_CHANNELS = [
-            'DailyEstafa', 'estafascolombia', 'INCIBE017Informacion',
-            'ciberseguridad', 'criptonoticias', 'group_ib',
-            'notoscam', 'hackplayers', 'seguridadinformatica',
-            'threatpost', 'TheHackersNews', 'BleepinComputer',
-            'fraudebancario', 'ciberseguridadcol', 'seguridadcolombia',
-            'binancespanishanuncios', 'Bandec97',
-            'DescuentosTech', 'Losqueinvierten',
-            'querellaafectadoscontrafxwinning', 'INCIBE017',
-            'PasaenBogotaSrBacca', 'EnZonaBX',
-          ];
+            // 7 probe URLs per keyword
+            const probeNames = [
+              kwNorm,                                    // Exact match (e.g., bancolombia)
+              `${kwNorm}_soporte`,                       // Fake support channels
+              `${kwNorm}soporte`,                        // Variant without underscore
+              `${kwNorm}_oficial`,                       // Fake official channels
+              `${kwNorm}oficial`,                        // Variant
+              `fake${kwNorm}`,                           // Impersonator pattern
+              `${kwNorm}_ayuda`,                         // Fake help channels
+            ];
 
-          // ── Classify channel risk level ──
-          function classifyChannelRisk(channelName: string, snippet?: string): {
-            riskLevel: 'high' | 'medium' | 'low';
-            isOfficial: boolean;
-            riskTags: string[];
-          } {
-            const nameLower = channelName.toLowerCase();
-            const snippetLower = (snippet || '').toLowerCase();
-            const riskTags: string[] = [];
-            let isOfficial = OFFICIAL_CHANNELS.has(channelName);
+            // Run all 7 probes IN PARALLEL with Promise.allSettled
+            const probeResults = await Promise.allSettled(
+              probeNames.map(async (probeName) => {
+                const result = await scrapeChannelPreview(probeName);
+                return { probeName, ...result };
+              })
+            );
 
-            // Check if the channel name itself suggests official/verified
-            const officialIndicators = ['oficial', 'official', 'verified', 'verificado', '_comunica', 'empresas'];
-            if (officialIndicators.some(ind => nameLower.includes(ind))) {
-              isOfficial = true;
-            }
+            for (const result of probeResults) {
+              if (result.status !== 'fulfilled') {
+                phase15Errors++;
+                continue;
+              }
+              const { probeName, exists, messages, channelTitle, subscriberCount, channelUsername } = result.value;
 
-            // High-risk indicators in snippet or channel name
-            const highRiskTerms = ['estafa', 'scam', 'fraude', 'phishing', 'robo', 'hack', 'filtro', 'venda', 'venta', 'datos', 'filtracion', 'credential', 'password', 'contrasena', 'clon', 'clonacion', 'tarjeta', 'cuenta', 'robo'];
-            const mediumRiskTerms = ['sospech', 'alerta', 'cuidado', 'aviso', 'precaucion', 'estafador', 'engano', 'enganoso', 'spam', 'malware', 'virus', 'ransomware'];
+              if (!exists || messages.length === 0) continue;
 
-            for (const term of highRiskTerms) {
-              if (nameLower.includes(term) || snippetLower.includes(term)) {
-                riskTags.push(term);
+              // Found a real channel! Add to discovered channels
+              discoveredChannels.add(probeName);
+              phase15ChannelsFound++;
+
+              // Add ALL messages as potential alerts (check against ALL keywords)
+              for (const msg of messages) {
+                const allMatchedKws = findAllMatchingKeywords(msg.text);
+                for (const matchedKw of allMatchedKws) {
+                  const sourceName = channelTitle || `@${probeName}`;
+                  const sourceUrl = `https://t.me/${probeName}`;
+                  const risk = classifyChannelRisk(probeName, msg.text);
+
+                  await addDetectedAlert({
+                    keyword: matchedKw,
+                    sourceType: 'channel',
+                    sourceName,
+                    sourceUrl,
+                    messageText: msg.text.substring(0, 800),
+                    chatType: 'channel',
+                    matchedContext: extractContext(msg.text, matchedKw),
+                    messageId: msg.msgId,
+                    channelUsername: channelUsername || probeName,
+                    subscriberCount,
+                    messageDate: msg.messageDate,
+                  });
+                  const lastAlert = detectedAlerts[detectedAlerts.length - 1];
+                  if (lastAlert) {
+                    lastAlert.riskLevel = risk.riskLevel;
+                    lastAlert.isOfficial = risk.isOfficial;
+                    lastAlert.riskTags = risk.riskTags;
+                    lastAlert.discoverySource = 'direct_probe';
+                  }
+                  phase15Alerts++;
+                }
               }
             }
-            for (const term of mediumRiskTerms) {
-              if (nameLower.includes(term) || snippetLower.includes(term)) {
-                riskTags.push(term);
-              }
-            }
 
-            if (isOfficial) {
-              return { riskLevel: 'low', isOfficial: true, riskTags: [] };
+            // Small delay between keywords
+            if (ki < keywords.length - 1) {
+              await new Promise(r => setTimeout(r, 200));
             }
-
-            if (riskTags.some(t => highRiskTerms.includes(t))) {
-              return { riskLevel: 'high', isOfficial: false, riskTags };
-            }
-
-            if (riskTags.length > 0) {
-              return { riskLevel: 'medium', isOfficial: false, riskTags };
-            }
-
-            return { riskLevel: 'medium', isOfficial: false, riskTags: [] };
           }
 
-          // Priority order: discovered channels first (from web search = potentially suspicious),
-          // then monitoring channels (fraud/security = high value), then official channels (low priority)
-          const discoveredNotOfficial = [...discoveredChannels].filter(c => !OFFICIAL_CHANNELS.has(c));
-          const discoveredOfficial = [...discoveredChannels].filter(c => OFFICIAL_CHANNELS.has(c));
+          scanDiagnostics.push({
+            phase: 'phase15_direct_probe',
+            status: phase15ChannelsFound > 0 ? 'ok' : 'no_new_channels',
+            details: `${phase15ChannelsFound} impersonator channels found, ${phase15Alerts} alerts, ${phase15Errors} errors`,
+          });
+
+          // ═══════════════════════════════════════════════════════════════
+          //  PHASE 2: Deep Channel Scraping with pagination
+          // ═══════════════════════════════════════════════════════════════
+
+          // Collect all channels: Phase 1 + Phase 1.5 + MONITORING_CHANNELS
+          const discoveredNotOfficial = [...discoveredChannels].filter(c => !isOfficialChannel(c));
+          const discoveredOfficial = [...discoveredChannels].filter(c => isOfficialChannel(c));
           const allChannels = [
             ...discoveredNotOfficial,
             ...MONITORING_CHANNELS.filter(c => !discoveredChannels.has(c)),
@@ -853,14 +1005,15 @@ export async function POST(request: NextRequest) {
           ];
           console.log(`[ScanGroups] Phase 2: Scraping ${allChannels.length} channel previews (${discoveredNotOfficial.length} discovered/suspicious + ${MONITORING_CHANNELS.length} monitoring + ${discoveredOfficial.length} official)...`);
 
-          // Scrape in batches to stay within Vercel function timeout
-          const BATCH_SIZE = 10;
+          // Batch size: 8 channels in parallel, limit: 60 channels total
+          const BATCH_SIZE = 8;
+          const MAX_CHANNELS = 60;
           let channelsScraped = 0;
           let channelsWithMessages = 0;
           let phase2Alerts = 0;
           const scrapeErrors: string[] = [];
 
-          for (let batchStart = 0; batchStart < allChannels.length && batchStart < 50; batchStart += BATCH_SIZE) {
+          for (let batchStart = 0; batchStart < allChannels.length && batchStart < MAX_CHANNELS; batchStart += BATCH_SIZE) {
             const batch = allChannels.slice(batchStart, batchStart + BATCH_SIZE);
 
             const batchResults = await Promise.allSettled(
@@ -876,19 +1029,21 @@ export async function POST(request: NextRequest) {
                 scrapeErrors.push(`${batch[batchResults.indexOf(result)]}: rejected`);
                 continue;
               }
-              const { channelName, exists, messages, channelTitle } = result.value;
+              const { channelName, exists, messages, channelTitle, subscriberCount, channelUsername, oldestMsgId } = result.value;
 
               if (!exists || messages.length === 0) continue;
 
               channelsWithMessages++;
               totalGroups++;
 
-              // Check each message for keyword matches
+              // Check each message against ALL keywords
+              let channelHasMatch = false;
               for (const msg of messages) {
-                const matchedKw = findMatchingKeyword(msg.text);
-                if (matchedKw) {
+                const allMatchedKws = findAllMatchingKeywords(msg.text);
+                for (const matchedKw of allMatchedKws) {
                   const sourceName = channelTitle || `@${channelName}`;
                   const sourceUrl = `https://t.me/${channelName}`;
+                  const risk = classifyChannelRisk(channelName, msg.text);
 
                   await addDetectedAlert({
                     keyword: matchedKw,
@@ -899,9 +1054,10 @@ export async function POST(request: NextRequest) {
                     chatType: 'channel',
                     matchedContext: extractContext(msg.text, matchedKw),
                     messageId: msg.msgId,
+                    channelUsername: channelUsername || channelName,
+                    subscriberCount,
+                    messageDate: msg.messageDate,
                   });
-                  // Enrich with risk classification
-                  const risk = classifyChannelRisk(channelName, msg.text);
                   const lastAlert = detectedAlerts[detectedAlerts.length - 1];
                   if (lastAlert) {
                     lastAlert.riskLevel = risk.riskLevel;
@@ -910,13 +1066,55 @@ export async function POST(request: NextRequest) {
                     lastAlert.discoverySource = discoveredChannels.has(channelName) ? 'web_search' : MONITORING_CHANNELS.includes(channelName) ? 'monitoring_list' : 'official_list';
                   }
                   phase2Alerts++;
+                  channelHasMatch = true;
+                }
+              }
+
+              // Pagination: if channel has matches, scrape one more page of older messages
+              if (channelHasMatch && oldestMsgId) {
+                try {
+                  const olderResult = await scrapeChannelPreview(channelName, oldestMsgId);
+                  if (olderResult.exists && olderResult.messages.length > 0) {
+                    for (const msg of olderResult.messages) {
+                      const allMatchedKws = findAllMatchingKeywords(msg.text);
+                      for (const matchedKw of allMatchedKws) {
+                        const sourceName = channelTitle || `@${channelName}`;
+                        const sourceUrl = `https://t.me/${channelName}`;
+                        const risk = classifyChannelRisk(channelName, msg.text);
+
+                        await addDetectedAlert({
+                          keyword: matchedKw,
+                          sourceType: 'channel',
+                          sourceName,
+                          sourceUrl,
+                          messageText: msg.text.substring(0, 800),
+                          chatType: 'channel',
+                          matchedContext: extractContext(msg.text, matchedKw),
+                          messageId: msg.msgId,
+                          channelUsername: channelUsername || channelName,
+                          subscriberCount: olderResult.subscriberCount,
+                          messageDate: msg.messageDate,
+                        });
+                        const lastAlert = detectedAlerts[detectedAlerts.length - 1];
+                        if (lastAlert) {
+                          lastAlert.riskLevel = risk.riskLevel;
+                          lastAlert.isOfficial = risk.isOfficial;
+                          lastAlert.riskTags = risk.riskTags;
+                          lastAlert.discoverySource = 'deep_scrape_pagination';
+                        }
+                        phase2Alerts++;
+                      }
+                    }
+                  }
+                } catch (paginationErr) {
+                  console.warn(`[ScanGroups] Pagination scrape failed for ${channelName}:`, paginationErr instanceof Error ? paginationErr.message : 'unknown');
                 }
               }
             }
 
-            // Small delay between batches to avoid overwhelming t.me
-            if (batchStart + BATCH_SIZE < allChannels.length) {
-              await new Promise(resolve => setTimeout(resolve, 300));
+            // Small delay between batches
+            if (batchStart + BATCH_SIZE < allChannels.length && batchStart + BATCH_SIZE < MAX_CHANNELS) {
+              await new Promise(resolve => setTimeout(resolve, 200));
             }
           }
 
@@ -975,33 +1173,34 @@ export async function POST(request: NextRequest) {
                           totalBotMessages++;
                         }
 
-                        for (const keyword of keywords) {
-                          if (normalizeText(messageText).includes(normalizeText(keyword))) {
-                            const chatType = chat.type === 'supergroup' ? 'group' : chat.type;
-                            const sourceName = chat.title || chat.username || chat.first_name || `Chat ${chat.id}`;
-                            const sourceUrl = chat.username ? `https://t.me/${chat.username}` : '';
+                        // Check against ALL keywords
+                        const allMatchedKws = findAllMatchingKeywords(messageText);
+                        for (const keyword of allMatchedKws) {
+                          const chatType = chat.type === 'supergroup' ? 'group' : chat.type;
+                          const sourceName = chat.title || chat.username || chat.first_name || `Chat ${chat.id}`;
+                          const sourceUrl = chat.username ? `https://t.me/${chat.username}` : '';
 
-                            await addDetectedAlert({
-                              keyword,
-                              sourceType: chatType,
-                              sourceName,
-                              sourceUrl,
-                              messageText: messageText.substring(0, 800),
-                              chatType: chat.type,
-                              matchedContext: extractContext(messageText, keyword),
-                              messageId: msg.message_id?.toString(),
-                            });
-                            // Enrich with risk classification
-                            const risk = classifyChannelRisk(chat.username || '', messageText);
-                            const lastAlert = detectedAlerts[detectedAlerts.length - 1];
-                            if (lastAlert) {
-                              lastAlert.riskLevel = risk.riskLevel;
-                              lastAlert.isOfficial = risk.isOfficial;
-                              lastAlert.riskTags = risk.riskTags;
-                              lastAlert.discoverySource = 'bot_polling';
-                            }
-                            phase3Alerts++;
+                          await addDetectedAlert({
+                            keyword,
+                            sourceType: chatType,
+                            sourceName,
+                            sourceUrl,
+                            messageText: messageText.substring(0, 800),
+                            chatType: chat.type,
+                            matchedContext: extractContext(messageText, keyword),
+                            messageId: msg.message_id?.toString(),
+                            channelUsername: chat.username,
+                          });
+                          // Enrich with risk classification
+                          const risk = classifyChannelRisk(chat.username || '', messageText);
+                          const lastAlert = detectedAlerts[detectedAlerts.length - 1];
+                          if (lastAlert) {
+                            lastAlert.riskLevel = risk.riskLevel;
+                            lastAlert.isOfficial = risk.isOfficial;
+                            lastAlert.riskTags = risk.riskTags;
+                            lastAlert.discoverySource = 'bot_polling';
                           }
+                          phase3Alerts++;
                         }
                       }
                     }
@@ -1041,7 +1240,6 @@ export async function POST(request: NextRequest) {
           console.log(`[ScanGroups] Scan complete: ${detectedAlerts.length} alerts, ${totalGroups} groups, ${keywordsProcessed}/${keywords.length} keywords, ${discoveredChannels.size} discovered, ${channelsScraped} scraped`);
 
           // Determine if the scan had technical issues that prevented results
-          // Only mark as technical issue if ALL methods failed (not just Z.ai)
           const allMethodsFailed = !zaiAvailable && channelsScraped === 0 && (!botToken || !botApiOk);
           const hasPartialIssues = (!zaiAvailable || channelsScraped === 0) && detectedAlerts.length === 0;
 
@@ -1052,11 +1250,11 @@ export async function POST(request: NextRequest) {
             keywordsProcessed,
             totalKeywords: keywords.length,
             maxKeywordsPerScan: keywords.length,
-            detectedAlerts,
             channelsDiscovered: discoveredChannels.size,
             channelsScraped,
             channelsWithMessages,
             zaiSearchUsed: zaiAvailable,
+            detectedAlerts,
             diagnostics: scanDiagnostics,
             alertHistory: updatedAlertHistory.slice(0, 10),
             riskBreakdown: {
@@ -1066,7 +1264,7 @@ export async function POST(request: NextRequest) {
               official: detectedAlerts.filter(a => a.isOfficial).length,
               nonOfficial: detectedAlerts.filter(a => !a.isOfficial).length,
             },
-            suspiciousChannels: [...discoveredChannels].filter(c => !OFFICIAL_CHANNELS.has(c)).slice(0, 20),
+            suspiciousChannels: [...discoveredChannels].filter(c => !isOfficialChannel(c)).slice(0, 20),
           };
 
           if (allMethodsFailed) {

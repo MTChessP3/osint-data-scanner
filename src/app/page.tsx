@@ -556,6 +556,9 @@ export default function Home() {
       isOfficial?: boolean;
       riskTags?: string[];
       discoverySource?: string;
+      channelUsername?: string;
+      subscriberCount?: number;
+      messageDate?: string;
     }>;
     riskBreakdown?: {
       high: number;
@@ -4301,11 +4304,28 @@ export default function Home() {
                                   {alert.riskTags.length > 4 && <span className="text-[9px] text-app-text-faint">+{alert.riskTags.length - 4}</span>}
                                 </div>
                               )}
-                              {/* Source name */}
-                              <p className="text-xs text-app-text-dim truncate mb-1.5">
-                                <span className="text-app-text-muted">Fuente:</span> {alert.sourceName}
-                                {alert.isOfficial && <span className="ml-1.5 text-[9px] text-app-text-faint">(canal oficial)</span>}
-                              </p>
+                              {/* Channel info line: name, @username, subscriber count */}
+                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                <p className="text-xs text-app-text font-medium truncate max-w-[60%]">
+                                  {alert.sourceName}
+                                  {alert.isOfficial && <span className="ml-1.5 text-[9px] text-accent-success">(canal oficial)</span>}
+                                </p>
+                                {alert.channelUsername && (
+                                  <span className="text-[10px] font-mono text-accent-primary bg-accent-primary/10 px-1.5 py-0.5 rounded">
+                                    @{alert.channelUsername}
+                                  </span>
+                                )}
+                                {alert.subscriberCount !== undefined && alert.subscriberCount > 0 && (
+                                  <span className="text-[9px] text-app-text-faint">
+                                    {alert.subscriberCount.toLocaleString('es-CO')} suscriptores
+                                  </span>
+                                )}
+                                {alert.messageDate && (
+                                  <span className="text-[9px] text-app-text-faint ml-auto">
+                                    Msg: {alert.messageDate}
+                                  </span>
+                                )}
+                              </div>
                               {/* Message text with keyword highlighted */}
                               {alert.messageText && (
                                 <div className="p-2 bg-app-deep rounded border border-app-border mb-1.5">
@@ -4322,17 +4342,25 @@ export default function Home() {
                                   </p>
                                 </div>
                               )}
-                              {/* Source URL */}
-                              {alert.sourceUrl && (
-                                <a
-                                  href={alert.sourceUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-app-text-dim hover:text-app-text-dim truncate block"
-                                >
-                                  <ExternalLink className="w-2.5 h-2.5 inline mr-1" />{alert.sourceUrl}
-                                </a>
-                              )}
+                              {/* Action row: View in Telegram + source URL */}
+                              <div className="flex items-center gap-3">
+                                {alert.sourceUrl && (
+                                  <a
+                                    href={alert.sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20 transition-colors font-medium"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    Ver en Telegram
+                                  </a>
+                                )}
+                                {alert.sourceUrl && (
+                                  <span className="text-[9px] text-app-text-faint truncate">
+                                    {alert.sourceUrl}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
