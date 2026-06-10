@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Lock, Mail, Eye, EyeOff, AlertTriangle, ArrowRight, KeyRound } from 'lucide-react';
+import { ThemeSelector } from '@/components/theme-selector';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,7 +52,6 @@ export default function LoginPage() {
         setLoading(false);
         setTimeout(() => mfaInputRefs.current[0]?.focus(), 100);
       } else if (data.requiresMfaEnrollment) {
-        // User needs to enroll in MFA
         router.push('/enroll-mfa');
       } else {
         router.push('/');
@@ -170,20 +170,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: '#1a1f36' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-app-bg">
+      {/* Theme selector - top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeSelector />
+      </div>
+
       {/* Logo */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4" style={{ background: '#f59e0b' }}>
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4 bg-amber-500">
           <Shield className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">OSINT Data Scanner</h1>
-        <p className="text-slate-400 text-sm mt-1">Sistema de Inteligencia de Fuentes Abiertas</p>
+        <h1 className="text-3xl font-bold text-app-text tracking-tight">OSINT Data Scanner</h1>
+        <p className="text-app-text-muted text-sm mt-1">Sistema de Inteligencia de Fuentes Abiertas</p>
       </div>
 
       {/* Card */}
-      <div className="w-full max-w-md rounded-2xl p-8 shadow-2xl" style={{ background: '#252b44' }}>
+      <div className="w-full max-w-md rounded-2xl p-8 shadow-2xl bg-app-surface border border-app-border">
         {error && (
-          <div className="mb-5 flex items-center gap-2 p-3 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+          <div className="mb-5 flex items-center gap-2 p-3 rounded-lg text-sm bg-red-500/10 border border-red-500/20 text-red-400">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -193,20 +198,19 @@ export default function LoginPage() {
         {step === 'credentials' && (
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-1">Iniciar Sesión</h2>
-              <p className="text-slate-400 text-sm">Acceda al sistema de inteligencia OSINT</p>
+              <h2 className="text-2xl font-bold text-app-text mb-1">Iniciar Sesión</h2>
+              <p className="text-app-text-muted text-sm">Acceda al sistema de inteligencia OSINT</p>
             </div>
 
             <div>
-              <label className="block text-sm text-slate-300 mb-1.5">Correo Electrónico</label>
+              <label className="block text-sm text-app-text-dim mb-1.5">Correo Electrónico</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-text-muted" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all"
-                  style={{ background: '#1a1f36', border: '1px solid #374151' }}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-app-bg border border-app-border text-app-text placeholder:text-app-text-muted focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all"
                   placeholder="correo@ejemplo.com"
                   required
                   autoFocus
@@ -216,15 +220,14 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm text-slate-300 mb-1.5">Contraseña</label>
+              <label className="block text-sm text-app-text-dim mb-1.5">Contraseña</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-text-muted" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-2.5 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all"
-                  style={{ background: showPassword ? '#f8fafc' : '#1a1f36', border: '1px solid #374151', color: showPassword ? '#1a1f36' : 'white' }}
+                  className="w-full pl-10 pr-12 py-2.5 rounded-lg bg-app-bg border border-app-border text-app-text placeholder:text-app-text-muted focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all"
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
@@ -232,8 +235,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: showPassword ? '#64748b' : '#94a3b8' }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-app-text-muted hover:text-app-text-dim transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -243,8 +245,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full py-2.5 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: loading ? '#92400e' : '#f59e0b' }}
+              className="w-full py-2.5 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-amber-500 hover:bg-amber-600"
             >
               {loading ? (
                 <>
@@ -261,12 +262,11 @@ export default function LoginPage() {
             </button>
 
             <div className="text-center pt-2">
-              <span className="text-slate-500 text-sm">¿No tiene una cuenta? </span>
+              <span className="text-app-text-muted text-sm">¿No tiene una cuenta? </span>
               <button
                 type="button"
                 onClick={() => router.push('/register')}
-                className="text-sm font-medium transition-colors"
-                style={{ color: '#f59e0b' }}
+                className="text-sm font-medium text-amber-500 hover:text-amber-400 transition-colors"
               >
                 Registrarse
               </button>
@@ -278,12 +278,12 @@ export default function LoginPage() {
         {step === 'mfa' && (
           <form onSubmit={(e) => { e.preventDefault(); handleMfaVerify(); }} className="space-y-5">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-1">Autenticación de Doble Factor</h2>
-              <p className="text-slate-400 text-sm">Ingrese el código de su aplicación autenticadora</p>
+              <h2 className="text-2xl font-bold text-app-text mb-1">Autenticación de Doble Factor</h2>
+              <p className="text-app-text-muted text-sm">Ingrese el código de su aplicación autenticadora</p>
             </div>
 
             <div>
-              <label className="block text-sm text-slate-300 mb-3">Código de 6 dígitos</label>
+              <label className="block text-sm text-app-text-dim mb-3">Código de 6 dígitos</label>
               <div className="flex gap-2 justify-center" onPaste={handleMfaPaste}>
                 {mfaDigits.map((digit, idx) => (
                   <input
@@ -295,12 +295,7 @@ export default function LoginPage() {
                     value={digit}
                     onChange={(e) => handleMfaDigitChange(idx, e.target.value)}
                     onKeyDown={(e) => handleMfaKeyDown(idx, e)}
-                    className="w-12 h-14 text-center text-xl font-bold rounded-lg focus:outline-none focus:ring-2 transition-all"
-                    style={{
-                      background: '#1a1f36',
-                      border: digit ? '1px solid #f59e0b' : '1px solid #374151',
-                      color: '#f59e0b',
-                    }}
+                    className={`w-12 h-14 text-center text-xl font-bold rounded-lg focus:outline-none focus:ring-2 transition-all bg-app-bg text-amber-500 ${digit ? 'border-amber-500' : 'border-app-border'} border`}
                   />
                 ))}
               </div>
@@ -309,8 +304,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || mfaDigits.join('').length < 6}
-              className="w-full py-2.5 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: loading ? '#92400e' : '#f59e0b' }}
+              className="w-full py-2.5 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-amber-500 hover:bg-amber-600"
             >
               {loading ? (
                 <>
@@ -328,7 +322,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={handleBackToCredentials}
-              className="w-full py-2 text-slate-400 hover:text-white flex items-center justify-center gap-1.5 text-sm transition-colors"
+              className="w-full py-2 text-app-text-muted hover:text-app-text flex items-center justify-center gap-1.5 text-sm transition-colors"
             >
               <span>← Volver al inicio de sesión</span>
             </button>
@@ -338,7 +332,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <div className="mt-8 text-center">
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-app-text-faint">
           Sistema de Inteligencia OSINT — Acceso Restringido
         </p>
       </div>

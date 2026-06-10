@@ -41,44 +41,138 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* ── Theme-aware application colors ── */
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-deep: var(--app-surface-deep);
+  --color-app-surface-hover: var(--app-surface-hover);
+  --color-app-surface-active: var(--app-surface-active);
+  --color-app-header: var(--app-header);
+  --color-app-deep: var(--app-deep);
+  --color-app-border: var(--app-border);
+  --color-app-text: var(--app-text);
+  --color-app-text-dim: var(--app-text-dim);
+  --color-app-text-muted: var(--app-text-muted);
+  --color-app-text-faint: var(--app-text-faint);
 }
 
-:root {
+/* ═══════════════════════════════════════════════════════════
+   THEME: LIGHT — Clean, bright, high readability
+   ═══════════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="light"] {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.98 0.002 260);
+  --foreground: oklch(0.15 0.02 260);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.15 0.02 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.15 0.02 260);
+  --primary: oklch(0.45 0.18 260);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.95 0.005 260);
+  --secondary-foreground: oklch(0.2 0.02 260);
+  --muted: oklch(0.95 0.005 260);
+  --muted-foreground: oklch(0.5 0.01 260);
+  --accent: oklch(0.93 0.01 260);
+  --accent-foreground: oklch(0.2 0.02 260);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.9 0.005 260);
+  --input: oklch(0.9 0.005 260);
+  --ring: oklch(0.45 0.18 260);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.97 0.003 260);
+  --sidebar-foreground: oklch(0.15 0.02 260);
+  --sidebar-primary: oklch(0.45 0.18 260);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.93 0.01 260);
+  --sidebar-accent-foreground: oklch(0.2 0.02 260);
+  --sidebar-border: oklch(0.9 0.005 260);
+  --sidebar-ring: oklch(0.45 0.18 260);
+
+  /* App surface tokens — Light */
+  --app-bg: #f1f5f9;
+  --app-surface: #ffffff;
+  --app-surface-deep: #f8fafc;
+  --app-surface-hover: #f1f5f9;
+  --app-surface-active: #e2e8f0;
+  --app-header: #ffffff;
+  --app-deep: #f1f5f9;
+  --app-border: #e2e8f0;
+
+  /* App text tokens — Light */
+  --app-text: #0f172a;
+  --app-text-dim: #475569;
+  --app-text-muted: #94a3b8;
+  --app-text-faint: #cbd5e1;
 }
 
-.dark {
+/* ═══════════════════════════════════════════════════════════
+   THEME: DIM — Midnight blue, comfortable for extended use
+   ═══════════════════════════════════════════════════════════ */
+
+[data-theme="dim"] {
+  --background: oklch(0.17 0.018 260);
+  --foreground: oklch(0.88 0.01 260);
+  --card: oklch(0.2 0.018 260);
+  --card-foreground: oklch(0.88 0.01 260);
+  --popover: oklch(0.2 0.018 260);
+  --popover-foreground: oklch(0.88 0.01 260);
+  --primary: oklch(0.58 0.17 260);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.24 0.018 260);
+  --secondary-foreground: oklch(0.88 0.01 260);
+  --muted: oklch(0.24 0.018 260);
+  --muted-foreground: oklch(0.62 0.01 260);
+  --accent: oklch(0.24 0.018 260);
+  --accent-foreground: oklch(0.88 0.01 260);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.27 0.018 260);
+  --input: oklch(0.27 0.018 260);
+  --ring: oklch(0.58 0.17 260);
+  --chart-1: oklch(0.58 0.17 260);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.17 0.018 260);
+  --sidebar-foreground: oklch(0.88 0.01 260);
+  --sidebar-primary: oklch(0.58 0.17 260);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.24 0.018 260);
+  --sidebar-accent-foreground: oklch(0.88 0.01 260);
+  --sidebar-border: oklch(0.27 0.018 260);
+  --sidebar-ring: oklch(0.58 0.17 260);
+
+  /* App surface tokens — Dim (Midnight) */
+  --app-bg: #15202b;
+  --app-surface: #1e2d3d;
+  --app-surface-deep: #192734;
+  --app-surface-hover: #243447;
+  --app-surface-active: #2f4356;
+  --app-header: #192734;
+  --app-deep: #101820;
+  --app-border: #2a3a4a;
+
+  /* App text tokens — Dim */
+  --app-text: #e7e9ea;
+  --app-text-dim: #8b98a5;
+  --app-text-muted: #5c6c7c;
+  --app-text-faint: #3d4f5f;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THEME: DARK — High contrast, OLED-friendly, deep blacks
+   ═══════════════════════════════════════════════════════════ */
+
+.dark,
+[data-theme="dark"] {
   --background: oklch(0.13 0.02 260);
   --foreground: oklch(0.9 0.01 260);
   --card: oklch(0.16 0.02 260);
@@ -110,6 +204,22 @@
   --sidebar-accent-foreground: oklch(0.9 0.01 260);
   --sidebar-border: oklch(0.22 0.02 260);
   --sidebar-ring: oklch(0.62 0.19 260);
+
+  /* App surface tokens — Dark (High Contrast) */
+  --app-bg: #0b0f19;
+  --app-surface: #111827;
+  --app-surface-deep: #0d1117;
+  --app-surface-hover: #1a2235;
+  --app-surface-active: #243049;
+  --app-header: #0a0e17;
+  --app-deep: #080c16;
+  --app-border: #1e293b;
+
+  /* App text tokens — Dark */
+  --app-text: #f8fafc;
+  --app-text-dim: #cbd5e1;
+  --app-text-muted: #64748b;
+  --app-text-faint: #334155;
 }
 
 @layer base {
@@ -130,4 +240,12 @@
 @keyframes moveStripes {
   0% { background-position: 0 0; }
   100% { background-position: 24px 0; }
+}
+
+/* ── Theme transition for smooth switching ── */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 0.3s ease, color 0.2s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
 }

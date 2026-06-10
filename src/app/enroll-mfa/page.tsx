@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, QrCode, Copy, CheckCircle2, AlertTriangle, KeyRound, Lock } from 'lucide-react';
+import { ThemeSelector } from '@/components/theme-selector';
 
 export default function EnrollMfaPage() {
   const router = useRouter();
@@ -149,26 +150,29 @@ export default function EnrollMfaPage() {
 
   if (phase === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#1a1f36' }}>
-        <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(245,158,11,0.3)', borderTopColor: '#f59e0b' }} />
+      <div className="min-h-screen flex items-center justify-center bg-app-bg">
+        <div className="w-8 h-8 border-2 rounded-full animate-spin border-amber-500/30 border-t-amber-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: '#1a1f36' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-app-bg">
+      {/* Theme Selector */}
+      <div className="fixed top-4 right-4 z-50"><ThemeSelector /></div>
+
       {/* Logo */}
       <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-3" style={{ background: '#f59e0b' }}>
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-3 bg-amber-500">
           <Lock className="w-7 h-7 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Enrolamiento MFA</h1>
-        <p className="text-slate-400 text-sm mt-1">Configuración obligatoria de autenticación de doble factor</p>
+        <h1 className="text-2xl font-bold text-app-text tracking-tight">Enrolamiento MFA</h1>
+        <p className="text-app-text-muted text-sm mt-1">Configuración obligatoria de autenticación de doble factor</p>
       </div>
 
-      <div className="w-full max-w-md rounded-2xl p-8 shadow-2xl" style={{ background: '#252b44' }}>
+      <div className="w-full max-w-md rounded-2xl p-8 shadow-2xl bg-app-surface">
         {error && (
-          <div className="mb-5 flex items-center gap-2 p-3 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+          <div className="mb-5 flex items-center gap-2 p-3 rounded-lg text-sm bg-red-500/10 border border-red-500/20 text-red-400">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -177,11 +181,11 @@ export default function EnrollMfaPage() {
         {/* SUCCESS PHASE */}
         {phase === 'success' && (
           <div className="text-center py-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ background: 'rgba(34,197,94,0.1)', border: '2px solid rgba(34,197,94,0.3)' }}>
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-green-500/10 border-2 border-green-500/30">
               <CheckCircle2 className="w-8 h-8 text-green-400" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">MFA Configurado</h2>
-            <p className="text-slate-400 text-sm">Autenticación de doble factor activada. Redirigiendo al dashboard...</p>
+            <h2 className="text-xl font-bold text-app-text mb-2">MFA Configurado</h2>
+            <p className="text-app-text-muted text-sm">Autenticación de doble factor activada. Redirigiendo al dashboard...</p>
           </div>
         )}
 
@@ -189,11 +193,11 @@ export default function EnrollMfaPage() {
         {phase === 'generate' && (
           <div className="text-center">
             <div className="mb-6">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-3" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
-                <KeyRound className="w-6 h-6" style={{ color: '#f59e0b' }} />
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-3 bg-amber-500/10 border border-amber-500/30">
+                <KeyRound className="w-6 h-6 text-amber-500" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">Paso 1: Generar Código QR</h2>
-              <p className="text-slate-400 text-sm">
+              <h2 className="text-xl font-bold text-app-text mb-2">Paso 1: Generar Código QR</h2>
+              <p className="text-app-text-muted text-sm">
                 Para proteger su cuenta, debe configurar la autenticación de doble factor. 
                 Esto es obligatorio para acceder al sistema.
               </p>
@@ -202,8 +206,7 @@ export default function EnrollMfaPage() {
             <button
               onClick={handleGenerate}
               disabled={generating}
-              className="w-full py-3 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-              style={{ background: generating ? '#92400e' : '#f59e0b' }}
+              className={`w-full py-3 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${generating ? 'bg-amber-900' : 'bg-amber-500'}`}
             >
               {generating ? (
                 <>
@@ -225,8 +228,8 @@ export default function EnrollMfaPage() {
           <div className="space-y-5">
             {/* QR Code */}
             <div>
-              <h3 className="text-lg font-bold text-white mb-2">Paso 2: Escanear y Verificar</h3>
-              <p className="text-slate-400 text-sm mb-4">
+              <h3 className="text-lg font-bold text-app-text mb-2">Paso 2: Escanear y Verificar</h3>
+              <p className="text-app-text-muted text-sm mb-4">
                 Escanee el código QR con su aplicación autenticadora y luego ingrese el código de 6 dígitos
               </p>
 
@@ -237,24 +240,23 @@ export default function EnrollMfaPage() {
               </div>
 
               {/* Secret key */}
-              <div className="rounded-lg p-3 mb-4" style={{ background: '#1a1f36', border: '1px solid #374151' }}>
+              <div className="rounded-lg p-3 mb-4 bg-app-bg border border-app-border">
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-slate-400">Clave Secreta (ingreso manual)</label>
+                  <label className="text-xs text-app-text-muted">Clave Secreta (ingreso manual)</label>
                   <button
                     onClick={() => copyToClipboard(secret)}
-                    className="flex items-center gap-1 text-xs transition-colors"
-                    style={{ color: '#f59e0b' }}
+                    className="flex items-center gap-1 text-xs text-amber-500 transition-colors"
                   >
                     {copiedSecret ? <><CheckCircle2 className="w-3 h-3" /><span>Copiado</span></> : <><Copy className="w-3 h-3" /><span>Copiar</span></>}
                   </button>
                 </div>
-                <code className="text-xs font-mono break-all" style={{ color: '#f59e0b' }}>{secret}</code>
+                <code className="text-xs font-mono break-all text-amber-500">{secret}</code>
               </div>
             </div>
 
             {/* 6-digit input */}
             <div>
-              <label className="block text-sm text-slate-300 mb-3">Código de 6 dígitos</label>
+              <label className="block text-sm text-app-text-dim mb-3">Código de 6 dígitos</label>
               <div className="flex gap-2 justify-center" onPaste={handleMfaPaste}>
                 {mfaDigits.map((digit, idx) => (
                   <input
@@ -266,12 +268,7 @@ export default function EnrollMfaPage() {
                     value={digit}
                     onChange={(e) => handleMfaDigitChange(idx, e.target.value)}
                     onKeyDown={(e) => handleMfaKeyDown(idx, e)}
-                    className="w-11 h-13 text-center text-lg font-bold rounded-lg focus:outline-none focus:ring-2 transition-all"
-                    style={{
-                      background: '#1a1f36',
-                      border: digit ? '1px solid #f59e0b' : '1px solid #374151',
-                      color: '#f59e0b',
-                    }}
+                    className={`w-11 h-13 text-center text-lg font-bold rounded-lg focus:outline-none focus:ring-2 transition-all bg-app-bg border ${digit ? 'border-amber-500 text-amber-500' : 'border-app-border text-amber-500'}`}
                   />
                 ))}
               </div>
@@ -280,8 +277,7 @@ export default function EnrollMfaPage() {
             <button
               onClick={() => handleVerifyAndEnroll()}
               disabled={verifying || mfaDigits.join('').length < 6}
-              className="w-full py-2.5 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-              style={{ background: verifying ? '#92400e' : '#f59e0b' }}
+              className={`w-full py-2.5 text-white font-semibold rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${verifying ? 'bg-amber-900' : 'bg-amber-500'}`}
             >
               {verifying ? (
                 <>
@@ -301,7 +297,7 @@ export default function EnrollMfaPage() {
 
       {/* Footer */}
       <div className="mt-6 text-center">
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-app-text-faint">
           La autenticación de doble factor es obligatoria para proteger su cuenta
         </p>
       </div>

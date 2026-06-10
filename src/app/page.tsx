@@ -28,6 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { ThemeSelector } from '@/components/theme-selector';
 
 // ── Interfaces ──
 
@@ -1708,8 +1709,8 @@ export default function Home() {
   // Show loading state while checking authentication
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0b0f19] text-slate-200 gap-4">
-        <div className="p-4 bg-[#111827] rounded-xl border border-[#1e293b]">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-app-bg text-slate-200 gap-4">
+        <div className="p-4 bg-app-surface rounded-xl border border-app-border">
           <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
         </div>
         <p className="text-sm text-slate-400">Verificando autenticación...</p>
@@ -1718,16 +1719,16 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0b0f19] text-slate-200">
+    <div className="min-h-screen flex flex-col bg-app-bg text-slate-200">
 
       {/* ── HEADER ── */}
-      <header className="border-b border-[#1e293b] bg-[#0a0e17] sticky top-0 z-50">
+      <header className="border-b border-app-border bg-app-header sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-          <div className="p-2 bg-[#111827] rounded-lg border border-[#1e293b]">
+          <div className="p-2 bg-app-surface rounded-lg border border-app-border">
             <Shield className="w-5 h-5 text-blue-500" />
           </div>
           <div>
-            <h1 className="text-base font-semibold text-white tracking-tight">OSINT Data Scanner</h1>
+            <h1 className="text-base font-semibold text-app-text tracking-tight">OSINT Data Scanner</h1>
             <p className="text-[10px] text-slate-500 -mt-0.5">Inteligencia de Fuentes Abiertas</p>
           </div>
 
@@ -1740,15 +1741,17 @@ export default function Home() {
               </span>
             </div>
 
-            <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-xs bg-[#111827]">
+            <Badge variant="outline" className="border-app-border text-slate-400 text-xs bg-app-surface">
               <Globe className="w-3 h-3 mr-1" />
               {selectedEngines.size}/{TOTAL_ENGINES}
             </Badge>
 
+            <ThemeSelector />
+
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-slate-400 hover:text-white hover:bg-[#1a2235] rounded-lg"
+              className="h-8 w-8 text-slate-400 hover:text-white hover:bg-app-surface-hover rounded-lg"
               onClick={() => { setSettingsOpen(true); setTestKeyStatus('idle'); }}
             >
               <Settings className="w-4 h-4" />
@@ -1757,14 +1760,14 @@ export default function Home() {
             {/* User session & MFA indicator */}
             {authUser && (
               <>
-                <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#111827] border border-[#1e293b]">
+                <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-app-surface border border-app-border">
                   <Mail className="w-3 h-3 text-amber-400" />
                   <span className="text-[10px] text-slate-400 font-medium">{authUser.email || authUser.username}</span>
                   <Badge className="bg-amber-900/40 text-amber-300 text-[8px] px-1 py-0 h-4">
                     {authUser.role}
                   </Badge>
                 </div>
-                <a href="/setup-mfa" className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:bg-[#1a2235] rounded-lg transition-colors" title="Configurar MFA">
+                <a href="/setup-mfa" className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:bg-app-surface-hover rounded-lg transition-colors" title="Configurar MFA">
                   <Fingerprint className="w-4 h-4" />
                 </a>
               </>
@@ -1788,9 +1791,9 @@ export default function Home() {
 
       {/* ── SETTINGS DIALOG ── */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="bg-[#111827] border-[#1e293b] text-slate-200 sm:max-w-md">
+        <DialogContent className="bg-app-surface border-app-border text-slate-200 sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-app-text flex items-center gap-2">
               <Settings className="w-5 h-5 text-blue-400" />
               Configuración
             </DialogTitle>
@@ -1801,7 +1804,7 @@ export default function Home() {
 
           <div className="space-y-4 py-2">
             {/* API Key Status - Server-side only, no input field */}
-            <div className="p-4 rounded-lg bg-[#0b0f19] border border-[#1e293b] space-y-3">
+            <div className="p-4 rounded-lg bg-app-bg border border-app-border space-y-3">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${testKeyStatus === 'success' ? 'bg-green-900/30' : testKeyStatus === 'error' ? 'bg-red-900/30' : 'bg-slate-800/50'}`}>
                   {testKeyStatus === 'success' ? (
@@ -1833,7 +1836,7 @@ export default function Home() {
                   size="sm"
                   onClick={handleTestConnection}
                   disabled={testKeyLoading}
-                  className="border-[#1e293b] text-slate-300 hover:bg-[#1a2235] hover:text-white"
+                  className="border-app-border text-slate-300 hover:bg-app-surface-hover hover:text-white"
                 >
                   {testKeyLoading ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Probando...</>
@@ -1855,7 +1858,7 @@ export default function Home() {
             </div>
 
             {/* Info note */}
-            <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+            <div className="p-3 rounded-lg bg-app-bg border border-app-border">
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
                 <p className="text-xs text-slate-500 leading-relaxed">
@@ -1878,7 +1881,7 @@ export default function Home() {
                   { name: 'TELEGRAM_BOT_TOKEN', desc: 'Token del bot de Telegram para alertas', required: false },
                   { name: 'TELEGRAM_CHAT_ID', desc: 'Chat ID para enviar alertas de Telegram', required: false },
                 ].map(v => (
-                  <div key={v.name} className="flex items-start gap-2 p-1.5 bg-[#0b0f19] rounded border border-[#1e293b]">
+                  <div key={v.name} className="flex items-start gap-2 p-1.5 bg-app-bg rounded border border-app-border">
                     <Badge className={`text-[8px] px-1 py-0 h-4 shrink-0 ${v.required ? 'bg-red-900/40 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
                       {v.required ? 'OBLIGATORIA' : 'OPCIONAL'}
                     </Badge>
@@ -1893,7 +1896,7 @@ export default function Home() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSettingsOpen(false)} className="border-[#1e293b] text-slate-300">
+            <Button variant="outline" onClick={() => setSettingsOpen(false)} className="border-app-border text-slate-300">
               Cerrar
             </Button>
           </DialogFooter>
@@ -1903,7 +1906,7 @@ export default function Home() {
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-[#111827] border border-[#1e293b] flex-wrap h-auto gap-1 p-1">
+          <TabsList className="bg-app-surface border border-app-border flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="scan" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400">
               <ScanLine className="w-4 h-4 mr-2" />
               Escaneo
@@ -1935,9 +1938,9 @@ export default function Home() {
               {/* ── Left Column: Form + Batch Upload ── */}
               <div className="space-y-4">
                 {/* Input Form */}
-                <Card className="bg-[#111827] border-[#1e293b]">
+                <Card className="bg-app-surface border-app-border">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
+                    <CardTitle className="text-app-text flex items-center gap-2">
                       <User className="w-5 h-5 text-blue-400" />
                       Datos a Escanear
                     </CardTitle>
@@ -1950,28 +1953,28 @@ export default function Home() {
                       <Label htmlFor="fullName" className="text-slate-300 text-sm">Nombre Completo *</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
-                        <Input id="fullName" placeholder="Juan Perez Garcia" value={fullName} onChange={e => setFullName(e.target.value)} className="pl-10 bg-[#0b0f19] border-[#1e293b] text-white placeholder:text-slate-600 focus:border-blue-600" />
+                        <Input id="fullName" placeholder="Juan Perez Garcia" value={fullName} onChange={e => setFullName(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-blue-600" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="cedula" className="text-slate-300 text-sm">Cedula / Documento</Label>
                       <div className="relative">
                         <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
-                        <Input id="cedula" placeholder="1234567890" value={cedula} onChange={e => setCedula(e.target.value)} className="pl-10 bg-[#0b0f19] border-[#1e293b] text-white placeholder:text-slate-600 focus:border-blue-600" />
+                        <Input id="cedula" placeholder="1234567890" value={cedula} onChange={e => setCedula(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-blue-600" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-slate-300 text-sm">Correo Electronico</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
-                        <Input id="email" type="email" placeholder="correo@ejemplo.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-10 bg-[#0b0f19] border-[#1e293b] text-white placeholder:text-slate-600 focus:border-blue-600" />
+                        <Input id="email" type="email" placeholder="correo@ejemplo.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-blue-600" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone" className="text-slate-300 text-sm">Numero de Telefono</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
-                        <Input id="phone" placeholder="+57 300 1234567" value={phone} onChange={e => setPhone(e.target.value)} className="pl-10 bg-[#0b0f19] border-[#1e293b] text-white placeholder:text-slate-600 focus:border-blue-600" />
+                        <Input id="phone" placeholder="+57 300 1234567" value={phone} onChange={e => setPhone(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-blue-600" />
                       </div>
                     </div>
 
@@ -1983,7 +1986,7 @@ export default function Home() {
                           type="button" size="sm"
                           variant={reportFormat === 'pdf' ? 'default' : 'outline'}
                           onClick={() => setReportFormat('pdf')}
-                          className={reportFormat === 'pdf' ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'border-[#1e293b] text-slate-400 hover:text-white'}
+                          className={reportFormat === 'pdf' ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'border-app-border text-slate-400 hover:text-white'}
                         >
                           <FileDown className="w-4 h-4 mr-1" /> PDF
                         </Button>
@@ -1991,7 +1994,7 @@ export default function Home() {
                           type="button" size="sm"
                           variant={reportFormat === 'docx' ? 'default' : 'outline'}
                           onClick={() => setReportFormat('docx')}
-                          className={reportFormat === 'docx' ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'border-[#1e293b] text-slate-400 hover:text-white'}
+                          className={reportFormat === 'docx' ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'border-app-border text-slate-400 hover:text-white'}
                         >
                           <FileText className="w-4 h-4 mr-1" /> DOCX
                         </Button>
@@ -2013,7 +2016,7 @@ export default function Home() {
                     </Button>
 
                     {/* ── BARRA DE PROGRESO FIJA — siempre visible ── */}
-                    <div className="p-3 bg-[#0a0e17] rounded-lg border border-[#1e293b] space-y-2">
+                    <div className="p-3 bg-app-header rounded-lg border border-app-border space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {loading ? (
@@ -2041,7 +2044,7 @@ export default function Home() {
                           {Math.round(progress)}%
                         </span>
                       </div>
-                      <div className="relative h-3 bg-[#111827] rounded-full overflow-hidden border border-[#1e293b]">
+                      <div className="relative h-3 bg-app-surface rounded-full overflow-hidden border border-app-border">
                         <div
                           className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
                           style={{
@@ -2050,7 +2053,7 @@ export default function Home() {
                               ? 'linear-gradient(90deg, #059669, #10b981, #34d399)'
                               : progress > 0
                                 ? 'linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa)'
-                                : 'linear-gradient(90deg, #1e293b, #253044)',
+                                : 'linear-gradient(90deg, hsl(var(--app-border)), hsl(var(--app-surface-hover)))',
                             opacity: progress > 0 ? 1 : 0.4,
                           }}
                         >
@@ -2085,7 +2088,7 @@ export default function Home() {
                               <div className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
                                 reached
                                   ? progress >= 100 ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]'
-                                  : current ? 'bg-blue-400/50 animate-pulse' : 'bg-[#1e293b]'
+                                  : current ? 'bg-blue-400/50 animate-pulse' : 'bg-app-border'
                               }`} />
                               <span className={`text-[8px] leading-none transition-colors duration-300 ${
                                 reached ? (progress >= 100 ? 'text-emerald-400' : 'text-blue-300') : 'text-slate-600'
@@ -2100,10 +2103,10 @@ export default function Home() {
 
                     {scanData && (
                       <div className="flex gap-2">
-                        <Button onClick={() => handleDownloadReport(scanData.scanId, 'pdf')} className="flex-1 bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b]">
+                        <Button onClick={() => handleDownloadReport(scanData.scanId, 'pdf')} className="flex-1 bg-app-surface-hover hover:bg-app-surface-active text-app-text border border-app-border">
                           <Download className="w-4 h-4 mr-2" />PDF
                         </Button>
-                        <Button onClick={() => handleDownloadReport(scanData.scanId, 'docx')} className="flex-1 bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b]">
+                        <Button onClick={() => handleDownloadReport(scanData.scanId, 'docx')} className="flex-1 bg-app-surface-hover hover:bg-app-surface-active text-app-text border border-app-border">
                           <Download className="w-4 h-4 mr-2" />DOCX
                         </Button>
                         <Button onClick={() => handleDownloadBothReports(scanData.scanId)} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white">
@@ -2115,9 +2118,9 @@ export default function Home() {
                 </Card>
 
                 {/* Batch Upload Section (merged into Scan tab) */}
-                <Card className="bg-[#111827] border-[#1e293b]">
+                <Card className="bg-app-surface border-app-border">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2 text-sm">
+                    <CardTitle className="text-app-text flex items-center gap-2 text-sm">
                       <Upload className="w-4 h-4 text-blue-400" />
                       Zona de análisis de archivos
                     </CardTitle>
@@ -2135,7 +2138,7 @@ export default function Home() {
                           ? 'border-blue-500 bg-blue-900/10'
                           : uploadFile
                             ? 'border-blue-700/50 bg-blue-900/5'
-                            : 'border-[#1e293b] bg-[#0b0f19] hover:border-slate-600 hover:bg-[#111827]'
+                            : 'border-app-border bg-app-bg hover:border-slate-600 hover:bg-app-surface'
                       }`}
                       onClick={() => {
                         const input = document.createElement('input');
@@ -2151,7 +2154,7 @@ export default function Home() {
                       {uploadFile ? (
                         <div className="space-y-1">
                           <FileSpreadsheet className="w-8 h-8 mx-auto text-blue-400" />
-                          <p className="text-sm font-medium text-white">{uploadFile.name}</p>
+                          <p className="text-sm font-medium text-app-text">{uploadFile.name}</p>
                           <p className="text-xs text-slate-500">{(uploadFile.size / 1024).toFixed(1)} KB</p>
                           <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 h-6 text-xs" onClick={(e) => { e.stopPropagation(); setUploadFile(null); }}>
                             <XCircle className="w-3 h-3 mr-1" /> Quitar
@@ -2181,7 +2184,7 @@ export default function Home() {
                     </Button>
 
                     {/* ── BARRA DE PROGRESO UPLOAD FIJA — siempre visible ── */}
-                    <div className="mt-3 p-3 bg-[#0a0e17] rounded-lg border border-[#1e293b] space-y-2">
+                    <div className="mt-3 p-3 bg-app-header rounded-lg border border-app-border space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {uploadLoading ? (
@@ -2210,7 +2213,7 @@ export default function Home() {
                         </span>
                       </div>
 
-                      <div className="relative h-3 bg-[#111827] rounded-full overflow-hidden border border-[#1e293b]">
+                      <div className="relative h-3 bg-app-surface rounded-full overflow-hidden border border-app-border">
                         <div
                           className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
                           style={{
@@ -2219,7 +2222,7 @@ export default function Home() {
                               ? 'linear-gradient(90deg, #059669, #10b981, #34d399)'
                               : uploadProgress > 0
                                 ? 'linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa)'
-                                : 'linear-gradient(90deg, #1e293b, #253044)',
+                                : 'linear-gradient(90deg, hsl(var(--app-border)), hsl(var(--app-surface-hover)))',
                             opacity: uploadProgress > 0 ? 1 : 0.4,
                           }}
                         >
@@ -2255,7 +2258,7 @@ export default function Home() {
                               <div className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
                                 reached
                                   ? uploadProgress >= 100 ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]'
-                                  : current ? 'bg-blue-400/50 animate-pulse' : 'bg-[#1e293b]'
+                                  : current ? 'bg-blue-400/50 animate-pulse' : 'bg-app-border'
                               }`} />
                               <span className={`text-[8px] leading-none transition-colors duration-300 ${
                                 reached ? (uploadProgress >= 100 ? 'text-emerald-400' : 'text-blue-300') : 'text-slate-600'
@@ -2271,7 +2274,7 @@ export default function Home() {
                     {/* TXT Analysis Results (entity extraction) */}
                     {txtAnalysis && (
                       <div className="space-y-2 mt-2">
-                        <Separator className="bg-[#1e293b]" />
+                        <Separator className="bg-app-border" />
                         <div className="p-3 bg-cyan-900/15 border border-cyan-800/30 rounded-lg space-y-2">
                           <div className="flex items-center gap-2">
                             <FileText className="w-4 h-4 text-cyan-400" />
@@ -2293,7 +2296,7 @@ export default function Home() {
                               { label: 'Empresas', value: txtAnalysis.totalEntities.companies, icon: Building2, color: 'text-teal-400' },
                               { label: 'Líneas', value: txtAnalysis.totalLines, icon: FileDigit, color: 'text-slate-400' },
                             ].map(stat => (
-                              <div key={stat.label} className="flex items-center gap-1 p-1.5 bg-[#0b0f19] rounded border border-[#1e293b]">
+                              <div key={stat.label} className="flex items-center gap-1 p-1.5 bg-app-bg rounded border border-app-border">
                                 <stat.icon className={`w-3 h-3 ${stat.color}`} />
                                 <div>
                                   <p className="text-[9px] text-slate-500 leading-none">{stat.label}</p>
@@ -2312,10 +2315,10 @@ export default function Home() {
                                                     person.confidence === 'media' ? 'text-amber-400 bg-amber-900/20 border-amber-800/30' :
                                                     'text-slate-400 bg-slate-800/20 border-slate-700/30';
                                   return (
-                                    <div key={idx} className="p-2 bg-[#0b0f19] rounded border border-[#1e293b] flex items-center justify-between">
+                                    <div key={idx} className="p-2 bg-app-bg rounded border border-app-border flex items-center justify-between">
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5">
-                                          <p className="text-[11px] font-medium text-white truncate">{person.fullName || 'Sin nombre'}</p>
+                                          <p className="text-[11px] font-medium text-app-text truncate">{person.fullName || 'Sin nombre'}</p>
                                           <span className={`text-[8px] px-1 py-0.5 rounded border ${confColor}`}>{person.confidence}</span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5">
@@ -2360,7 +2363,7 @@ export default function Home() {
                     {/* Batch Results (compact inline) */}
                     {batchResults && batchResults.length > 0 && (
                       <div className="space-y-2 mt-2">
-                        <Separator className="bg-[#1e293b]" />
+                        <Separator className="bg-app-border" />
                         <p className="text-xs font-medium text-slate-400">{batchResults.length} persona(s) procesada(s)</p>
                         <ScrollArea className="max-h-48">
                           <div className="space-y-2">
@@ -2371,12 +2374,12 @@ export default function Home() {
                               const rColor = totalRisk >= 70 ? 'text-red-400' : totalRisk >= 40 ? 'text-orange-400' : totalRisk >= 15 ? 'text-amber-400' : 'text-green-400';
 
                               return (
-                                <div key={idx} className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b]">
+                                <div key={idx} className="p-3 bg-app-bg rounded-lg border border-app-border">
                                   <div className="flex items-center justify-between">
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium text-white">{result.fullName || result.sheetName || `Resultado ${idx + 1}`}</p>
+                                      <p className="text-xs font-medium text-app-text">{result.fullName || result.sheetName || `Resultado ${idx + 1}`}</p>
                                       <div className="flex items-center gap-2 mt-1">
-                                        <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-[10px]">{result.totalResults || result.rowCount || 0} hallazgos</Badge>
+                                        <Badge variant="outline" className="border-app-border text-slate-400 text-[10px]">{result.totalResults || result.rowCount || 0} hallazgos</Badge>
                                         <span className={`text-[10px] font-bold ${rColor}`}>{rLabel}</span>
                                       </div>
                                     </div>
@@ -2387,7 +2390,7 @@ export default function Home() {
                                       <Button size="sm" className="bg-blue-700 hover:bg-blue-800 text-white h-7 text-[10px] px-2" onClick={() => handleDownloadReport(result.scanId, 'pdf')}>
                                         <Download className="w-3 h-3" />
                                       </Button>
-                                      <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white h-7 text-[10px] px-2" onClick={() => handleDownloadReport(result.scanId, 'docx')}>
+                                      <Button size="sm" variant="outline" className="border-app-border text-slate-400 hover:text-white h-7 text-[10px] px-2" onClick={() => handleDownloadReport(result.scanId, 'docx')}>
                                         <FileText className="w-3 h-3" />
                                       </Button>
                                       <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white h-7 text-[10px] px-2" onClick={() => handleDownloadBothReports(result.scanId)}>
@@ -2437,12 +2440,12 @@ export default function Home() {
                                     return (
                                       <div
                                         key={idx}
-                                        className={`p-2 rounded-md border cursor-pointer transition-colors ${config.bgColor} hover:bg-[#1a2235]`}
+                                        className={`p-2 rounded-md border cursor-pointer transition-colors ${config.bgColor} hover:bg-app-surface-hover`}
                                         onClick={() => setExpandedLink(isExpanded ? null : `${idx}`)}
                                       >
                                         <div className="flex items-center gap-2">
                                           <Icon className={`w-3 h-3 ${config.color} shrink-0`} />
-                                          <p className="text-[10px] text-white flex-1 min-w-0 truncate">
+                                          <p className="text-[10px] text-app-text flex-1 min-w-0 truncate">
                                             <span className="text-blue-400">{link.sheet1Person}</span>
                                             <span className="text-slate-500 mx-1">↔</span>
                                             <span className="text-violet-400">{link.sheet2Person}</span>
@@ -2473,10 +2476,10 @@ export default function Home() {
 
               {/* ── Right Column: Engine Grid ── */}
               <div className="space-y-4">
-                <Card className="bg-[#111827] border-[#1e293b]">
+                <Card className="bg-app-surface border-app-border">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-white flex items-center gap-2">
+                      <CardTitle className="text-app-text flex items-center gap-2">
                         <Database className="w-5 h-5 text-blue-400" />
                         Motores de Busqueda
                       </CardTitle>
@@ -2487,7 +2490,7 @@ export default function Home() {
                           variant="outline"
                           size="sm"
                           onClick={toggleAllEngines}
-                          className="border-[#1e293b] text-slate-400 hover:bg-[#1a2235] text-xs h-7"
+                          className="border-app-border text-slate-400 hover:bg-app-surface-hover text-xs h-7"
                         >
                           {selectedEngines.size === TOTAL_ENGINES ? 'Ninguno' : 'Todos'}
                         </Button>
@@ -2530,12 +2533,12 @@ export default function Home() {
                                   className={`group flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition-all duration-200 ${
                                     isSelected
                                       ? `${getCategoryColor(category.color, 'bg')} ${getCategoryColor(category.color, 'border')}`
-                                      : 'bg-[#0b0f19] border-[#1e293b] opacity-50 hover:opacity-80 hover:border-slate-600'
+                                      : 'bg-app-bg border-app-border opacity-50 hover:opacity-80 hover:border-slate-600'
                                   }`}
                                   onClick={() => toggleEngine(engine.name)}
                                 >
                                   <div className={`mt-0.5 shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition-all ${
-                                    isSelected ? 'bg-[#0b0f19]' : 'bg-slate-800/30'
+                                    isSelected ? 'bg-app-bg' : 'bg-slate-800/30'
                                   }`}>
                                     <EngineIcon className={`w-3.5 h-3.5 transition-all ${
                                       isSelected ? getCategoryColor(category.color) : 'text-slate-600 group-hover:text-slate-400'
@@ -2543,7 +2546,7 @@ export default function Home() {
                                   </div>
 
                                   <div className="min-w-0 flex-1">
-                                    <p className={`text-xs font-semibold truncate ${isSelected ? 'text-white' : 'text-slate-500'}`}>
+                                    <p className={`text-xs font-semibold truncate ${isSelected ? 'text-app-text' : 'text-slate-500'}`}>
                                       {engine.name}
                                     </p>
                                     <p className={`text-[10px] truncate ${isSelected ? 'text-slate-300' : 'text-slate-600'}`}>{engine.desc}</p>
@@ -2570,9 +2573,9 @@ export default function Home() {
             </div>
 
             {/* ── TELEGRAM AVANZADO — en sección de Escaneo ── */}
-            <Card className="bg-[#111827] border-[#1e293b]">
+            <Card className="bg-app-surface border-app-border">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-white text-base">
+                <CardTitle className="flex items-center gap-2 text-app-text text-base">
                   <Send className="w-5 h-5 text-cyan-400" />
                   Telegram Avanzado
                 </CardTitle>
@@ -2611,7 +2614,7 @@ export default function Home() {
 
                 {/* Config details — status indicators with source */}
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-app-bg border border-app-border">
                     {telegramHasBotToken ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     ) : (
@@ -2629,7 +2632,7 @@ export default function Home() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-app-bg border border-app-border">
                     {telegramHasChatId ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     ) : (
@@ -2651,7 +2654,7 @@ export default function Home() {
 
                 {/* Step 1: Enter Bot Token (shown only if not configured) */}
                 {!telegramHasBotToken && (
-                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-cyan-900/30 space-y-3">
+                  <div className="p-3 rounded-lg bg-app-bg border border-cyan-900/30 space-y-3">
                     <div className="flex items-center gap-2">
                       <span className="flex items-center justify-center w-5 h-5 rounded-full bg-cyan-900/30 text-cyan-400 text-[10px] font-bold">1</span>
                       <span className="text-xs font-medium text-cyan-300">Paso 1: Ingresar Bot Token</span>
@@ -2665,7 +2668,7 @@ export default function Home() {
                         value={telegramBotTokenInput}
                         onChange={e => setTelegramBotTokenInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleSaveBotToken(); }}
-                        className="bg-[#111827] border-[#1e293b] text-white placeholder:text-slate-600 text-xs font-mono focus:border-cyan-600"
+                        className="bg-app-surface border-app-border text-app-text placeholder:text-slate-600 text-xs font-mono focus:border-cyan-600"
                         disabled={telegramSavingToken}
                       />
                       <Button
@@ -2692,7 +2695,7 @@ export default function Home() {
 
                 {/* Step 2: Detect Chat ID — Only shown when CHAT_ID is NOT yet configured */}
                 {!telegramHasChatId ? (
-                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b] space-y-3">
+                  <div className="p-3 rounded-lg bg-app-bg border border-app-border space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${telegramHasBotToken ? 'bg-cyan-900/30 text-cyan-400' : 'bg-slate-800 text-slate-500'}`}>2</span>
@@ -2734,11 +2737,11 @@ export default function Home() {
                           <button
                             key={idx}
                             onClick={() => handleSelectChat(chat.chatId)}
-                            className="w-full flex items-center gap-2 p-2 rounded bg-[#111827] border border-[#1e293b] hover:border-cyan-700/50 hover:bg-cyan-950/10 transition-colors text-left cursor-pointer group"
+                            className="w-full flex items-center gap-2 p-2 rounded bg-app-surface border border-app-border hover:border-cyan-700/50 hover:bg-cyan-950/10 transition-colors text-left cursor-pointer group"
                           >
                             <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-emerald-400' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-400' : 'bg-cyan-400'}`} />
                             <div className="flex-1 min-w-0">
-                              <p className="text-[11px] text-white font-medium truncate group-hover:text-cyan-300 transition-colors">
+                              <p className="text-[11px] text-app-text font-medium truncate group-hover:text-cyan-300 transition-colors">
                                 {chat.firstName || chat.title || chat.username || 'Sin nombre'}
                               </p>
                               <p className="text-[9px] text-slate-500">
@@ -2787,7 +2790,7 @@ export default function Home() {
                   <Button
                     onClick={handleTelegramVerifyToken}
                     disabled={!telegramHasBotToken}
-                    className="flex-1 bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b] text-xs disabled:opacity-50"
+                    className="flex-1 bg-app-surface-hover hover:bg-app-surface-active text-app-text border border-app-border text-xs disabled:opacity-50"
                     size="sm"
                   >
                     <Wifi className="w-3.5 h-3.5 mr-1.5" />Verificar Token
@@ -2808,7 +2811,7 @@ export default function Home() {
 
                 {/* Keywords quick-add in Telegram Avanzado */}
                 {telegramConfigured && (
-                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-cyan-900/30 space-y-3">
+                  <div className="p-3 rounded-lg bg-app-bg border border-cyan-900/30 space-y-3">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-amber-400" />
                       <span className="text-xs font-medium text-amber-300">Palabras Clave para Alertas</span>
@@ -2820,7 +2823,7 @@ export default function Home() {
                       placeholder="Introduce tus palabras clave (una por línea o separadas por comas)&#10;&#10;Ejemplo:&#10;bancolombia&#10;contraseña filtrada&#10;datos personales, credenciales"
                       value={bulkKeywordInput}
                       onChange={e => setBulkKeywordInput(e.target.value)}
-                      className="w-full min-h-[80px] bg-[#111827] border border-[#1e293b] text-white placeholder:text-slate-600 text-xs focus:border-cyan-600 rounded-lg p-2.5 resize-y font-mono leading-relaxed"
+                      className="w-full min-h-[80px] bg-app-surface border border-app-border text-app-text placeholder:text-slate-600 text-xs focus:border-cyan-600 rounded-lg p-2.5 resize-y font-mono leading-relaxed"
                       disabled={bulkKeywordLoading}
                       onKeyDown={e => {
                         if (e.key === 'Enter' && e.ctrlKey) handleBulkAddKeywords();
@@ -2843,7 +2846,7 @@ export default function Home() {
                     </div>
                     {/* Quick view of current keywords */}
                     {alertKeywords.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#1e293b]">
+                      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-app-border">
                         {alertKeywords.map((kw, idx) => (
                           <Badge key={idx} className="bg-amber-900/30 text-amber-400 border border-amber-800/30 text-[10px] font-mono cursor-pointer hover:bg-red-900/30 hover:text-red-400 hover:border-red-800/30 transition-colors group" onClick={() => handleRemoveKeyword(kw)}>
                             {kw}
@@ -2857,7 +2860,7 @@ export default function Home() {
 
                 {/* ── ESCANEAR GRUPOS AHORA — Trigger scan directly from Telegram Avanzado ── */}
                 {telegramConfigured && (
-                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-emerald-900/30 space-y-3">
+                  <div className="p-3 rounded-lg bg-app-bg border border-emerald-900/30 space-y-3">
                     <div className="flex items-center gap-2">
                       <Send className="w-4 h-4 text-emerald-400" />
                       <span className="text-xs font-medium text-emerald-300">Consulta contra Telegram</span>
@@ -2935,7 +2938,7 @@ export default function Home() {
 
                         {/* Detected alerts list */}
                         {groupScanResults.detectedAlerts.length > 0 && (
-                          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
+                          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--app-border)) transparent' }}>
                             {groupScanResults.detectedAlerts.map((alert, idx) => {
                               const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
                                 : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
@@ -2948,7 +2951,7 @@ export default function Home() {
                                 : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
                               const kw = alert.matchedKeyword || alert.keyword;
                               return (
-                                <div key={idx} className="p-2 rounded-lg bg-[#111827] border border-[#1e293b] hover:border-amber-800/40 transition-colors">
+                                <div key={idx} className="p-2 rounded-lg bg-app-surface border border-app-border hover:border-amber-800/40 transition-colors">
                                   <div className="flex items-center gap-1.5 mb-1">
                                     {alert.telegramSent ? (
                                       <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
@@ -2983,7 +2986,7 @@ export default function Home() {
                 )}
 
                 {/* Info about how it works */}
-                <div className="p-3 rounded-lg bg-slate-900/30 border border-[#1e293b]">
+                <div className="p-3 rounded-lg bg-slate-900/30 border border-app-border">
                   <p className="text-[10px] text-slate-500 leading-relaxed">
                     <strong className="text-slate-400">¿Cómo funciona?</strong> El escaneo usa 3 fases: (1) <strong className="text-cyan-400/80">Búsqueda web Z.ai</strong> — busca cada palabra clave en la web para descubrir canales de Telegram relevantes; (2) <strong className="text-cyan-400/80">Scraping de canales</strong> — accede a las páginas de vista previa públicas (t.me/s/) de los canales descubiertos y conocidos para extraer mensajes reales; (3) <strong className="text-cyan-400/80">Bot polling</strong> — lee mensajes de grupos donde el bot es miembro. La palabra clave encontrada se resalta en los resultados.
                   </p>
@@ -3002,7 +3005,7 @@ export default function Home() {
             {scanData && (
               <>
                 {/* Risk Score + Download Buttons */}
-                <Card className="bg-[#111827] border-[#1e293b]">
+                <Card className="bg-app-surface border-app-border">
                   <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
                       {/* Risk Gauge */}
@@ -3010,8 +3013,8 @@ export default function Home() {
 
                       {/* Summary Cards */}
                       <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3 w-full">
-                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Todos los Hallazgos', items: scanData.results.map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
-                          <p className="text-2xl font-bold text-white">{scanData.totalResults}</p>
+                        <div className="p-3 bg-app-bg rounded-lg border border-app-border text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Todos los Hallazgos', items: scanData.results.map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
+                          <p className="text-2xl font-bold text-app-text">{scanData.totalResults}</p>
                           <p className="text-xs text-slate-500">Total</p>
                         </div>
                         <div className="p-3 bg-red-900/20 rounded-lg border border-red-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Críticos', items: scanData.results.filter(r => r.severity === 'critical').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
@@ -3038,12 +3041,12 @@ export default function Home() {
                     </div>
 
                     {/* Download Buttons */}
-                    <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-[#1e293b]">
+                    <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-app-border">
                       <span className="text-sm text-slate-400">Descargar Informe:</span>
                       <Button onClick={() => handleDownloadReport(scanData.scanId, 'pdf')} className="bg-blue-700 hover:bg-blue-800 text-white">
                         <Download className="w-4 h-4 mr-2" />PDF
                       </Button>
-                      <Button onClick={() => handleDownloadReport(scanData.scanId, 'docx')} className="bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b]">
+                      <Button onClick={() => handleDownloadReport(scanData.scanId, 'docx')} className="bg-app-surface-hover hover:bg-app-surface-active text-app-text border border-app-border">
                         <Download className="w-4 h-4 mr-2" />DOCX
                       </Button>
                       <Button onClick={() => handleDownloadBothReports(scanData.scanId)} className="bg-emerald-700 hover:bg-emerald-800 text-white">
@@ -3056,14 +3059,14 @@ export default function Home() {
                 {/* Severity Filter Buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-slate-500">Filtrar:</span>
-                  <Button size="sm" variant={filterSeverity === 'all' ? 'default' : 'outline'} onClick={() => setFilterSeverity('all')} className={filterSeverity === 'all' ? 'bg-blue-600 text-white' : 'border-[#1e293b] text-slate-400'}>
+                  <Button size="sm" variant={filterSeverity === 'all' ? 'default' : 'outline'} onClick={() => setFilterSeverity('all')} className={filterSeverity === 'all' ? 'bg-blue-600 text-white' : 'border-app-border text-slate-400'}>
                     Todos ({scanData.totalResults})
                   </Button>
                   {Object.entries(severityBadgeConfig).map(([key, config]) => {
                     const count = scanData.summary[key as keyof ScanSummary];
                     if (count === 0) return null;
                     return (
-                      <Button key={key} size="sm" variant={filterSeverity === key ? 'default' : 'outline'} onClick={() => setFilterSeverity(key)} className={filterSeverity === key ? `${config.color} border-0` : 'border-[#1e293b] text-slate-400'}>
+                      <Button key={key} size="sm" variant={filterSeverity === key ? 'default' : 'outline'} onClick={() => setFilterSeverity(key)} className={filterSeverity === key ? `${config.color} border-0` : 'border-app-border text-slate-400'}>
                         {config.label} ({count})
                       </Button>
                     );
@@ -3083,15 +3086,15 @@ export default function Home() {
 
                       return (
                         <Collapsible key={source} open={isOpen} onOpenChange={() => toggleGroup(source)}>
-                          <Card className="bg-[#111827] border-[#1e293b] overflow-hidden">
+                          <Card className="bg-app-surface border-app-border overflow-hidden">
                             <CollapsibleTrigger asChild>
-                              <div className="p-4 flex items-center gap-3 cursor-pointer hover:bg-[#1a2235] transition-colors">
+                              <div className="p-4 flex items-center gap-3 cursor-pointer hover:bg-app-surface-hover transition-colors">
                                 <div className={`p-1.5 rounded-md ${maxConfig.color} shrink-0`}>
                                   <maxConfig.icon className="w-4 h-4" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <p className="text-sm font-medium text-white truncate">{source}</p>
+                                    <p className="text-sm font-medium text-app-text truncate">{source}</p>
                                     <Badge className={`${maxConfig.color} text-xs`}>{maxConfig.label}</Badge>
                                   </div>
                                   <p className="text-xs text-slate-500">{results.length} hallazgo{results.length !== 1 ? 's' : ''}</p>
@@ -3100,7 +3103,7 @@ export default function Home() {
                               </div>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
-                              <div className="border-t border-[#1e293b]">
+                              <div className="border-t border-app-border">
                                 {results.map((result, idx) => {
                                   const config = severityBadgeConfig[result.severity];
                                   const Icon = config.icon;
@@ -3108,13 +3111,13 @@ export default function Home() {
                                   return (
                                     <div
                                       key={idx}
-                                      className="p-3 pl-6 border-b border-[#1e293b]/50 last:border-b-0 cursor-pointer hover:bg-[#1a2235]/50 transition-colors"
+                                      className="p-3 pl-6 border-b border-app-border/50 last:border-b-0 cursor-pointer hover:bg-app-surface-hover/50 transition-colors"
                                       onClick={() => setExpandedResult(isExpanded ? null : `${source}-${idx}`)}
                                     >
                                       <div className="flex items-start gap-2">
                                         <Badge className={`${config.color} text-[10px] shrink-0`}>{config.label}</Badge>
                                         <div className="flex-1 min-w-0">
-                                          <p className="text-sm text-white break-words">{result.title}</p>
+                                          <p className="text-sm text-app-text break-words">{result.title}</p>
                                           {isExpanded && result.description && (
                                             <p className="text-sm text-slate-400 mt-1 break-words">{result.description}</p>
                                           )}
@@ -3122,7 +3125,7 @@ export default function Home() {
                                             <p className="text-xs text-slate-500 mt-1 break-words">Datos: {result.dataFound}</p>
                                           )}
                                           <div className="flex items-center gap-2 mt-1">
-                                            <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[10px]">
+                                            <Badge variant="outline" className="border-app-border text-slate-500 text-[10px]">
                                               {categoryLabels[result.category] || result.category}
                                             </Badge>
                                             {isExpanded && result.url && (
@@ -3161,17 +3164,17 @@ export default function Home() {
           <TabsContent value="social" className="space-y-6">
             {/* Summary Header */}
             {socialScanData && (
-              <Card className="bg-[#111827] border-[#1e293b]">
+              <Card className="bg-app-surface border-app-border">
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row items-center gap-6">
                     <div className="flex-1 w-full">
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-[#0b0f19] rounded-lg border border-[#1e293b]">
+                        <div className="p-2 bg-app-bg rounded-lg border border-app-border">
                           <Globe className="w-5 h-5 text-blue-400" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h2 className="text-lg font-bold text-white">Investigación de Redes Sociales</h2>
+                            <h2 className="text-lg font-bold text-app-text">Investigación de Redes Sociales</h2>
                             {socialScanData.searchMode && (
                               <Badge className={`text-[9px] ${
                                 socialScanData.searchMode === 'nickname'
@@ -3194,12 +3197,12 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Perfiles Encontrados', items: socialScanData.results.filter(r => r.profileFound).map(r => ({ title: r.platform, description: r.profileFound ? `Perfil detectado${r.username ? ': @' + r.username : ''}${r.profileVerified ? ' (Verificado)' : ''}` : 'Sin perfil', platform: r.platform })) })}>
+                        <div className="p-3 bg-app-bg rounded-lg border border-app-border text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Perfiles Encontrados', items: socialScanData.results.filter(r => r.profileFound).map(r => ({ title: r.platform, description: r.profileFound ? `Perfil detectado${r.username ? ': @' + r.username : ''}${r.profileVerified ? ' (Verificado)' : ''}` : 'Sin perfil', platform: r.platform })) })}>
                           <p className="text-2xl font-bold text-blue-400">{socialScanData.summary.profilesFound}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Perfiles Encontrados</p>
                         </div>
-                        <div className="p-3 bg-[#0b0f19] rounded-lg border border-[#1e293b] text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Totales', items: socialScanData.results.flatMap(r => r.findings.map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
-                          <p className="text-2xl font-bold text-white">{socialScanData.summary.totalFindings}</p>
+                        <div className="p-3 bg-app-bg rounded-lg border border-app-border text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Totales', items: socialScanData.results.flatMap(r => r.findings.map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
+                          <p className="text-2xl font-bold text-app-text">{socialScanData.summary.totalFindings}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Hallazgos Totales</p>
                         </div>
                         <div className="p-3 bg-red-900/15 rounded-lg border border-red-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Críticos y Altos', items: socialScanData.results.flatMap(r => r.findings.filter(f => f.severity === 'critical' || f.severity === 'high').map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
@@ -3228,7 +3231,7 @@ export default function Home() {
                         <Button
                           onClick={handleDownloadSocialDocxReport}
                           disabled={socialReportLoading}
-                          className="bg-[#1a2235] hover:bg-[#243049] text-white border border-[#1e293b] text-xs h-8"
+                          className="bg-app-surface-hover hover:bg-app-surface-active text-app-text border border-app-border text-xs h-8"
                         >
                           {socialReportLoading ? (
                             <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generando...</>
@@ -3273,9 +3276,9 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left Column: Search Form + Platform Selector */}
               <div className="lg:col-span-5 space-y-4">
-                <Card className="bg-[#111827] border-[#1e293b]">
+                <Card className="bg-app-surface border-app-border">
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
+                    <CardTitle className="text-app-text flex items-center gap-2">
                       <Globe className="w-5 h-5 text-blue-400" />
                       Búsqueda en Redes Sociales
                     </CardTitle>
@@ -3294,7 +3297,7 @@ export default function Home() {
                           className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
                             socialSearchMode === 'nickname'
                               ? 'bg-rose-900/20 border-rose-800/40'
-                              : 'bg-[#0b0f19] border-[#1e293b] hover:border-rose-800/30'
+                              : 'bg-app-bg border-app-border hover:border-rose-800/30'
                           }`}
                         >
                           <AtSign className={`w-4 h-4 ${socialSearchMode === 'nickname' ? 'text-rose-400' : 'text-slate-500'}`} />
@@ -3306,7 +3309,7 @@ export default function Home() {
                           className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
                             socialSearchMode === 'email'
                               ? 'bg-sky-900/20 border-sky-800/40'
-                              : 'bg-[#0b0f19] border-[#1e293b] hover:border-sky-800/30'
+                              : 'bg-app-bg border-app-border hover:border-sky-800/30'
                           }`}
                         >
                           <Mail className={`w-4 h-4 ${socialSearchMode === 'email' ? 'text-sky-400' : 'text-slate-500'}`} />
@@ -3318,7 +3321,7 @@ export default function Home() {
                           className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
                             socialSearchMode === 'name'
                               ? 'bg-blue-900/20 border-blue-800/40'
-                              : 'bg-[#0b0f19] border-[#1e293b] hover:border-blue-800/30'
+                              : 'bg-app-bg border-app-border hover:border-blue-800/30'
                           }`}
                         >
                           <User className={`w-4 h-4 ${socialSearchMode === 'name' ? 'text-blue-400' : 'text-slate-500'}`} />
@@ -3337,7 +3340,7 @@ export default function Home() {
                           placeholder="ej: johndoe, @username"
                           value={socialNickname}
                           onChange={(e) => setSocialNickname(e.target.value)}
-                          className="bg-[#0b0f19] border-rose-800/30 focus:border-rose-500 text-white placeholder:text-slate-600"
+                          className="bg-app-bg border-rose-800/30 focus:border-rose-500 text-app-text placeholder:text-slate-600"
                         />
                       </div>
                     )}
@@ -3351,7 +3354,7 @@ export default function Home() {
                           placeholder="ej: usuario@correo.com"
                           value={socialEmail}
                           onChange={(e) => setSocialEmail(e.target.value)}
-                          className="bg-[#0b0f19] border-sky-800/30 focus:border-sky-500 text-white placeholder:text-slate-600"
+                          className="bg-app-bg border-sky-800/30 focus:border-sky-500 text-app-text placeholder:text-slate-600"
                         />
                         {!socialEmail.trim() && email.trim() && (
                           <button
@@ -3373,7 +3376,7 @@ export default function Home() {
                           placeholder="ej: Juan Pérez García"
                           value={socialName}
                           onChange={(e) => setSocialName(e.target.value)}
-                          className="bg-[#0b0f19] border-blue-800/30 focus:border-blue-500 text-white placeholder:text-slate-600"
+                          className="bg-app-bg border-blue-800/30 focus:border-blue-500 text-app-text placeholder:text-slate-600"
                         />
                         {!socialName.trim() && fullName.trim() && (
                           <button
@@ -3404,7 +3407,7 @@ export default function Home() {
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-[10px] font-medium transition-all ${engine.bgColor} ${engine.borderColor} ${engine.color} hover:bg-[#1a2235]`}
+                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-[10px] font-medium transition-all ${engine.bgColor} ${engine.borderColor} ${engine.color} hover:bg-app-surface-hover`}
                                 onClick={e => e.stopPropagation()}
                               >
                                 <ExternalLink className="w-3 h-3 shrink-0" />
@@ -3446,10 +3449,10 @@ export default function Home() {
                 </Card>
 
                 {/* Platform Selector Card */}
-                <Card className="bg-[#111827] border-[#1e293b]">
+                <Card className="bg-app-surface border-app-border">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-white flex items-center gap-2 text-sm">
+                      <CardTitle className="text-app-text flex items-center gap-2 text-sm">
                         <Database className="w-4 h-4 text-blue-400" />
                         Plataformas
                       </CardTitle>
@@ -3460,7 +3463,7 @@ export default function Home() {
                           variant="outline"
                           size="sm"
                           onClick={toggleAllSocialPlatforms}
-                          className="border-[#1e293b] text-slate-400 hover:bg-[#1a2235] text-xs h-7"
+                          className="border-app-border text-slate-400 hover:bg-app-surface-hover text-xs h-7"
                         >
                           {selectedSocialPlatforms.size === socialPlatforms.length ? 'Ninguna' : 'Todas'}
                         </Button>
@@ -3478,19 +3481,19 @@ export default function Home() {
                             className={`group flex items-center gap-1.5 p-2 rounded-lg border cursor-pointer transition-all min-h-[36px] ${
                               isSelected
                                 ? `${platform.bgColor} ${platform.borderColor}`
-                                : 'bg-[#0b0f19] border-[#1e293b] opacity-50 hover:opacity-80 hover:border-slate-600'
+                                : 'bg-app-bg border-app-border opacity-50 hover:opacity-80 hover:border-slate-600'
                             }`}
                             onClick={() => toggleSocialPlatform(platform.id)}
                           >
                             <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
-                              isSelected ? 'bg-[#0b0f19]' : 'bg-slate-800/30'
+                              isSelected ? 'bg-app-bg' : 'bg-slate-800/30'
                             }`}>
                               <PlatformIcon className={`w-3 h-3 ${
                                 isSelected ? platform.color : 'text-slate-600 group-hover:text-slate-400'
                               }`} />
                             </div>
                             <p className={`text-[10px] font-semibold truncate flex-1 min-w-0 ${
-                              isSelected ? 'text-white' : 'text-slate-500'
+                              isSelected ? 'text-app-text' : 'text-slate-500'
                             }`}>
                               {platform.name}
                             </p>
@@ -3513,10 +3516,10 @@ export default function Home() {
               <div className="lg:col-span-7 space-y-4">
 
                 {/* Digital Footprint Map */}
-                <Card className="bg-[#111827] border-[#1e293b]">
+                <Card className="bg-app-surface border-app-border">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-white flex items-center gap-2 text-sm">
+                      <CardTitle className="text-app-text flex items-center gap-2 text-sm">
                         <Network className="w-4 h-4 text-blue-400" />
                         Mapa de Huella Digital
                       </CardTitle>
@@ -3536,7 +3539,7 @@ export default function Home() {
                         const PlatformIcon = platform.icon;
                         const result = socialScanData?.results.find(r => r.platformId === platform.id);
                         const wasScanned = !!result;
-                        let statusColor = 'bg-[#0b0f19] border-[#1e293b]';
+                        let statusColor = 'bg-app-bg border-app-border';
                         let statusDot = 'bg-slate-700';
                         let statusLabel = '—';
                         let statusTextColor = 'text-slate-600';
@@ -3553,7 +3556,7 @@ export default function Home() {
                             statusLabel = `${result.findings.length} men.`;
                             statusTextColor = 'text-amber-400';
                           } else {
-                            statusColor = 'bg-[#0b0f19] border-red-800/30';
+                            statusColor = 'bg-app-bg border-red-800/30';
                             statusDot = 'bg-red-500';
                             statusLabel = 'Sin datos';
                             statusTextColor = 'text-red-400';
@@ -3567,7 +3570,7 @@ export default function Home() {
                           >
                             <div className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${statusDot} ${wasScanned && result?.profileFound ? 'animate-pulse' : ''}`} />
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                              wasScanned && result?.profileFound ? 'bg-[#0b0f19]' : 'bg-slate-800/30'
+                              wasScanned && result?.profileFound ? 'bg-app-bg' : 'bg-slate-800/30'
                             }`}>
                               <PlatformIcon className={`w-4 h-4 ${
                                 wasScanned && result?.profileFound ? platform.color : wasScanned ? 'text-slate-400' : 'text-slate-700'
@@ -3601,8 +3604,8 @@ export default function Home() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <BarChart3 className="w-4 h-4 text-blue-400" />
-                      <h3 className="text-sm font-semibold text-white">Resultados por Plataforma</h3>
-                      <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-[10px]">
+                      <h3 className="text-sm font-semibold text-app-text">Resultados por Plataforma</h3>
+                      <Badge variant="outline" className="border-app-border text-slate-400 text-[10px]">
                         {socialScanData.results.length} plataformas
                       </Badge>
                     </div>
@@ -3618,13 +3621,13 @@ export default function Home() {
                           return (
                             <Card
                               key={result.platformId}
-                              className={`bg-[#111827] border-[#1e293b] overflow-hidden transition-all hover:border-slate-600 ${
+                              className={`bg-app-surface border-app-border overflow-hidden transition-all hover:border-slate-600 ${
                                 result.profileFound ? `border-l-2 border-l-green-500` : hasCriticalFindings ? 'border-l-2 border-l-orange-500' : ''
                               }`}
                             >
                               {/* Card Header - Compact */}
                               <div
-                                className="px-3 py-2.5 flex items-center gap-2.5 cursor-pointer hover:bg-[#1a2235] transition-colors"
+                                className="px-3 py-2.5 flex items-center gap-2.5 cursor-pointer hover:bg-app-surface-hover transition-colors"
                                 onClick={() => setExpandedSocialPlatform(isExpanded ? null : result.platformId)}
                               >
                                 <div
@@ -3636,7 +3639,7 @@ export default function Home() {
 
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className="text-xs font-semibold text-white">{result.platform}</p>
+                                    <p className="text-xs font-semibold text-app-text">{result.platform}</p>
                                     {result.profileFound ? (
                                       <Badge className="bg-green-900/30 text-green-400 text-[8px] gap-0.5 border border-green-800/30 py-0">
                                         <CheckCircle2 className="w-2.5 h-2.5" /> Detectado
@@ -3646,7 +3649,7 @@ export default function Home() {
                                         <Eye className="w-2.5 h-2.5" /> Menciones
                                       </Badge>
                                     ) : (
-                                      <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[8px] py-0">
+                                      <Badge variant="outline" className="border-app-border text-slate-500 text-[8px] py-0">
                                         Sin hallazgos
                                       </Badge>
                                     )}
@@ -3677,7 +3680,7 @@ export default function Home() {
                                         href={url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`text-[8px] px-1 py-0.5 rounded border flex items-center gap-0.5 transition-all hover:bg-[#1a2235] ${engine.bgColor} ${engine.borderColor} ${engine.color}`}
+                                        className={`text-[8px] px-1 py-0.5 rounded border flex items-center gap-0.5 transition-all hover:bg-app-surface-hover ${engine.bgColor} ${engine.borderColor} ${engine.color}`}
                                         onClick={e => e.stopPropagation()}
                                         title={`Buscar en ${engine.name}`}
                                       >
@@ -3693,9 +3696,9 @@ export default function Home() {
 
                               {/* Expanded Content */}
                               {isExpanded && (
-                                <div className="border-t border-[#1e293b]">
+                                <div className="border-t border-app-border">
                                   {result.profileUrl && (
-                                    <div className="px-3 py-2 bg-green-900/5 flex items-center gap-2 border-b border-[#1e293b]/50">
+                                    <div className="px-3 py-2 bg-green-900/5 flex items-center gap-2 border-b border-app-border/50">
                                       <div className="w-4 h-4 rounded-md bg-green-900/30 flex items-center justify-center shrink-0">
                                         <Link2 className="w-2.5 h-2.5 text-green-400" />
                                       </div>
@@ -3721,7 +3724,7 @@ export default function Home() {
                                     const config = severityBadgeConfig[finding.severity];
                                     const Icon = config.icon;
                                     return (
-                                      <div key={idx} className="px-3 py-2 border-b border-[#1e293b]/50 last:border-b-0 hover:bg-[#1a2235]/30 transition-colors">
+                                      <div key={idx} className="px-3 py-2 border-b border-app-border/50 last:border-b-0 hover:bg-app-surface-hover/30 transition-colors">
                                         <div className="flex items-start gap-2">
                                           <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 mt-0.5 ${config.color}`}>
                                             <Icon className="w-2.5 h-2.5" />
@@ -3733,7 +3736,7 @@ export default function Home() {
                                                 <span className="text-[8px] text-slate-600 uppercase tracking-wider">{categoryLabels[finding.category] || finding.category}</span>
                                               )}
                                             </div>
-                                            <p className="text-xs text-white break-words">{finding.title}</p>
+                                            <p className="text-xs text-app-text break-words">{finding.title}</p>
                                             {finding.description && (
                                               <p className="text-[11px] text-slate-400 mt-0.5 break-words line-clamp-2">{finding.description}</p>
                                             )}
@@ -3765,9 +3768,9 @@ export default function Home() {
 
                 {/* Empty state */}
                 {!socialScanData && !socialScanLoading && (
-                  <Card className="bg-[#111827] border-[#1e293b]">
+                  <Card className="bg-app-surface border-app-border">
                     <CardContent className="py-16 text-center">
-                      <div className="w-16 h-16 rounded-full bg-[#0b0f19] flex items-center justify-center mx-auto mb-4 border border-[#1e293b]">
+                      <div className="w-16 h-16 rounded-full bg-app-bg flex items-center justify-center mx-auto mb-4 border border-app-border">
                         <Globe className="w-8 h-8 text-slate-600" />
                       </div>
                       <p className="text-slate-400 font-medium mb-1">Consola de Investigación Social</p>
@@ -3778,7 +3781,7 @@ export default function Home() {
 
                 {/* Loading state */}
                 {socialScanLoading && (
-                  <Card className="bg-[#111827] border-[#1e293b]">
+                  <Card className="bg-app-surface border-app-border">
                     <CardContent className="py-16 text-center">
                       <div className="relative w-16 h-16 mx-auto mb-4">
                         <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
@@ -3801,7 +3804,7 @@ export default function Home() {
           ──────────────────────────────────────────── */}
           <TabsContent value="history" className="space-y-4">
             {pastScans.length === 0 ? (
-              <Card className="bg-[#111827] border-[#1e293b]">
+              <Card className="bg-app-surface border-app-border">
                 <CardContent className="py-12 text-center">
                   <Clock className="w-12 h-12 mx-auto mb-3 text-slate-700" />
                   <p className="text-slate-400">No hay escaneos previos</p>
@@ -3822,12 +3825,12 @@ export default function Home() {
                   const isSocial = scan.scanType === 'social_media';
                   const TypeIcon = isSocial ? Users : Shield;
                   return (
-                    <Card key={scan.id} className="bg-[#111827] border-[#1e293b] hover:border-slate-600 transition-colors">
+                    <Card key={scan.id} className="bg-app-surface border-app-border hover:border-slate-600 transition-colors">
                       <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <TypeIcon className={`w-4 h-4 shrink-0 ${isSocial ? 'text-violet-400' : 'text-blue-400'}`} />
-                            <p className="text-sm font-medium text-white">{scan.fullName}</p>
+                            <p className="text-sm font-medium text-app-text">{scan.fullName}</p>
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                             {scan.email && <span>{scan.email}</span>}
@@ -3842,10 +3845,10 @@ export default function Home() {
                             }>
                               {isSocial ? 'Social Media' : 'Data Intelligence'}
                             </Badge>
-                            <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-xs">
+                            <Badge variant="outline" className="border-app-border text-slate-400 text-xs">
                               {new Date(scan.createdAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </Badge>
-                            <Badge variant="outline" className="border-[#1e293b] text-slate-400 text-xs">
+                            <Badge variant="outline" className="border-app-border text-slate-400 text-xs">
                               {scan.results.length} resultados
                             </Badge>
                             {criticals > 0 && <Badge className="bg-red-900/40 text-red-400 text-xs border border-red-800/30">{criticals} criticos</Badge>}
@@ -3853,7 +3856,7 @@ export default function Home() {
                         </div>
                         <div className="flex items-center gap-2 ml-4">
                           {!isSocial && (
-                            <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleViewPastScan(scan.id)}>
+                            <Button size="sm" variant="outline" className="border-app-border text-slate-400 hover:text-white hover:bg-app-surface-hover" onClick={() => handleViewPastScan(scan.id)}>
                               <Eye className="w-3.5 h-3.5 mr-1" />Ver
                             </Button>
                           )}
@@ -3862,7 +3865,7 @@ export default function Home() {
                               <Button size="sm" className="bg-blue-700 hover:bg-blue-800 text-white" onClick={() => handleDownloadSocialHistoryReport(scan.id, 'pdf')}>
                                 <Download className="w-3.5 h-3.5 mr-1" />PDF
                               </Button>
-                              <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleDownloadSocialHistoryReport(scan.id, 'docx')}>
+                              <Button size="sm" variant="outline" className="border-app-border text-slate-400 hover:text-white hover:bg-app-surface-hover" onClick={() => handleDownloadSocialHistoryReport(scan.id, 'docx')}>
                                 <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />DOCX
                               </Button>
                               <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={async () => { await handleDownloadSocialHistoryReport(scan.id, 'pdf'); setTimeout(() => handleDownloadSocialHistoryReport(scan.id, 'docx'), 500); }}>
@@ -3874,7 +3877,7 @@ export default function Home() {
                               <Button size="sm" className="bg-blue-700 hover:bg-blue-800 text-white" onClick={() => handleDownloadReport(scan.id, 'pdf')}>
                                 <Download className="w-3.5 h-3.5 mr-1" />PDF
                               </Button>
-                              <Button size="sm" variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => handleDownloadReport(scan.id, 'docx')}>
+                              <Button size="sm" variant="outline" className="border-app-border text-slate-400 hover:text-white hover:bg-app-surface-hover" onClick={() => handleDownloadReport(scan.id, 'docx')}>
                                 <Download className="w-3.5 h-3.5 mr-1" />DOCX
                               </Button>
                               <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={() => handleDownloadBothReports(scan.id)}>
@@ -3882,7 +3885,7 @@ export default function Home() {
                               </Button>
                             </>
                           )}
-                          <Button size="sm" variant="outline" className="border-[#1e293b] text-red-400 hover:text-red-300 hover:bg-[#1a2235]" onClick={() => confirmDeleteScan(scan.id, scan.fullName)}>
+                          <Button size="sm" variant="outline" className="border-app-border text-red-400 hover:text-red-300 hover:bg-app-surface-hover" onClick={() => confirmDeleteScan(scan.id, scan.fullName)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -3902,7 +3905,7 @@ export default function Home() {
             {/* ══════════════════════════════════════════
                 ESCÁNER DE GRUPOS — Telegram Group Scanner
             ══════════════════════════════════════════ */}
-            <Card className="bg-[#111827] border-[#1e293b]">
+            <Card className="bg-app-surface border-app-border">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -3910,7 +3913,7 @@ export default function Home() {
                       <Send className="w-5 h-5 text-emerald-400" />
                     </div>
                     <div>
-                      <CardTitle className="text-white text-base">Escáner de Grupos</CardTitle>
+                      <CardTitle className="text-app-text text-base">Escáner de Grupos</CardTitle>
                       <CardDescription className="text-slate-400 text-xs">
                         Busca menciones de palabras clave en grupos y canales de Telegram
                       </CardDescription>
@@ -4008,10 +4011,10 @@ export default function Home() {
             {/* ══════════════════════════════════════════
                 PALABRAS CLAVE — Keyword Management
             ══════════════════════════════════════════ */}
-            <Card className="bg-[#111827] border-[#1e293b]">
+            <Card className="bg-app-surface border-app-border">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-white text-base">
+                  <CardTitle className="flex items-center gap-2 text-app-text text-base">
                     <AlertTriangle className="w-5 h-5 text-amber-400" />
                     Palabras Clave
                   </CardTitle>
@@ -4027,7 +4030,7 @@ export default function Home() {
                     placeholder="Palabras clave (una por línea o separadas por comas)"
                     value={bulkKeywordInput}
                     onChange={e => setBulkKeywordInput(e.target.value)}
-                    className="w-full min-h-[80px] bg-[#0b0f19] border border-[#1e293b] text-white placeholder:text-slate-600 text-sm focus:border-amber-600 rounded-lg p-3 resize-y font-mono leading-relaxed"
+                    className="w-full min-h-[80px] bg-app-bg border border-app-border text-app-text placeholder:text-slate-600 text-sm focus:border-amber-600 rounded-lg p-3 resize-y font-mono leading-relaxed"
                     disabled={bulkKeywordLoading}
                     onKeyDown={e => {
                       if (e.key === 'Enter' && e.ctrlKey) handleBulkAddKeywords();
@@ -4077,7 +4080,7 @@ export default function Home() {
                 </div>
 
                 {/* Keyword count footer */}
-                <div className="flex items-center justify-between pt-2 border-t border-[#1e293b]">
+                <div className="flex items-center justify-between pt-2 border-t border-app-border">
                   <span className="text-[10px] text-slate-600">
                     {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave activa{alertKeywords.length !== 1 ? 's' : ''}
                   </span>
@@ -4091,10 +4094,10 @@ export default function Home() {
             {/* ══════════════════════════════════════════
                 ALERTAS ENCONTRADAS — Detected Alerts from Group Scan
             ══════════════════════════════════════════ */}
-            <Card className="bg-[#111827] border-[#1e293b]">
+            <Card className="bg-app-surface border-app-border">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-white text-base">
+                  <CardTitle className="flex items-center gap-2 text-app-text text-base">
                     <Bell className="w-5 h-5 text-red-400" />
                     Alertas Encontradas
                   </CardTitle>
@@ -4113,7 +4116,7 @@ export default function Home() {
                 </div>
                 {/* Toolbar: Sort + Bulk Delete — only when alerts exist */}
                 {groupScanResults && groupScanResults.detectedAlerts.length > 0 && (
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#1e293b]">
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-app-border">
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={selectedAlertIndices.size === 0 ? false : selectedAlertIndices.size === groupScanResults.detectedAlerts.length ? true : 'indeterminate'}
@@ -4185,7 +4188,7 @@ export default function Home() {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--app-border)) transparent' }}>
                     {[...groupScanResults.detectedAlerts]
                       .map((alert, originalIdx) => ({ alert, originalIdx }))
                       .sort((a, b) => {
@@ -4207,7 +4210,7 @@ export default function Home() {
                         const kw = alert.matchedKeyword || alert.keyword;
                         const isSelected = selectedAlertIndices.has(originalIdx);
                         return (
-                          <div key={originalIdx} className={`flex gap-2 p-3 rounded-lg bg-[#0b0f19] border transition-colors ${isSelected ? 'border-red-800/50 bg-red-950/10' : 'border-[#1e293b] hover:border-amber-800/40'}`}>
+                          <div key={originalIdx} className={`flex gap-2 p-3 rounded-lg bg-app-bg border transition-colors ${isSelected ? 'border-red-800/50 bg-red-950/10' : 'border-app-border hover:border-amber-800/40'}`}>
                             <div className="shrink-0 pt-0.5">
                               <Checkbox
                                 checked={isSelected}
@@ -4253,7 +4256,7 @@ export default function Home() {
                               </p>
                               {/* Message text with keyword highlighted */}
                               {alert.messageText && (
-                                <div className="p-2 bg-[#080c16] rounded border border-slate-800/50 mb-1.5">
+                                <div className="p-2 bg-app-deep rounded border border-slate-800/50 mb-1.5">
                                   <p className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-wrap break-words" style={{ maxHeight: '120px', overflow: 'auto' }}>
                                     {highlightKeywordInText(alert.messageText, kw)}
                                   </p>
@@ -4290,11 +4293,11 @@ export default function Home() {
             {/* ══════════════════════════════════════════
                 HISTORIAL DE ALERTAS — OSINT Alert History
             ══════════════════════════════════════════ */}
-            <Card className="bg-[#111827] border-[#1e293b]">
+            <Card className="bg-app-surface border-app-border">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-white text-base">
+                    <CardTitle className="flex items-center gap-2 text-app-text text-base">
                       <Clock className="w-5 h-5 text-blue-400" />
                       Historial de Alertas
                     </CardTitle>
@@ -4306,7 +4309,7 @@ export default function Home() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]"
+                      className="border-app-border text-slate-400 hover:text-white hover:bg-app-surface-hover"
                       onClick={() => fetchAlertConfig()}
                     >
                       <ScanLine className="w-3.5 h-3.5 mr-1.5" />
@@ -4316,7 +4319,7 @@ export default function Home() {
                 </div>
                 {/* Toolbar: Sort + Bulk Delete — only when history exists */}
                 {alertHistory.length > 0 && (
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#1e293b]">
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-app-border">
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={selectedHistoryIndices.size === 0 ? false : selectedHistoryIndices.size === alertHistory.length ? true : 'indeterminate'}
@@ -4386,7 +4389,7 @@ export default function Home() {
                           : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
                         const isSelected = selectedHistoryIndices.has(originalIdx);
                         return (
-                          <div key={originalIdx} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${isSelected ? 'bg-red-950/10 border-red-800/50' : 'bg-[#0b0f19] border-[#1e293b] hover:border-slate-700'}`}>
+                          <div key={originalIdx} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${isSelected ? 'bg-red-950/10 border-red-800/50' : 'bg-app-bg border-app-border hover:border-slate-700'}`}>
                             <div className="shrink-0">
                               <Checkbox
                                 checked={isSelected}
@@ -4432,7 +4435,7 @@ export default function Home() {
 
             {/* ── Delete History Confirmation Modal ── */}
             <Dialog open={showDeleteHistoryModal} onOpenChange={setShowDeleteHistoryModal}>
-              <DialogContent className="bg-[#111827] border-[#1e293b] text-white">
+              <DialogContent className="bg-app-surface border-app-border text-app-text">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2 text-red-400">
                     <AlertTriangle className="w-5 h-5" />
@@ -4452,7 +4455,7 @@ export default function Home() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-[#1e293b] text-slate-400 hover:text-white"
+                    className="border-app-border text-slate-400 hover:text-white"
                     onClick={() => setShowDeleteHistoryModal(false)}
                     disabled={deleteHistoryLoading}
                   >
@@ -4475,30 +4478,30 @@ export default function Home() {
             </Dialog>
 
             {/* ── How It Works Card ── */}
-            <Card className="bg-[#111827] border-[#1e293b]">
+            <Card className="bg-app-surface border-app-border">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-white text-base">
+                <CardTitle className="flex items-center gap-2 text-app-text text-base">
                   <Info className="w-5 h-5 text-slate-400" />
                   Cómo Funciona
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                  <div className="p-3 rounded-lg bg-app-bg border border-app-border">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-900/30 text-amber-400 text-xs font-bold">1</span>
                       <span className="text-sm font-medium text-slate-200">Detección</span>
                     </div>
                     <p className="text-xs text-slate-500">El escáner analiza mensajes de grupos Telegram y resultados web buscando coincidencias con las palabras clave</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                  <div className="p-3 rounded-lg bg-app-bg border border-app-border">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-cyan-900/30 text-cyan-400 text-xs font-bold">2</span>
                       <span className="text-sm font-medium text-slate-200">Clasificación</span>
                     </div>
                     <p className="text-xs text-slate-500">Se extrae metadata de la fuente (canal, grupo, bot, web) y se determina la severidad del hallazgo</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-[#0b0f19] border border-[#1e293b]">
+                  <div className="p-3 rounded-lg bg-app-bg border border-app-border">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-900/30 text-emerald-400 text-xs font-bold">3</span>
                       <span className="text-sm font-medium text-slate-200">Alerta</span>
@@ -4514,7 +4517,7 @@ export default function Home() {
 
       {/* ── Delete Confirmation Dialog ── */}
       <Dialog open={deleteConfirm.open} onOpenChange={(open) => { if (!open) setDeleteConfirm({ open: false, scanId: null, scanName: '', deleteAll: false }); }}>
-        <DialogContent className="bg-[#111827] border-[#1e293b] text-white">
+        <DialogContent className="bg-app-surface border-app-border text-app-text">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertOctagon className="w-5 h-5 text-red-400" />
@@ -4527,7 +4530,7 @@ export default function Home() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" className="border-[#1e293b] text-slate-400 hover:text-white hover:bg-[#1a2235]" onClick={() => setDeleteConfirm({ open: false, scanId: null, scanName: '', deleteAll: false })}>
+            <Button variant="outline" className="border-app-border text-slate-400 hover:text-white hover:bg-app-surface-hover" onClick={() => setDeleteConfirm({ open: false, scanId: null, scanName: '', deleteAll: false })}>
               Cancelar
             </Button>
             <Button className="bg-red-700 hover:bg-red-800 text-white" onClick={executeDelete}>
@@ -4540,15 +4543,15 @@ export default function Home() {
 
       {/* ── AI CHATBOT ── */}
       {chatOpen && (
-        <div className="fixed bottom-20 right-4 sm:right-6 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] bg-[#111827] border border-[#1e293b] rounded-xl z-50 flex flex-col overflow-hidden">
+        <div className="fixed bottom-20 right-4 sm:right-6 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] bg-app-surface border border-app-border rounded-xl z-50 flex flex-col overflow-hidden">
           {/* Chat Header */}
-          <div className="flex items-center justify-between p-3 bg-[#0b0f19] border-b border-[#1e293b]">
+          <div className="flex items-center justify-between p-3 bg-app-bg border-b border-app-border">
             <div className="flex items-center gap-2">
               <div className="p-1 bg-blue-900/30 rounded-md">
                 <Bot className="w-4 h-4 text-blue-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">Asistente OSINT</p>
+                <p className="text-sm font-medium text-app-text">Asistente OSINT</p>
                 <p className="text-[10px] text-slate-500">IA especializada en ciberseguridad</p>
               </div>
             </div>
@@ -4569,7 +4572,7 @@ export default function Home() {
                 <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-blue-600 text-white rounded-br-sm'
-                    : 'bg-[#0b0f19] text-slate-200 rounded-bl-sm border border-[#1e293b]'
+                    : 'bg-app-bg text-slate-200 rounded-bl-sm border border-app-border'
                 }`}>
                   {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
                 </div>
@@ -4580,7 +4583,7 @@ export default function Home() {
                 <div className="w-6 h-6 bg-blue-900/30 rounded-full flex items-center justify-center shrink-0 mt-1">
                   <Sparkles className="w-3 h-3 text-blue-400 animate-pulse" />
                 </div>
-                <div className="bg-[#0b0f19] text-slate-400 px-3 py-2 rounded-lg rounded-bl-sm border border-[#1e293b] text-sm">
+                <div className="bg-app-bg text-slate-400 px-3 py-2 rounded-lg rounded-bl-sm border border-app-border text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
                 </div>
               </div>
@@ -4588,14 +4591,14 @@ export default function Home() {
           </div>
 
           {/* Chat Input */}
-          <div className="p-3 border-t border-[#1e293b] bg-[#111827]">
+          <div className="p-3 border-t border-app-border bg-app-surface">
             <div className="flex gap-2">
               <Input
                 placeholder="Pregunta sobre OSINT, seguridad..."
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && chatInput.trim()) handleChatSend(); }}
-                className="bg-[#0b0f19] border-[#1e293b] text-white placeholder:text-slate-600 text-sm focus:border-blue-600"
+                className="bg-app-bg border-app-border text-app-text placeholder:text-slate-600 text-sm focus:border-blue-600"
                 disabled={chatLoading}
               />
               <Button
@@ -4623,9 +4626,9 @@ export default function Home() {
 
       {/* ── DETAIL MODAL ── */}
       <Dialog open={detailModal.open} onOpenChange={(open) => setDetailModal(prev => ({ ...prev, open }))}>
-        <DialogContent className="bg-[#111827] border-[#1e293b] text-white max-w-lg max-h-[80vh]">
+        <DialogContent className="bg-app-surface border-app-border text-app-text max-w-lg max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle className="text-white">{detailModal.title}</DialogTitle>
+            <DialogTitle className="text-app-text">{detailModal.title}</DialogTitle>
             <DialogDescription className="text-slate-400">
               {detailModal.items.length} elemento{detailModal.items.length !== 1 ? 's' : ''} encontrado{detailModal.items.length !== 1 ? 's' : ''}
             </DialogDescription>
@@ -4636,10 +4639,10 @@ export default function Home() {
                 <p className="text-sm text-slate-500 text-center py-4">Sin hallazgos en esta categoría</p>
               ) : (
                 detailModal.items.map((item, i) => (
-                  <div key={i} className="p-2.5 bg-[#0b0f19] rounded-lg border border-[#1e293b]">
+                  <div key={i} className="p-2.5 bg-app-bg rounded-lg border border-app-border">
                     <div className="flex items-start gap-2">
                       {item.platform && <Badge className="bg-violet-900/40 text-violet-400 text-[9px] shrink-0">{item.platform}</Badge>}
-                      <p className="text-sm font-medium text-white">{item.title}</p>
+                      <p className="text-sm font-medium text-app-text">{item.title}</p>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">{item.description}</p>
                     {item.source && <p className="text-[10px] text-slate-600 mt-1">Fuente: {item.source}</p>}
@@ -4652,14 +4655,14 @@ export default function Home() {
       </Dialog>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-[#1e293b] mt-auto">
+      <footer className="border-t border-app-border mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-slate-600">OSINT Data Scanner — Inteligencia de Fuentes Abiertas | Informes PDF + DOCX</p>
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[10px]">
+            <Badge variant="outline" className="border-app-border text-slate-500 text-[10px]">
               <Shield className="w-3 h-3 mr-1" /> CONFIDENCIAL
             </Badge>
-            <Badge variant="outline" className="border-[#1e293b] text-slate-500 text-[10px]">
+            <Badge variant="outline" className="border-app-border text-slate-500 text-[10px]">
               <FileDown className="w-3 h-3 mr-1" /> PDF + DOCX
             </Badge>
           </div>
