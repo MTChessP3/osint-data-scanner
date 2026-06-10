@@ -323,6 +323,10 @@ export async function POST(request: NextRequest) {
           matchedKeyword: string;
           matchedContext: string;
           messageId?: string;
+          riskLevel?: 'high' | 'medium' | 'low';
+          isOfficial?: boolean;
+          riskTags?: string[];
+          discoverySource?: string;
         }> = [];
 
         let totalGroups = 0;
@@ -629,7 +633,7 @@ export async function POST(request: NextRequest) {
               const ZAI = (await import('z-ai-web-dev-sdk')).default;
               const zai = await ZAI.create();
 
-              const MAX_KEYWORDS_SEARCH = Math.min(keywords.length, 15);
+              const MAX_KEYWORDS_SEARCH = keywords.length;
               const keywordsToSearch = keywords.slice(0, MAX_KEYWORDS_SEARCH);
 
               for (let ki = 0; ki < keywordsToSearch.length; ki++) {
@@ -640,10 +644,14 @@ export async function POST(request: NextRequest) {
                 if (ki > 0) await backoffDelay(Math.min(ki, 5), 500);
 
                 try {
-                  // Use fewer but more targeted search queries to avoid 429 rate limiting
+                  // Deep global search queries — diverse strategies to discover suspicious channels
                   const searchQueries = [
-                    `site:t.me ${keyword}`,
-                    `"${keyword}" telegram canal grupo estafa`,
+                    `site:t.me ${keyword} estafa fraude scam`,
+                    `site:t.me "${keyword}" grupo canal`,
+                    `"${keyword}" telegram estafa fraude phishing`,
+                    `"${keyword}" telegram venta datos filtro`,
+                    `"${keyword}" telegram clonacion cuenta robo`,
+                    `telegram "${keyword}" sospechoso alerta`,
                   ];
 
                   for (let qi = 0; qi < searchQueries.length; qi++) {
@@ -654,7 +662,7 @@ export async function POST(request: NextRequest) {
 
                       const searchResults = await zai.functions.invoke('web_search', {
                         query: searchQuery,
-                        num: 10,
+                        num: 8,
                       });
 
                       if (!Array.isArray(searchResults) || searchResults.length === 0) continue;
@@ -716,6 +724,7 @@ export async function POST(request: NextRequest) {
                           const sourceName = resultName || (cleanUsername ? `@${cleanUsername}` : 'Telegram');
                           const sourceUrl = cleanUsername ? `https://t.me/${cleanUsername}` : resultUrl;
 
+                          const risk = classifyChannelRisk(cleanUsername || '', resultSnippet);
                           await addDetectedAlert({
                             keyword,
                             sourceType,
@@ -725,6 +734,14 @@ export async function POST(request: NextRequest) {
                             chatType: sourceType,
                             matchedContext: extractContext(`${resultName} ${resultSnippet}`, keyword),
                           });
+                          // Enrich the last alert with risk classification
+                          const lastAlert = detectedAlerts[detectedAlerts.length - 1];
+                          if (lastAlert) {
+                            lastAlert.riskLevel = risk.riskLevel;
+                            lastAlert.isOfficial = risk.isOfficial;
+                            lastAlert.riskTags = risk.riskTags;
+                            lastAlert.discoverySource = 'web_search';
+                          }
                           phase1ResultsCount++;
                         }
                       }
@@ -756,33 +773,85 @@ export async function POST(request: NextRequest) {
           //  PHASE 2: Scrape discovered + known channel previews
           // ═══════════════════════════════════════════════════════════════
 
-          // Real active Telegram channels with actual messages related to fraud/security
-          // Verified to have public preview pages with message content
-          const KNOWN_CHANNELS = [
-            // Fraud/scam reporting channels (verified active with messages)
+          // ── Official/Verified corporate channels — results from these are low-priority ──
+          const OFFICIAL_CHANNELS = new Set([
+            'bancolombia', 'Bancolombia', 'bancolombia_comunica',
+            'nequi', 'nequicuentas', 'NequiCol',
+            'wompi_co', 'wompicol', 'banistmo',
+            'BancoAgricolaSV', 'grupo_cibest',
+            'BancolombiaEmpresas', 'bancolombiainversion',
+          ]);
+
+          // ── Fraud/security monitoring channels — always scrape these (high-priority) ──
+          const MONITORING_CHANNELS = [
             'DailyEstafa', 'estafascolombia', 'INCIBE017Informacion',
-            // Cybersecurity channels that discuss fraud/phishing (verified active)
             'ciberseguridad', 'criptonoticias', 'group_ib',
-            'binancespanishanuncios', 'Bandec97',
-            // Official bank channels (verified active, mention bancolombia/nequi)
-            'bancolombia', 'Bancolombia',
-            // Fraud/scam alert channels
-            'querellaafectadoscontrafxwinning', 'INCIBE017',
-            // Discount/deal channels that mention bank brands (verified)
-            'DescuentosTech', 'Losqueinvierten',
-            // Security research channels
             'notoscam', 'hackplayers', 'seguridadinformatica',
             'threatpost', 'TheHackersNews', 'BleepinComputer',
-            // Colombia-specific channels
-            'fraudebancario', 'grupo_cibest', 'nequicuentas',
-            // Additional fraud monitoring channels
-            'ciberseguridadcol', 'seguridadcolombia',
+            'fraudebancario', 'ciberseguridadcol', 'seguridadcolombia',
+            'binancespanishanuncios', 'Bandec97',
+            'DescuentosTech', 'Losqueinvierten',
+            'querellaafectadoscontrafxwinning', 'INCIBE017',
             'PasaenBogotaSrBacca', 'EnZonaBX',
           ];
 
-          // Merge discovered channels with known ones (discovered first = higher priority)
-          const allChannels = [...discoveredChannels, ...KNOWN_CHANNELS.filter(c => !discoveredChannels.has(c))];
-          console.log(`[ScanGroups] Phase 2: Scraping ${allChannels.length} channel previews (${discoveredChannels.size} discovered + ${KNOWN_CHANNELS.length} known)...`);
+          // ── Classify channel risk level ──
+          function classifyChannelRisk(channelName: string, snippet?: string): {
+            riskLevel: 'high' | 'medium' | 'low';
+            isOfficial: boolean;
+            riskTags: string[];
+          } {
+            const nameLower = channelName.toLowerCase();
+            const snippetLower = (snippet || '').toLowerCase();
+            const riskTags: string[] = [];
+            let isOfficial = OFFICIAL_CHANNELS.has(channelName);
+
+            // Check if the channel name itself suggests official/verified
+            const officialIndicators = ['oficial', 'official', 'verified', 'verificado', '_comunica', 'empresas'];
+            if (officialIndicators.some(ind => nameLower.includes(ind))) {
+              isOfficial = true;
+            }
+
+            // High-risk indicators in snippet or channel name
+            const highRiskTerms = ['estafa', 'scam', 'fraude', 'phishing', 'robo', 'hack', 'filtro', 'venda', 'venta', 'datos', 'filtracion', 'credential', 'password', 'contrasena', 'clon', 'clonacion', 'tarjeta', 'cuenta', 'robo'];
+            const mediumRiskTerms = ['sospech', 'alerta', 'cuidado', 'aviso', 'precaucion', 'estafador', 'engano', 'enganoso', 'spam', 'malware', 'virus', 'ransomware'];
+
+            for (const term of highRiskTerms) {
+              if (nameLower.includes(term) || snippetLower.includes(term)) {
+                riskTags.push(term);
+              }
+            }
+            for (const term of mediumRiskTerms) {
+              if (nameLower.includes(term) || snippetLower.includes(term)) {
+                riskTags.push(term);
+              }
+            }
+
+            if (isOfficial) {
+              return { riskLevel: 'low', isOfficial: true, riskTags: [] };
+            }
+
+            if (riskTags.some(t => highRiskTerms.includes(t))) {
+              return { riskLevel: 'high', isOfficial: false, riskTags };
+            }
+
+            if (riskTags.length > 0) {
+              return { riskLevel: 'medium', isOfficial: false, riskTags };
+            }
+
+            return { riskLevel: 'medium', isOfficial: false, riskTags: [] };
+          }
+
+          // Priority order: discovered channels first (from web search = potentially suspicious),
+          // then monitoring channels (fraud/security = high value), then official channels (low priority)
+          const discoveredNotOfficial = [...discoveredChannels].filter(c => !OFFICIAL_CHANNELS.has(c));
+          const discoveredOfficial = [...discoveredChannels].filter(c => OFFICIAL_CHANNELS.has(c));
+          const allChannels = [
+            ...discoveredNotOfficial,
+            ...MONITORING_CHANNELS.filter(c => !discoveredChannels.has(c)),
+            ...discoveredOfficial,
+          ];
+          console.log(`[ScanGroups] Phase 2: Scraping ${allChannels.length} channel previews (${discoveredNotOfficial.length} discovered/suspicious + ${MONITORING_CHANNELS.length} monitoring + ${discoveredOfficial.length} official)...`);
 
           // Scrape in batches to stay within Vercel function timeout
           const BATCH_SIZE = 10;
@@ -831,6 +900,15 @@ export async function POST(request: NextRequest) {
                     matchedContext: extractContext(msg.text, matchedKw),
                     messageId: msg.msgId,
                   });
+                  // Enrich with risk classification
+                  const risk = classifyChannelRisk(channelName, msg.text);
+                  const lastAlert = detectedAlerts[detectedAlerts.length - 1];
+                  if (lastAlert) {
+                    lastAlert.riskLevel = risk.riskLevel;
+                    lastAlert.isOfficial = risk.isOfficial;
+                    lastAlert.riskTags = risk.riskTags;
+                    lastAlert.discoverySource = discoveredChannels.has(channelName) ? 'web_search' : MONITORING_CHANNELS.includes(channelName) ? 'monitoring_list' : 'official_list';
+                  }
                   phase2Alerts++;
                 }
               }
@@ -913,6 +991,15 @@ export async function POST(request: NextRequest) {
                               matchedContext: extractContext(messageText, keyword),
                               messageId: msg.message_id?.toString(),
                             });
+                            // Enrich with risk classification
+                            const risk = classifyChannelRisk(chat.username || '', messageText);
+                            const lastAlert = detectedAlerts[detectedAlerts.length - 1];
+                            if (lastAlert) {
+                              lastAlert.riskLevel = risk.riskLevel;
+                              lastAlert.isOfficial = risk.isOfficial;
+                              lastAlert.riskTags = risk.riskTags;
+                              lastAlert.discoverySource = 'bot_polling';
+                            }
                             phase3Alerts++;
                           }
                         }
@@ -936,6 +1023,17 @@ export async function POST(request: NextRequest) {
           });
 
           keywordsProcessed = Math.max(keywordsProcessed, keywords.length);
+
+          // Sort alerts: high risk first, then medium, then low/official
+          const riskOrder = { high: 0, medium: 1, low: 2 };
+          detectedAlerts.sort((a, b) => {
+            const aRisk = riskOrder[a.riskLevel || 'medium'] ?? 1;
+            const bRisk = riskOrder[b.riskLevel || 'medium'] ?? 1;
+            if (aRisk !== bRisk) return aRisk - bRisk;
+            // Within same risk level, non-official first
+            if (a.isOfficial !== b.isOfficial) return (a.isOfficial ? 1 : 0) - (b.isOfficial ? 1 : 0);
+            return 0;
+          });
 
           // Get updated alert history
           const updatedAlertHistory = getAlertHistory();
@@ -961,6 +1059,14 @@ export async function POST(request: NextRequest) {
             zaiSearchUsed: zaiAvailable,
             diagnostics: scanDiagnostics,
             alertHistory: updatedAlertHistory.slice(0, 10),
+            riskBreakdown: {
+              high: detectedAlerts.filter(a => a.riskLevel === 'high').length,
+              medium: detectedAlerts.filter(a => a.riskLevel === 'medium').length,
+              low: detectedAlerts.filter(a => a.riskLevel === 'low').length,
+              official: detectedAlerts.filter(a => a.isOfficial).length,
+              nonOfficial: detectedAlerts.filter(a => !a.isOfficial).length,
+            },
+            suspiciousChannels: [...discoveredChannels].filter(c => !OFFICIAL_CHANNELS.has(c)).slice(0, 20),
           };
 
           if (allMethodsFailed) {

@@ -552,7 +552,19 @@ export default function Home() {
       matchedKeyword?: string;
       matchedContext?: string;
       messageId?: string;
+      riskLevel?: 'high' | 'medium' | 'low';
+      isOfficial?: boolean;
+      riskTags?: string[];
+      discoverySource?: string;
     }>;
+    riskBreakdown?: {
+      high: number;
+      medium: number;
+      low: number;
+      official: number;
+      nonOfficial: number;
+    };
+    suspiciousChannels?: string[];
   } | null>(null);
   const [groupScanError, setGroupScanError] = useState<string | null>(null);
 
@@ -4102,6 +4114,25 @@ export default function Home() {
                         {groupScanResults.channelsDiscovered} canales descubiertos
                       </Badge>
                     )}
+                    {groupScanResults?.riskBreakdown && (
+                      <>
+                        {groupScanResults.riskBreakdown.high > 0 && (
+                          <Badge className="bg-sev-critical-bg text-sev-critical-text text-[10px]">
+                            {groupScanResults.riskBreakdown.high} alto riesgo
+                          </Badge>
+                        )}
+                        {groupScanResults.riskBreakdown.nonOfficial > 0 && (
+                          <Badge className="bg-sev-medium-bg text-sev-medium-text text-[10px]">
+                            {groupScanResults.riskBreakdown.nonOfficial} no oficiales
+                          </Badge>
+                        )}
+                        {groupScanResults.riskBreakdown.official > 0 && (
+                          <Badge className="bg-sev-info-bg text-sev-info-text text-[10px]">
+                            {groupScanResults.riskBreakdown.official} oficiales
+                          </Badge>
+                        )}
+                      </>
+                    )}
                     {groupScanResults && groupScanResults.detectedAlerts.length > 0 && (
                       <Badge className="bg-sev-critical-bg text-sev-critical-text text-[10px]">
                         {groupScanResults.detectedAlerts.length}
@@ -4204,8 +4235,12 @@ export default function Home() {
                           : 'bg-sev-info-bg text-sev-info-text border-app-border';
                         const kw = alert.matchedKeyword || alert.keyword;
                         const isSelected = selectedAlertIndices.has(originalIdx);
+                        // Risk level visual config
+                        const riskConfig = alert.riskLevel === 'high' ? { label: 'Riesgo Alto', color: 'bg-sev-critical-bg text-sev-critical-text border-sev-critical-text/20', dot: 'bg-sev-critical-bar' }
+                          : alert.riskLevel === 'low' || alert.isOfficial ? { label: 'Oficial', color: 'bg-sev-info-bg text-sev-info-text border-app-border', dot: 'bg-sev-info-bar' }
+                          : { label: 'Moderado', color: 'bg-sev-medium-bg text-sev-medium-text border-sev-medium-text/20', dot: 'bg-sev-medium-bar' };
                         return (
-                          <div key={originalIdx} className={`flex gap-2 p-3 rounded-lg bg-app-bg border transition-colors ${isSelected ? 'border-sev-critical-text/30 bg-sev-critical-bg/50' : 'border-app-border hover:border-app-border'}`}>
+                          <div key={originalIdx} className={`flex gap-2 p-3 rounded-lg bg-app-bg border transition-colors ${isSelected ? 'border-sev-critical-text/30 bg-sev-critical-bg/50' : alert.riskLevel === 'high' ? 'border-sev-critical-text/20' : alert.isOfficial ? 'border-app-border' : 'border-app-border hover:border-app-text-muted'}`}>
                             <div className="shrink-0 pt-0.5">
                               <Checkbox
                                 checked={isSelected}
@@ -4221,8 +4256,8 @@ export default function Home() {
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              {/* Header row with keyword highlighted */}
-                              <div className="flex items-center gap-2 mb-2">
+                              {/* Header row with keyword highlighted + risk badge */}
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <div className="shrink-0">
                                   {alert.telegramSent ? (
                                     <CheckCircle2 className="w-4 h-4 text-accent-success" />
@@ -4236,18 +4271,40 @@ export default function Home() {
                                 <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
                                   {sourceBadge}
                                 </Badge>
+                                {/* Risk level badge */}
+                                <Badge variant="outline" className={`text-[9px] ${riskConfig.color}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${riskConfig.dot} mr-1`} />
+                                  {riskConfig.label}
+                                </Badge>
                                 {alert.messageId && (
                                   <Badge variant="outline" className="text-[9px] bg-sev-info-bg text-sev-info-text border-app-border">
                                     #{alert.messageId}
                                   </Badge>
                                 )}
-                                <span className="text-[10px] text-slate-600 ml-auto">
+                                {/* Discovery source indicator */}
+                                {alert.discoverySource && (
+                                  <span className="text-[9px] text-app-text-faint">
+                                    {alert.discoverySource === 'web_search' ? 'Búsqueda global' : alert.discoverySource === 'bot_polling' ? 'Bot polling' : alert.discoverySource === 'monitoring_list' ? 'Monitoreo' : 'Conocido'}
+                                  </span>
+                                )}
+                                <span className="text-[10px] text-app-text-muted ml-auto">
                                   {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
+                              {/* Risk tags */}
+                              {alert.riskTags && alert.riskTags.length > 0 && (
+                                <div className="flex items-center gap-1 mb-1.5 flex-wrap">
+                                  <span className="text-[9px] text-app-text-faint">Indicadores:</span>
+                                  {alert.riskTags.slice(0, 4).map((tag, ti) => (
+                                    <span key={ti} className="text-[9px] px-1 py-0.5 rounded bg-sev-critical-bg/50 text-sev-critical-text">{tag}</span>
+                                  ))}
+                                  {alert.riskTags.length > 4 && <span className="text-[9px] text-app-text-faint">+{alert.riskTags.length - 4}</span>}
+                                </div>
+                              )}
                               {/* Source name */}
-                              <p className="text-xs text-slate-300 truncate mb-1.5">
-                                <span className="text-slate-500">Fuente:</span> {alert.sourceName}
+                              <p className="text-xs text-app-text-dim truncate mb-1.5">
+                                <span className="text-app-text-muted">Fuente:</span> {alert.sourceName}
+                                {alert.isOfficial && <span className="ml-1.5 text-[9px] text-app-text-faint">(canal oficial)</span>}
                               </p>
                               {/* Message text with keyword highlighted */}
                               {alert.messageText && (
