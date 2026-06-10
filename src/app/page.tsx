@@ -145,19 +145,19 @@ interface RelationshipAnalysis {
 // ── Constants ──
 
 const severityConfig = {
-  critical: { color: 'bg-red-900/40 text-red-400 border border-red-800/30', icon: ShieldAlert, label: 'Critico', barColor: 'bg-red-500' },
-  high: { color: 'bg-orange-900/30 text-orange-400 border border-orange-800/30', icon: AlertTriangle, label: 'Alto', barColor: 'bg-orange-500' },
-  medium: { color: 'bg-amber-900/30 text-amber-400 border border-amber-800/30', icon: Eye, label: 'Medio', barColor: 'bg-amber-500' },
-  low: { color: 'bg-blue-900/30 text-blue-400 border border-blue-800/30', icon: Info, label: 'Bajo', barColor: 'bg-blue-500' },
-  info: { color: 'bg-slate-800/50 text-slate-400 border border-slate-700/30', icon: Info, label: 'Info', barColor: 'bg-slate-500' },
+  critical: { color: 'bg-sev-critical-bg text-sev-critical-text border border-sev-critical-text/20', icon: ShieldAlert, label: 'Critico', barColor: 'bg-sev-critical-bar' },
+  high: { color: 'bg-sev-high-bg text-sev-high-text border border-sev-high-text/20', icon: AlertTriangle, label: 'Alto', barColor: 'bg-sev-high-bar' },
+  medium: { color: 'bg-sev-medium-bg text-sev-medium-text border border-sev-medium-text/20', icon: Eye, label: 'Medio', barColor: 'bg-sev-medium-bar' },
+  low: { color: 'bg-sev-low-bg text-sev-low-text border border-sev-low-text/20', icon: Info, label: 'Bajo', barColor: 'bg-sev-low-bar' },
+  info: { color: 'bg-sev-info-bg text-sev-info-text border border-sev-info-text/20', icon: Info, label: 'Info', barColor: 'bg-sev-info-bar' },
 };
 
 const severityBadgeConfig = {
-  critical: { color: 'bg-red-900/40 text-red-400', icon: ShieldAlert, label: 'Critico' },
-  high: { color: 'bg-orange-900/30 text-orange-400', icon: AlertTriangle, label: 'Alto' },
-  medium: { color: 'bg-amber-900/30 text-amber-400', icon: Eye, label: 'Medio' },
-  low: { color: 'bg-blue-900/30 text-blue-400', icon: Info, label: 'Bajo' },
-  info: { color: 'bg-slate-800/50 text-slate-400', icon: Info, label: 'Info' },
+  critical: { color: 'bg-sev-critical-bg text-sev-critical-text', icon: ShieldAlert, label: 'Critico' },
+  high: { color: 'bg-sev-high-bg text-sev-high-text', icon: AlertTriangle, label: 'Alto' },
+  medium: { color: 'bg-sev-medium-bg text-sev-medium-text', icon: Eye, label: 'Medio' },
+  low: { color: 'bg-sev-low-bg text-sev-low-text', icon: Info, label: 'Bajo' },
+  info: { color: 'bg-sev-info-bg text-sev-info-text', icon: Info, label: 'Info' },
 };
 
 const categoryLabels: Record<string, string> = {
@@ -174,20 +174,20 @@ const categoryLabels: Record<string, string> = {
 };
 
 const linkTypeConfig: Record<string, { icon: typeof Building2; label: string; color: string; bgColor: string }> = {
-  empresarial: { icon: Building2, label: 'Empresarial', color: 'text-blue-300/70', bgColor: 'bg-blue-950/20 border border-blue-900/30' },
-  personal: { icon: User, label: 'Personal', color: 'text-cyan-300/70', bgColor: 'bg-cyan-950/20 border border-cyan-900/30' },
-  familiar: { icon: Heart, label: 'Familiar', color: 'text-violet-300/70', bgColor: 'bg-violet-950/20 border border-violet-900/30' },
-  laboral: { icon: Briefcase, label: 'Laboral', color: 'text-emerald-300/70', bgColor: 'bg-emerald-950/20 border border-emerald-900/30' },
-  contacto: { icon: Phone, label: 'Contacto', color: 'text-amber-300/70', bgColor: 'bg-amber-950/20 border border-amber-900/30' },
-  ubicacion: { icon: MapPin, label: 'Ubicacion', color: 'text-orange-300/70', bgColor: 'bg-orange-950/20 border border-orange-900/30' },
-  dato_compartido: { icon: Database, label: 'Dato Compartido', color: 'text-slate-300/70', bgColor: 'bg-slate-800/20 border border-slate-700/30' },
+  empresarial: { icon: Building2, label: 'Empresarial', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover border border-app-border' },
+  personal: { icon: User, label: 'Personal', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover border border-app-border' },
+  familiar: { icon: Heart, label: 'Familiar', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover border border-app-border' },
+  laboral: { icon: Briefcase, label: 'Laboral', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover border border-app-border' },
+  contacto: { icon: Phone, label: 'Contacto', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover border border-app-border' },
+  ubicacion: { icon: MapPin, label: 'Ubicacion', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover border border-app-border' },
+  dato_compartido: { icon: Database, label: 'Dato Compartido', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover border border-app-border' },
 };
 
 const engineCategories = [
   {
     id: 'breaches',
     label: 'Brechas y Credenciales',
-    color: 'red',
+    color: 'slate',
     engines: [
       { name: 'Have I Been Pwned', desc: 'Verifica filtraciones de credenciales', icon: ShieldAlert },
       { name: 'Pwned Passwords', desc: 'Contraseñas comprometidas', icon: AlertTriangle },
@@ -199,7 +199,7 @@ const engineCategories = [
   {
     id: 'darkweb',
     label: 'Dark Web y Filtraciones',
-    color: 'orange',
+    color: 'slate',
     engines: [
       { name: 'Dark Web / Leak Scan', desc: 'Menciones en filtraciones', icon: Eye },
       { name: 'LeakRadar', desc: 'Filtraciones masivas de datos', icon: ShieldAlert },
@@ -208,7 +208,7 @@ const engineCategories = [
   {
     id: 'social',
     label: 'Redes Sociales',
-    color: 'blue',
+    color: 'slate',
     engines: [
       { name: 'Social Media Scan', desc: 'Perfiles en redes sociales', icon: Globe },
       { name: 'DeepFind Profile Analyzer', desc: 'Análisis de perfil en redes', icon: User },
@@ -227,7 +227,7 @@ const engineCategories = [
   {
     id: 'identity',
     label: 'Identidad y Datos',
-    color: 'violet',
+    color: 'slate',
     engines: [
       { name: 'Data Broker Scan', desc: 'Directorios y brokers de datos', icon: Database },
       { name: 'Pipl', desc: 'Búsqueda de identidades', icon: Search },
@@ -237,7 +237,7 @@ const engineCategories = [
   {
     id: 'judicial',
     label: 'Judicial y Oficial',
-    color: 'teal',
+    color: 'slate',
     engines: [
       { name: 'Policía Nacional Colombia', desc: 'Antecedentes judiciales', icon: Shield },
       { name: 'Aleph / OCCRP', desc: 'Documentos de investigación', icon: FileDigit },
@@ -246,7 +246,7 @@ const engineCategories = [
   {
     id: 'email-validation',
     label: 'Validación de Correo',
-    color: 'amber',
+    color: 'slate',
     engines: [
       { name: 'Email Validator', desc: 'Sintaxis, DNS, desechables, SPF/DMARC', icon: Mail },
     ],
@@ -259,29 +259,24 @@ const TOTAL_ENGINES = allEngineNames.length;
 
 // ── Social Media Platforms Config (MUTED colors) ──
 const socialPlatforms = [
-  { id: 'tiktok', name: 'TikTok', domain: 'tiktok.com', color: 'text-rose-300/70', bgColor: 'bg-rose-950/20', borderColor: 'border-rose-900/30', icon: Music2, desc: 'Perfiles y contenido viral', accentHex: '#9f1239', verifyUrl: 'https://www.tiktok.com/search?q=', searchUrl: 'https://www.tiktok.com/search?q=' },
-  { id: 'instagram', name: 'Instagram', domain: 'instagram.com', color: 'text-violet-300/70', bgColor: 'bg-violet-950/20', borderColor: 'border-violet-900/30', icon: Camera, desc: 'Perfiles, fotos y stories', accentHex: '#6d28d9', verifyUrl: 'https://www.instagram.com/', searchUrl: 'https://www.instagram.com/' },
-  { id: 'youtube', name: 'YouTube', domain: 'youtube.com', color: 'text-red-300/70', bgColor: 'bg-red-950/20', borderColor: 'border-red-900/30', icon: Play, desc: 'Canales y videos', accentHex: '#991b1b', verifyUrl: 'https://www.youtube.com/results?search_query=', searchUrl: 'https://www.youtube.com/results?search_query=' },
-  { id: 'whatsapp', name: 'WhatsApp', domain: 'whatsapp.com', color: 'text-emerald-300/70', bgColor: 'bg-emerald-950/20', borderColor: 'border-emerald-900/30', icon: MessageCircle, desc: 'Numeros y grupos publicos', accentHex: '#065f46', verifyUrl: 'https://wa.me/', searchUrl: 'https://web.whatsapp.com/' },
-  { id: 'facebook', name: 'Facebook', domain: 'facebook.com', color: 'text-blue-300/70', bgColor: 'bg-blue-950/20', borderColor: 'border-blue-900/30', icon: Users, desc: 'Perfiles, paginas y grupos', accentHex: '#1e40af', verifyUrl: 'https://www.facebook.com/search/top?q=', searchUrl: 'https://www.facebook.com/search/top?q=' },
-  { id: 'twitter', name: 'X (Twitter)', domain: 'x.com', color: 'text-slate-300/70', bgColor: 'bg-slate-800/20', borderColor: 'border-slate-700/30', icon: AtSign, desc: 'Perfiles y tweets', accentHex: '#475569', verifyUrl: 'https://twitter.com/search?q=', searchUrl: 'https://twitter.com/search?q=' },
-  { id: 'linkedin', name: 'LinkedIn', domain: 'linkedin.com', color: 'text-sky-300/70', bgColor: 'bg-sky-950/20', borderColor: 'border-sky-900/30', icon: Briefcase, desc: 'Perfiles profesionales', accentHex: '#0c4a6e', verifyUrl: 'https://www.linkedin.com/search/results/people/?keywords=', searchUrl: 'https://www.linkedin.com/search/results/people/?keywords=' },
-  { id: 'telegram', name: 'Telegram', domain: 't.me', color: 'text-cyan-300/70', bgColor: 'bg-cyan-950/20', borderColor: 'border-cyan-900/30', icon: Send, desc: 'Canales y grupos', accentHex: '#164e63', verifyUrl: 'https://t.me/', searchUrl: 'https://t.me/' },
-  { id: 'snapchat', name: 'Snapchat', domain: 'snapchat.com', color: 'text-amber-300/70', bgColor: 'bg-amber-950/20', borderColor: 'border-amber-900/30', icon: Camera, desc: 'Perfiles y snaps', accentHex: '#92400e', verifyUrl: 'https://story.snapchat.com/s/', searchUrl: 'https://www.snapchat.com/add/' },
-  { id: 'pinterest', name: 'Pinterest', domain: 'pinterest.com', color: 'text-pink-300/70', bgColor: 'bg-pink-950/20', borderColor: 'border-pink-900/30', icon: Pin, desc: 'Tableros y pines', accentHex: '#9d174d', verifyUrl: 'https://www.pinterest.com/search/pins/?q=', searchUrl: 'https://www.pinterest.com/search/pins/?q=' },
+  { id: 'tiktok', name: 'TikTok', domain: 'tiktok.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: Music2, desc: 'Perfiles y contenido viral', accentHex: '#6b7a8d', verifyUrl: 'https://www.tiktok.com/search?q=', searchUrl: 'https://www.tiktok.com/search?q=' },
+  { id: 'instagram', name: 'Instagram', domain: 'instagram.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: Camera, desc: 'Perfiles, fotos y stories', accentHex: '#6b7a8d', verifyUrl: 'https://www.instagram.com/', searchUrl: 'https://www.instagram.com/' },
+  { id: 'youtube', name: 'YouTube', domain: 'youtube.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: Play, desc: 'Canales y videos', accentHex: '#6b7a8d', verifyUrl: 'https://www.youtube.com/results?search_query=', searchUrl: 'https://www.youtube.com/results?search_query=' },
+  { id: 'whatsapp', name: 'WhatsApp', domain: 'whatsapp.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: MessageCircle, desc: 'Numeros y grupos publicos', accentHex: '#6b7a8d', verifyUrl: 'https://wa.me/', searchUrl: 'https://web.whatsapp.com/' },
+  { id: 'facebook', name: 'Facebook', domain: 'facebook.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: Users, desc: 'Perfiles, paginas y grupos', accentHex: '#6b7a8d', verifyUrl: 'https://www.facebook.com/search/top?q=', searchUrl: 'https://www.facebook.com/search/top?q=' },
+  { id: 'twitter', name: 'X (Twitter)', domain: 'x.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: AtSign, desc: 'Perfiles y tweets', accentHex: '#6b7a8d', verifyUrl: 'https://twitter.com/search?q=', searchUrl: 'https://twitter.com/search?q=' },
+  { id: 'linkedin', name: 'LinkedIn', domain: 'linkedin.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: Briefcase, desc: 'Perfiles profesionales', accentHex: '#6b7a8d', verifyUrl: 'https://www.linkedin.com/search/results/people/?keywords=', searchUrl: 'https://www.linkedin.com/search/results/people/?keywords=' },
+  { id: 'telegram', name: 'Telegram', domain: 't.me', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: Send, desc: 'Canales y grupos', accentHex: '#6b7a8d', verifyUrl: 'https://t.me/', searchUrl: 'https://t.me/' },
+  { id: 'snapchat', name: 'Snapchat', domain: 'snapchat.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: Camera, desc: 'Perfiles y snaps', accentHex: '#6b7a8d', verifyUrl: 'https://story.snapchat.com/s/', searchUrl: 'https://www.snapchat.com/add/' },
+  { id: 'pinterest', name: 'Pinterest', domain: 'pinterest.com', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', icon: Pin, desc: 'Tableros y pines', accentHex: '#6b7a8d', verifyUrl: 'https://www.pinterest.com/search/pins/?q=', searchUrl: 'https://www.pinterest.com/search/pins/?q=' },
 ];
 
 // ── Helper: category color classes ──
 function getCategoryColor(color: string, type: 'text' | 'bg' | 'border' | 'hoverBg' = 'text') {
-  const map: Record<string, Record<string, string>> = {
-    red: { text: 'text-red-400', bg: 'bg-red-900/15', border: 'border-red-800/30', hoverBg: 'hover:bg-red-900/25' },
-    orange: { text: 'text-orange-400', bg: 'bg-orange-900/15', border: 'border-orange-800/30', hoverBg: 'hover:bg-orange-900/25' },
-    blue: { text: 'text-blue-400', bg: 'bg-blue-900/15', border: 'border-blue-800/30', hoverBg: 'hover:bg-blue-900/25' },
-    slate: { text: 'text-slate-300', bg: 'bg-slate-800/15', border: 'border-slate-700/30', hoverBg: 'hover:bg-slate-800/25' },
-    violet: { text: 'text-violet-400', bg: 'bg-violet-900/15', border: 'border-violet-800/30', hoverBg: 'hover:bg-violet-900/25' },
-    teal: { text: 'text-teal-400', bg: 'bg-teal-900/15', border: 'border-teal-800/30', hoverBg: 'hover:bg-teal-900/25' },
+  const corporate: Record<string, Record<string, string>> = {
+    slate: { text: 'text-app-text-dim', bg: 'bg-app-surface-hover', border: 'border-app-border', hoverBg: 'hover:bg-app-surface-active' },
   };
-  return map[color]?.[type] || '';
+  return corporate.slate[type] || '';
 }
 
 // ── Simple Markdown renderer for chat messages ──
@@ -289,11 +284,11 @@ function renderMarkdown(text: string) {
   const lines = text.split('\n');
   return lines.map((line, i) => {
     let processed = line
-      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-blue-300">$1</strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-accent-primary">$1</strong>')
       .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code class="bg-slate-700 px-1 rounded text-xs text-blue-400">$1</code>')
-      .replace(/^[-•]\s+(.*)/, '<span class="flex gap-1"><span class="text-blue-400 shrink-0">•</span><span>$1</span></span>')
-      .replace(/^(\d+)\.\s+(.*)/, '<span class="flex gap-1"><span class="text-blue-400 shrink-0 font-mono text-xs">$1.</span><span>$2</span></span>');
+      .replace(/`(.+?)`/g, '<code class="bg-slate-700 px-1 rounded text-xs text-sev-low-text">$1</code>')
+      .replace(/^[-•]\s+(.*)/, '<span class="flex gap-1"><span class="text-sev-low-text shrink-0">•</span><span>$1</span></span>')
+      .replace(/^(\d+)\.\s+(.*)/, '<span class="flex gap-1"><span class="text-sev-low-text shrink-0 font-mono text-xs">$1.</span><span>$2</span></span>');
 
     return (
       <span key={i}>
@@ -309,20 +304,20 @@ function RiskGauge({ score, label, color }: { score: number; label: string; colo
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / 100) * circumference;
-  const gaugeColor = score >= 70 ? '#dc2626' : score >= 40 ? '#f97316' : score >= 15 ? '#eab308' : '#22c55e';
+  const gaugeColor = score >= 70 ? 'var(--sev-critical-bar)' : score >= 40 ? 'var(--sev-high-bar)' : score >= 15 ? 'var(--sev-medium-bar)' : 'var(--accent-success)';
 
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative w-32 h-32">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r={radius} fill="none" stroke="#1e293b" strokeWidth="8" />
+          <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--app-border)" strokeWidth="8" />
           <circle
             cx="60" cy="60" r={radius} fill="none"
             stroke={gaugeColor} strokeWidth="8"
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
-            className="transition-all duration-1000 ease-out"
+            className="transition-colors duration-1000 ease-out"
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -370,7 +365,7 @@ export default function Home() {
     return (
       <>
         {text.substring(0, origStart)}
-        <span className="bg-amber-500/30 text-amber-300 font-bold px-0.5 rounded">{text.substring(origStart, origEnd)}</span>
+        <span className="bg-accent-primary/15 text-accent-primary font-semibold px-0.5 rounded">{text.substring(origStart, origEnd)}</span>
         {text.substring(origEnd)}
       </>
     );
@@ -1442,10 +1437,10 @@ export default function Home() {
 
   // ── Search Engine URL generators ──
   const searchEngines = useMemo(() => [
-    { id: 'google', name: 'Google', color: 'text-blue-400', bgColor: 'bg-blue-900/15', borderColor: 'border-blue-800/30', buildUrl: (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
-    { id: 'bing', name: 'Bing', color: 'text-cyan-400', bgColor: 'bg-cyan-900/15', borderColor: 'border-cyan-800/30', buildUrl: (q: string) => `https://www.bing.com/search?q=${encodeURIComponent(q)}` },
-    { id: 'yandex', name: 'Yandex', color: 'text-red-400', bgColor: 'bg-red-900/15', borderColor: 'border-red-800/30', buildUrl: (q: string) => `https://yandex.com/search/?text=${encodeURIComponent(q)}` },
-    { id: 'duckduckgo', name: 'DuckDuckGo', color: 'text-orange-400', bgColor: 'bg-orange-900/15', borderColor: 'border-orange-800/30', buildUrl: (q: string) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}` },
+    { id: 'google', name: 'Google', color: 'text-sev-low-text', bgColor: 'bg-sev-low-bg/30', borderColor: 'border-sev-low-text/20', buildUrl: (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
+    { id: 'bing', name: 'Bing', color: 'text-app-text-dim', bgColor: 'bg-app-surface-hover', borderColor: 'border-app-border', buildUrl: (q: string) => `https://www.bing.com/search?q=${encodeURIComponent(q)}` },
+    { id: 'yandex', name: 'Yandex', color: 'text-sev-critical-text', bgColor: 'bg-sev-critical-bg/30', borderColor: 'border-sev-critical-text/20', buildUrl: (q: string) => `https://yandex.com/search/?text=${encodeURIComponent(q)}` },
+    { id: 'duckduckgo', name: 'DuckDuckGo', color: 'text-sev-high-text', bgColor: 'bg-sev-high-bg/30', borderColor: 'border-sev-high-text/20', buildUrl: (q: string) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}` },
   ], []);
 
   // ── Build platform-specific search query ──
@@ -1680,7 +1675,7 @@ export default function Home() {
     : 0;
 
   const riskLabel = riskScore >= 70 ? 'CRITICO' : riskScore >= 40 ? 'ALTO' : riskScore >= 15 ? 'MODERADO' : 'BAJO';
-  const riskColor = riskScore >= 70 ? 'text-red-400' : riskScore >= 40 ? 'text-orange-400' : riskScore >= 15 ? 'text-amber-400' : 'text-green-400';
+  const riskColor = riskScore >= 70 ? 'text-sev-critical-text' : riskScore >= 40 ? 'text-sev-high-text' : riskScore >= 15 ? 'text-sev-medium-text' : 'text-accent-success';
 
   // ── Group results by source ──
   const groupedResults = useMemo(() => {
@@ -1711,7 +1706,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-app-bg text-app-text-dim gap-4">
         <div className="p-4 bg-app-surface rounded-xl border border-app-border">
-          <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+          <Loader2 className="w-10 h-10 text-sev-low-text animate-spin" />
         </div>
         <p className="text-sm text-slate-400">Verificando autenticación...</p>
       </div>
@@ -1725,7 +1720,7 @@ export default function Home() {
       <header className="border-b border-app-border bg-app-header sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           <div className="p-2 bg-app-surface rounded-lg border border-app-border">
-            <Shield className="w-5 h-5 text-blue-500" />
+            <Shield className="w-5 h-5 text-accent-primary" />
           </div>
           <div>
             <h1 className="text-base font-semibold text-app-text tracking-tight">OSINT Data Scanner</h1>
@@ -1735,7 +1730,7 @@ export default function Home() {
           <div className="ml-auto flex items-center gap-3">
             {/* Connection status dot */}
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${testKeyStatus === 'success' ? 'bg-emerald-500' : testKeyStatus === 'error' ? 'bg-red-500' : 'bg-slate-600'}`} />
+              <span className={`w-2 h-2 rounded-full ${testKeyStatus === 'success' ? 'bg-accent-success' : testKeyStatus === 'error' ? 'bg-sev-critical-bar' : 'bg-slate-600'}`} />
               <span className="text-[10px] text-slate-500 hidden sm:inline">
                 {testKeyStatus === 'success' ? 'Conectado' : testKeyStatus === 'error' ? 'Desconectado' : 'Sin verificar'}
               </span>
@@ -1761,13 +1756,13 @@ export default function Home() {
             {authUser && (
               <>
                 <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-app-surface border border-app-border">
-                  <Mail className="w-3 h-3 text-amber-400" />
+                  <Mail className="w-3 h-3 text-sev-medium-text" />
                   <span className="text-[10px] text-slate-400 font-medium">{authUser.email || authUser.username}</span>
-                  <Badge className="bg-amber-900/40 text-amber-300 text-[8px] px-1 py-0 h-4">
+                  <Badge className="bg-sev-medium-bg/50 text-sev-medium-text text-[8px] px-1 py-0 h-4">
                     {authUser.role}
                   </Badge>
                 </div>
-                <a href="/setup-mfa" className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:bg-app-surface-hover rounded-lg transition-colors" title="Configurar MFA">
+                <a href="/setup-mfa" className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-sev-medium-text hover:bg-app-surface-hover rounded-lg transition-colors" title="Configurar MFA">
                   <Fingerprint className="w-4 h-4" />
                 </a>
               </>
@@ -1777,7 +1772,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg"
+              className="h-8 w-8 text-slate-400 hover:text-sev-critical-text bg-sev-critical-bg'   rounded-lg"
               onClick={handleLogout}
               title="Cerrar Sesión"
             >
@@ -1791,10 +1786,10 @@ export default function Home() {
 
       {/* ── SETTINGS DIALOG ── */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="bg-app-surface border-app-border text-app-text sm:max-w-md">
+        <DialogContent className="bg-app-surface border border-app-border shadow-sm text-app-text sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-app-text flex items-center gap-2">
-              <Settings className="w-5 h-5 text-blue-400" />
+              <Settings className="w-5 h-5 text-sev-low-text" />
               Configuración
             </DialogTitle>
             <DialogDescription className="text-slate-500">
@@ -1806,24 +1801,24 @@ export default function Home() {
             {/* API Key Status - Server-side only, no input field */}
             <div className="p-4 rounded-lg bg-app-bg border border-app-border space-y-3">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${testKeyStatus === 'success' ? 'bg-green-900/30' : testKeyStatus === 'error' ? 'bg-red-900/30' : 'bg-slate-800/50'}`}>
+                <div className={`p-2 rounded-lg ${testKeyStatus === 'success' ? 'bg-app-surface-hover' : testKeyStatus === 'error' ? 'bg-sev-critical-bg/50' : 'bg-slate-800/50'}`}>
                   {testKeyStatus === 'success' ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                    <CheckCircle2 className="w-5 h-5 text-accent-success" />
                   ) : testKeyStatus === 'error' ? (
-                    <XCircle className="w-5 h-5 text-red-400" />
+                    <XCircle className="w-5 h-5 text-sev-critical-text" />
                   ) : (
                     <WifiOff className="w-5 h-5 text-slate-500" />
                   )}
                 </div>
                 <div className="flex-1">
-                  <p className={`text-sm font-medium ${testKeyStatus === 'success' ? 'text-green-400' : testKeyStatus === 'error' ? 'text-red-400' : 'text-slate-400'}`}>
+                  <p className={`text-sm font-medium ${testKeyStatus === 'success' ? 'text-accent-success' : testKeyStatus === 'error' ? 'text-sev-critical-text' : 'text-slate-400'}`}>
                     IA DeepSeek
                   </p>
                   <p className="text-xs text-slate-500">
                     La clave API se configura en el servidor. No se requiere configuración manual.
                   </p>
                 </div>
-                <Badge className={`${testKeyStatus === 'success' ? 'bg-green-800 text-green-200' : testKeyStatus === 'error' ? 'bg-red-800 text-red-200' : 'bg-slate-700 text-slate-300'} text-[10px]`}>
+                <Badge className={`${testKeyStatus === 'success' ? 'bg-app-surface-hover text-accent-success' : testKeyStatus === 'error' ? 'bg-sev-critical-bg text-sev-critical-text' : 'bg-slate-700 text-slate-300'} text-[10px]`}>
                   {testKeyStatus === 'success' ? 'Conectada' : testKeyStatus === 'error' ? 'Desconectada' : 'Sin verificar'}
                 </Badge>
               </div>
@@ -1845,12 +1840,12 @@ export default function Home() {
                   )}
                 </Button>
                 {testKeyStatus === 'success' && (
-                  <span className="text-sm text-green-400 flex items-center gap-1">
+                  <span className="text-sm text-accent-success flex items-center gap-1">
                     <CheckCircle2 className="w-4 h-4" /> Conexión exitosa
                   </span>
                 )}
                 {testKeyStatus === 'error' && (
-                  <span className="text-sm text-red-400 flex items-center gap-1">
+                  <span className="text-sm text-sev-critical-text flex items-center gap-1">
                     <XCircle className="w-4 h-4" /> Error de conexión
                   </span>
                 )}
@@ -1868,10 +1863,10 @@ export default function Home() {
             </div>
 
             {/* Required Environment Variables Guide */}
-            <div className="p-3 rounded-lg bg-amber-950/15 border border-amber-800/30">
+            <div className="p-3 rounded-lg bg-sev-medium-bg/30 border border-sev-medium-text/20">
               <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <p className="text-xs font-medium text-amber-300">Variables de Entorno Requeridas (Vercel)</p>
+                <AlertTriangle className="w-4 h-4 text-sev-medium-text" />
+                <p className="text-xs font-medium text-sev-medium-text">Variables de Entorno Requeridas (Vercel)</p>
               </div>
               <p className="text-[10px] text-slate-500 mb-2">Configura estas variables en Vercel → Settings → Environment Variables para que todas las funciones operen:</p>
               <div className="space-y-1.5">
@@ -1882,11 +1877,11 @@ export default function Home() {
                   { name: 'TELEGRAM_CHAT_ID', desc: 'Chat ID para enviar alertas de Telegram', required: false },
                 ].map(v => (
                   <div key={v.name} className="flex items-start gap-2 p-1.5 bg-app-bg rounded border border-app-border">
-                    <Badge className={`text-[8px] px-1 py-0 h-4 shrink-0 ${v.required ? 'bg-red-900/40 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
+                    <Badge className={`text-[8px] px-1 py-0 h-4 shrink-0 ${v.required ? 'bg-sev-critical-bg text-sev-critical-text' : 'bg-slate-700 text-slate-400'}`}>
                       {v.required ? 'OBLIGATORIA' : 'OPCIONAL'}
                     </Badge>
                     <div>
-                      <code className="text-[10px] text-amber-400">{v.name}</code>
+                      <code className="text-[10px] text-sev-medium-text">{v.name}</code>
                       <p className="text-[9px] text-slate-500">{v.desc}</p>
                     </div>
                   </div>
@@ -1938,10 +1933,10 @@ export default function Home() {
               {/* ── Left Column: Form + Batch Upload ── */}
               <div className="space-y-4">
                 {/* Input Form */}
-                <Card className="bg-app-surface border-app-border">
+                <Card className="bg-app-surface border border-app-border shadow-sm">
                   <CardHeader>
                     <CardTitle className="text-app-text flex items-center gap-2">
-                      <User className="w-5 h-5 text-blue-400" />
+                      <User className="w-5 h-5 text-sev-low-text" />
                       Datos a Escanear
                     </CardTitle>
                     <CardDescription className="text-slate-500">
@@ -1953,28 +1948,28 @@ export default function Home() {
                       <Label htmlFor="fullName" className="text-slate-300 text-sm">Nombre Completo *</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
-                        <Input id="fullName" placeholder="Juan Perez Garcia" value={fullName} onChange={e => setFullName(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-blue-600" />
+                        <Input id="fullName" placeholder="Juan Perez Garcia" value={fullName} onChange={e => setFullName(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-sev-low-bar" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="cedula" className="text-slate-300 text-sm">Cedula / Documento</Label>
                       <div className="relative">
                         <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
-                        <Input id="cedula" placeholder="1234567890" value={cedula} onChange={e => setCedula(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-blue-600" />
+                        <Input id="cedula" placeholder="1234567890" value={cedula} onChange={e => setCedula(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-sev-low-bar" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-slate-300 text-sm">Correo Electronico</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
-                        <Input id="email" type="email" placeholder="correo@ejemplo.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-blue-600" />
+                        <Input id="email" type="email" placeholder="correo@ejemplo.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-sev-low-bar" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone" className="text-slate-300 text-sm">Numero de Telefono</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-600" />
-                        <Input id="phone" placeholder="+57 300 1234567" value={phone} onChange={e => setPhone(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-blue-600" />
+                        <Input id="phone" placeholder="+57 300 1234567" value={phone} onChange={e => setPhone(e.target.value)} className="pl-10 bg-app-bg border-app-border text-app-text placeholder:text-slate-600 focus:border-sev-low-bar" />
                       </div>
                     </div>
 
@@ -2002,7 +1997,7 @@ export default function Home() {
                     </div>
 
                     {error && (
-                      <div className="p-3 bg-red-900/20 border border-red-800/30 rounded-lg text-red-400 text-sm">
+                      <div className="p-3 bg-sev-critical-bg/50 border border-sev-critical-text/20 rounded-lg text-sev-critical-text text-sm">
                         {error}
                       </div>
                     )}
@@ -2021,11 +2016,11 @@ export default function Home() {
                         <div className="flex items-center gap-2">
                           {loading ? (
                             <div className="relative flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                              <div className="w-2 h-2 rounded-full bg-blue-400" />
                               <div className="absolute w-2 h-2 rounded-full bg-blue-400 animate-ping opacity-75" />
                             </div>
                           ) : progress >= 100 ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-accent-success" />
                           ) : (
                             <ScanLine className="w-3.5 h-3.5 text-slate-500" />
                           )}
@@ -2033,13 +2028,13 @@ export default function Home() {
                             {loading
                               ? (progress < 20 ? 'Conectando motores...' : progress < 90 ? `Escaneando ${selectedEngines.size} motores...` : 'Procesando resultados...')
                               : progress >= 100
-                                ? <span className="text-emerald-400">Escaneo completado</span>
+                                ? <span className="text-accent-success">Escaneo completado</span>
                                 : <span className="text-slate-500">Listo para escanear</span>
                             }
                           </span>
                         </div>
                         <span className={`text-xs font-bold tabular-nums ${
-                          progress >= 100 ? 'text-emerald-400' : progress > 0 ? 'text-blue-400' : 'text-slate-500'
+                          progress >= 100 ? 'text-accent-success' : progress > 0 ? 'text-sev-low-text' : 'text-slate-500'
                         }`}>
                           {Math.round(progress)}%
                         </span>
@@ -2087,11 +2082,11 @@ export default function Home() {
                             <div key={step.label} className="flex flex-col items-center gap-0.5">
                               <div className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
                                 reached
-                                  ? progress >= 100 ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]'
-                                  : current ? 'bg-blue-400/50 animate-pulse' : 'bg-app-border'
+                                  ? progress >= 100 ? 'bg-accent-success' : 'bg-sev-low-bar'
+                                  : current ? 'bg-accent-primary/30' : 'bg-app-border'
                               }`} />
                               <span className={`text-[8px] leading-none transition-colors duration-300 ${
-                                reached ? (progress >= 100 ? 'text-emerald-400' : 'text-blue-300') : 'text-slate-600'
+                                reached ? (progress >= 100 ? 'text-accent-success' : 'text-accent-primary') : 'text-slate-600'
                               }`}>
                                 {step.label}
                               </span>
@@ -2118,10 +2113,10 @@ export default function Home() {
                 </Card>
 
                 {/* Batch Upload Section (merged into Scan tab) */}
-                <Card className="bg-app-surface border-app-border">
+                <Card className="bg-app-surface border border-app-border shadow-sm">
                   <CardHeader>
                     <CardTitle className="text-app-text flex items-center gap-2 text-sm">
-                      <Upload className="w-4 h-4 text-blue-400" />
+                      <Upload className="w-4 h-4 text-sev-low-text" />
                       Zona de análisis de archivos
                     </CardTitle>
                     <CardDescription className="text-slate-500 text-xs">
@@ -2135,10 +2130,10 @@ export default function Home() {
                       onDragLeave={handleDragLeave}
                       className={`border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer ${
                         isDragging
-                          ? 'border-blue-500 bg-blue-900/10'
+                          ? 'border-app-border bg-app-surface-hover'
                           : uploadFile
-                            ? 'border-blue-700/50 bg-blue-900/5'
-                            : 'border-app-border bg-app-bg hover:border-slate-600 hover:bg-app-surface'
+                            ? 'border-app-border bg-app-surface-hover'
+                            : 'border-app-border bg-app-bg hover:border-app-text-muted hover:bg-app-surface'
                       }`}
                       onClick={() => {
                         const input = document.createElement('input');
@@ -2153,10 +2148,10 @@ export default function Home() {
                     >
                       {uploadFile ? (
                         <div className="space-y-1">
-                          <FileSpreadsheet className="w-8 h-8 mx-auto text-blue-400" />
+                          <FileSpreadsheet className="w-8 h-8 mx-auto text-sev-low-text" />
                           <p className="text-sm font-medium text-app-text">{uploadFile.name}</p>
                           <p className="text-xs text-slate-500">{(uploadFile.size / 1024).toFixed(1)} KB</p>
-                          <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 h-6 text-xs" onClick={(e) => { e.stopPropagation(); setUploadFile(null); }}>
+                          <Button variant="ghost" size="sm" className="text-sev-critical-text hover:text-sev-critical-text h-6 text-xs" onClick={(e) => { e.stopPropagation(); setUploadFile(null); }}>
                             <XCircle className="w-3 h-3 mr-1" /> Quitar
                           </Button>
                         </div>
@@ -2170,7 +2165,7 @@ export default function Home() {
                     </div>
 
                     {uploadError && (
-                      <div className="p-2 bg-red-900/20 border border-red-800/30 rounded-lg text-red-400 text-xs">
+                      <div className="p-2 bg-sev-critical-bg/50 border border-sev-critical-text/20 rounded-lg text-sev-critical-text text-xs">
                         {uploadError}
                       </div>
                     )}
@@ -2189,11 +2184,11 @@ export default function Home() {
                         <div className="flex items-center gap-2">
                           {uploadLoading ? (
                             <div className="relative flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                              <div className="w-2 h-2 rounded-full bg-blue-400" />
                               <div className="absolute w-2 h-2 rounded-full bg-blue-400 animate-ping opacity-75" />
                             </div>
                           ) : uploadProgress >= 100 ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-accent-success" />
                           ) : (
                             <Upload className="w-3.5 h-3.5 text-slate-500" />
                           )}
@@ -2201,13 +2196,13 @@ export default function Home() {
                             {uploadLoading
                               ? (uploadStage || 'Procesando...')
                               : uploadProgress >= 100
-                                ? <span className="text-emerald-400">Procesamiento completado</span>
+                                ? <span className="text-accent-success">Procesamiento completado</span>
                                 : <span className="text-slate-500">Listo para procesar</span>
                             }
                           </span>
                         </div>
                         <span className={`text-xs font-bold tabular-nums ${
-                          uploadProgress >= 100 ? 'text-emerald-400' : uploadProgress > 0 ? 'text-blue-400' : 'text-slate-500'
+                          uploadProgress >= 100 ? 'text-accent-success' : uploadProgress > 0 ? 'text-sev-low-text' : 'text-slate-500'
                         }`}>
                           {Math.round(uploadProgress)}%
                         </span>
@@ -2257,11 +2252,11 @@ export default function Home() {
                             <div key={milestone.label} className="flex flex-col items-center gap-0.5">
                               <div className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
                                 reached
-                                  ? uploadProgress >= 100 ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]'
-                                  : current ? 'bg-blue-400/50 animate-pulse' : 'bg-app-border'
+                                  ? uploadProgress >= 100 ? 'bg-accent-success' : 'bg-sev-low-bar'
+                                  : current ? 'bg-accent-primary/30' : 'bg-app-border'
                               }`} />
                               <span className={`text-[8px] leading-none transition-colors duration-300 ${
-                                reached ? (uploadProgress >= 100 ? 'text-emerald-400' : 'text-blue-300') : 'text-slate-600'
+                                reached ? (uploadProgress >= 100 ? 'text-accent-success' : 'text-accent-primary') : 'text-slate-600'
                               }`}>
                                 {milestone.label}
                               </span>
@@ -2275,25 +2270,25 @@ export default function Home() {
                     {txtAnalysis && (
                       <div className="space-y-2 mt-2">
                         <Separator className="bg-app-border" />
-                        <div className="p-3 bg-cyan-900/15 border border-cyan-800/30 rounded-lg space-y-2">
+                        <div className="p-3 bg-app-surface-hover border border-app-border rounded-lg space-y-2">
                           <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-cyan-400" />
-                            <p className="text-xs font-medium text-cyan-300">Análisis de Texto — Entidades Extraídas</p>
+                            <FileText className="w-4 h-4 text-app-text-dim" />
+                            <p className="text-xs font-medium text-app-text-dim">Análisis de Texto — Entidades Extraídas</p>
                           </div>
                           <p className="text-[10px] text-slate-400">{txtAnalysis.intelligenceSummary}</p>
 
                           {/* Entity stats grid */}
                           <div className="grid grid-cols-5 gap-1.5">
                             {[
-                              { label: 'Nombres', value: txtAnalysis.totalEntities.names, icon: User, color: 'text-cyan-400' },
-                              { label: 'Emails', value: txtAnalysis.totalEntities.emails, icon: Mail, color: 'text-blue-400' },
-                              { label: 'Teléfonos', value: txtAnalysis.totalEntities.phones, icon: Phone, color: 'text-emerald-400' },
-                              { label: 'Cédulas', value: txtAnalysis.totalEntities.cedulas, icon: Fingerprint, color: 'text-amber-400' },
-                              { label: 'IPs', value: txtAnalysis.totalEntities.ips, icon: Globe, color: 'text-red-400' },
-                              { label: 'URLs', value: txtAnalysis.totalEntities.urls, icon: ExternalLink, color: 'text-violet-400' },
-                              { label: 'Usuarios', value: txtAnalysis.totalEntities.usernames, icon: AtSign, color: 'text-orange-400' },
-                              { label: 'Direcciones', value: txtAnalysis.totalEntities.addresses, icon: MapPin, color: 'text-rose-400' },
-                              { label: 'Empresas', value: txtAnalysis.totalEntities.companies, icon: Building2, color: 'text-teal-400' },
+                              { label: 'Nombres', value: txtAnalysis.totalEntities.names, icon: User, color: 'text-app-text-dim' },
+                              { label: 'Emails', value: txtAnalysis.totalEntities.emails, icon: Mail, color: 'text-sev-low-text' },
+                              { label: 'Teléfonos', value: txtAnalysis.totalEntities.phones, icon: Phone, color: 'text-accent-success' },
+                              { label: 'Cédulas', value: txtAnalysis.totalEntities.cedulas, icon: Fingerprint, color: 'text-sev-medium-text' },
+                              { label: 'IPs', value: txtAnalysis.totalEntities.ips, icon: Globe, color: 'text-sev-critical-text' },
+                              { label: 'URLs', value: txtAnalysis.totalEntities.urls, icon: ExternalLink, color: 'text-app-text-dim' },
+                              { label: 'Usuarios', value: txtAnalysis.totalEntities.usernames, icon: AtSign, color: 'text-sev-high-text' },
+                              { label: 'Direcciones', value: txtAnalysis.totalEntities.addresses, icon: MapPin, color: 'text-app-text-dim' },
+                              { label: 'Empresas', value: txtAnalysis.totalEntities.companies, icon: Building2, color: 'text-app-text-dim' },
                               { label: 'Líneas', value: txtAnalysis.totalLines, icon: FileDigit, color: 'text-slate-400' },
                             ].map(stat => (
                               <div key={stat.label} className="flex items-center gap-1 p-1.5 bg-app-bg rounded border border-app-border">
@@ -2311,9 +2306,9 @@ export default function Home() {
                             <ScrollArea className="max-h-40">
                               <div className="space-y-1">
                                 {txtAnalysis.persons.map((person, idx) => {
-                                  const confColor = person.confidence === 'alta' ? 'text-emerald-400 bg-emerald-900/20 border-emerald-800/30' :
-                                                    person.confidence === 'media' ? 'text-amber-400 bg-amber-900/20 border-amber-800/30' :
-                                                    'text-slate-400 bg-slate-800/20 border-slate-700/30';
+                                  const confColor = person.confidence === 'alta' ? 'text-accent-success bg-app-surface-hover border-app-border' :
+                                                    person.confidence === 'media' ? 'text-sev-medium-text bg-sev-medium-bg/50 border-sev-medium-text/20' :
+                                                    'text-slate-400 bg-slate-800/20 border-app-border';
                                   return (
                                     <div key={idx} className="p-2 bg-app-bg rounded border border-app-border flex items-center justify-between">
                                       <div className="flex-1 min-w-0">
@@ -2322,15 +2317,15 @@ export default function Home() {
                                           <span className={`text-[8px] px-1 py-0.5 rounded border ${confColor}`}>{person.confidence}</span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5">
-                                          {person.email && <span className="text-[9px] text-blue-400 truncate">{person.email}</span>}
-                                          {person.phone && <span className="text-[9px] text-emerald-400">{person.phone}</span>}
-                                          {person.cedula && <span className="text-[9px] text-amber-400">{person.cedula}</span>}
+                                          {person.email && <span className="text-[9px] text-sev-low-text truncate">{person.email}</span>}
+                                          {person.phone && <span className="text-[9px] text-accent-success">{person.phone}</span>}
+                                          {person.cedula && <span className="text-[9px] text-sev-medium-text">{person.cedula}</span>}
                                         </div>
                                         {(person.ips.length > 0 || person.urls.length > 0 || person.usernames.length > 0) && (
                                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                            {person.ips.map((ip, i) => <Badge key={i} variant="outline" className="border-red-800/30 text-red-400 text-[8px] px-1 py-0">{ip}</Badge>)}
-                                            {person.usernames.map((u, i) => <Badge key={i} variant="outline" className="border-orange-800/30 text-orange-400 text-[8px] px-1 py-0">{u}</Badge>)}
-                                            {person.urls.slice(0, 2).map((u, i) => <Badge key={i} variant="outline" className="border-violet-800/30 text-violet-400 text-[8px] px-1 py-0 truncate max-w-24">{u.replace(/^https?:\/\//, '').substring(0, 25)}</Badge>)}
+                                            {person.ips.map((ip, i) => <Badge key={i} variant="outline" className="border-sev-critical-text/20 text-sev-critical-text text-[8px] px-1 py-0">{ip}</Badge>)}
+                                            {person.usernames.map((u, i) => <Badge key={i} variant="outline" className="border-sev-high-text/20 text-sev-high-text text-[8px] px-1 py-0">{u}</Badge>)}
+                                            {person.urls.slice(0, 2).map((u, i) => <Badge key={i} variant="outline" className="border-app-border text-app-text-dim text-[8px] px-1 py-0 truncate max-w-24">{u.replace(/^https?:\/\//, '').substring(0, 25)}</Badge>)}
                                           </div>
                                         )}
                                       </div>
@@ -2349,10 +2344,10 @@ export default function Home() {
                             <div className="space-y-1">
                               <p className="text-[10px] text-slate-500 font-medium">Entidades sin vincular a persona:</p>
                               <div className="flex flex-wrap gap-1">
-                                {txtAnalysis.unlinkedEntities.ips.map((ip, i) => <Badge key={`ip-${i}`} variant="outline" className="border-red-800/30 text-red-400 text-[9px]">IP: {ip}</Badge>)}
-                                {txtAnalysis.unlinkedEntities.urls.map((url, i) => <Badge key={`url-${i}`} variant="outline" className="border-violet-800/30 text-violet-400 text-[9px] truncate max-w-36">URL: {url.replace(/^https?:\/\//, '').substring(0, 30)}</Badge>)}
-                                {txtAnalysis.unlinkedEntities.usernames.map((u, i) => <Badge key={`u-${i}`} variant="outline" className="border-orange-800/30 text-orange-400 text-[9px]">{u}</Badge>)}
-                                {txtAnalysis.unlinkedEntities.companies.map((c, i) => <Badge key={`c-${i}`} variant="outline" className="border-teal-800/30 text-teal-400 text-[9px]">{c}</Badge>)}
+                                {txtAnalysis.unlinkedEntities.ips.map((ip, i) => <Badge key={`ip-${i}`} variant="outline" className="border-sev-critical-text/20 text-sev-critical-text text-[9px]">IP: {ip}</Badge>)}
+                                {txtAnalysis.unlinkedEntities.urls.map((url, i) => <Badge key={`url-${i}`} variant="outline" className="border-app-border text-app-text-dim text-[9px] truncate max-w-36">URL: {url.replace(/^https?:\/\//, '').substring(0, 30)}</Badge>)}
+                                {txtAnalysis.unlinkedEntities.usernames.map((u, i) => <Badge key={`u-${i}`} variant="outline" className="border-sev-high-text/20 text-sev-high-text text-[9px]">{u}</Badge>)}
+                                {txtAnalysis.unlinkedEntities.companies.map((c, i) => <Badge key={`c-${i}`} variant="outline" className="border-app-border text-app-text-dim text-[9px]">{c}</Badge>)}
                               </div>
                             </div>
                           )}
@@ -2371,7 +2366,7 @@ export default function Home() {
                               const s = result.summary || { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
                               const totalRisk = Math.min(100, s.critical * 30 + s.high * 15 + s.medium * 5 + s.low * 2);
                               const rLabel = totalRisk >= 70 ? 'CRITICO' : totalRisk >= 40 ? 'ALTO' : totalRisk >= 15 ? 'MODERADO' : 'BAJO';
-                              const rColor = totalRisk >= 70 ? 'text-red-400' : totalRisk >= 40 ? 'text-orange-400' : totalRisk >= 15 ? 'text-amber-400' : 'text-green-400';
+                              const rColor = totalRisk >= 70 ? 'text-sev-critical-text' : totalRisk >= 40 ? 'text-sev-high-text' : totalRisk >= 15 ? 'text-sev-medium-text' : 'text-accent-success';
 
                               return (
                                 <div key={idx} className="p-3 bg-app-bg rounded-lg border border-app-border">
@@ -2393,7 +2388,7 @@ export default function Home() {
                                       <Button size="sm" variant="outline" className="border-app-border text-slate-400 hover:text-white h-7 text-[10px] px-2" onClick={() => handleDownloadReport(result.scanId, 'docx')}>
                                         <FileText className="w-3 h-3" />
                                       </Button>
-                                      <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white h-7 text-[10px] px-2" onClick={() => handleDownloadBothReports(result.scanId)}>
+                                      <Button size="sm" className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text h-7 text-[10px] px-2" onClick={() => handleDownloadBothReports(result.scanId)}>
                                         <FileDown className="w-3 h-3" />
                                       </Button>
                                     </div>
@@ -2406,23 +2401,23 @@ export default function Home() {
 
                         {/* Joint Analysis Banner */}
                         {relationshipAnalysis && jointAnalysisId && (
-                          <div className="p-3 bg-violet-900/15 border border-violet-800/30 rounded-lg">
+                          <div className="p-3 bg-app-surface-hover border border-app-border rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <GitBranch className="w-4 h-4 text-violet-400" />
+                                <GitBranch className="w-4 h-4 text-app-text-dim" />
                                 <div>
-                                  <p className="text-xs font-medium text-violet-300">Vinculos: {relationshipAnalysis.totalLinks}</p>
-                                  <p className="text-[10px] text-violet-500">{relationshipAnalysis.sheet1Name} ↔ {relationshipAnalysis.sheet2Name}</p>
+                                  <p className="text-xs font-medium text-app-text-dim">Vinculos: {relationshipAnalysis.totalLinks}</p>
+                                  <p className="text-[10px] text-app-text-dim">{relationshipAnalysis.sheet1Name} ↔ {relationshipAnalysis.sheet2Name}</p>
                                 </div>
                               </div>
                               <div className="flex gap-1.5">
-                                <Button size="sm" className="bg-violet-700 hover:bg-violet-800 text-white h-7 text-[10px]" onClick={() => handleDownloadJointReport(jointAnalysisId, 'pdf')}>
+                                <Button size="sm" className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text h-7 text-[10px]" onClick={() => handleDownloadJointReport(jointAnalysisId, 'pdf')}>
                                   <Download className="w-3 h-3 mr-1" />PDF
                                 </Button>
-                                <Button size="sm" className="bg-violet-900/40 hover:bg-violet-900/60 text-violet-300 border border-violet-800/30 h-7 text-[10px]" onClick={() => handleDownloadJointReport(jointAnalysisId, 'docx')}>
+                                <Button size="sm" className="bg-app-surface-hover hover:bg-app-surface-hover text-app-text-dim border border-app-border h-7 text-[10px]" onClick={() => handleDownloadJointReport(jointAnalysisId, 'docx')}>
                                   <FileSpreadsheet className="w-3 h-3 mr-1" />DOCX
                                 </Button>
-                                <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white h-7 text-[10px]" onClick={() => handleDownloadBothJointReports(jointAnalysisId)}>
+                                <Button size="sm" className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text h-7 text-[10px]" onClick={() => handleDownloadBothJointReports(jointAnalysisId)}>
                                   <FileDown className="w-3 h-3 mr-1" />Ambos
                                 </Button>
                               </div>
@@ -2446,9 +2441,9 @@ export default function Home() {
                                         <div className="flex items-center gap-2">
                                           <Icon className={`w-3 h-3 ${config.color} shrink-0`} />
                                           <p className="text-[10px] text-app-text flex-1 min-w-0 truncate">
-                                            <span className="text-blue-400">{link.sheet1Person}</span>
+                                            <span className="text-sev-low-text">{link.sheet1Person}</span>
                                             <span className="text-slate-500 mx-1">↔</span>
-                                            <span className="text-violet-400">{link.sheet2Person}</span>
+                                            <span className="text-app-text-dim">{link.sheet2Person}</span>
                                           </p>
                                           <Badge className={`${config.color.replace('text-', 'bg-').replace('-400', '-800/40')} text-white text-[8px] px-1`}>
                                             {config.label}
@@ -2476,11 +2471,11 @@ export default function Home() {
 
               {/* ── Right Column: Engine Grid ── */}
               <div className="space-y-4">
-                <Card className="bg-app-surface border-app-border">
+                <Card className="bg-app-surface border border-app-border shadow-sm">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-app-text flex items-center gap-2">
-                        <Database className="w-5 h-5 text-blue-400" />
+                        <Database className="w-5 h-5 text-sev-low-text" />
                         Motores de Busqueda
                       </CardTitle>
                       <div className="flex items-center gap-2">
@@ -2514,9 +2509,9 @@ export default function Home() {
                             <Checkbox
                               checked={allCatSelected ? true : someCatSelected ? 'indeterminate' : false}
                               onCheckedChange={() => toggleCategory(engineNames)}
-                              className="border-slate-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                              className="border-app-text-muted data-[state=checked]:bg-sev-low-bar data-[state=checked]:border-sev-low-bar"
                             />
-                            <span className={`text-xs font-semibold group-hover:brightness-125 transition-all ${getCategoryColor(category.color)}`}>
+                            <span className={`text-xs font-semibold group-hover:brightness-125 transition-colors ${getCategoryColor(category.color)}`}>
                               {category.label.toUpperCase()} ({category.engines.length})
                             </span>
                           </div>
@@ -2530,17 +2525,17 @@ export default function Home() {
                               return (
                                 <div
                                   key={engine.name}
-                                  className={`group flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                  className={`group flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors duration-200 ${
                                     isSelected
                                       ? `${getCategoryColor(category.color, 'bg')} ${getCategoryColor(category.color, 'border')}`
-                                      : 'bg-app-bg border-app-border opacity-50 hover:opacity-80 hover:border-slate-600'
+                                      : 'bg-app-bg border-app-border opacity-50 hover:opacity-80 hover:border-app-text-muted'
                                   }`}
                                   onClick={() => toggleEngine(engine.name)}
                                 >
-                                  <div className={`mt-0.5 shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition-all ${
+                                  <div className={`mt-0.5 shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
                                     isSelected ? 'bg-app-bg' : 'bg-slate-800/30'
                                   }`}>
-                                    <EngineIcon className={`w-3.5 h-3.5 transition-all ${
+                                    <EngineIcon className={`w-3.5 h-3.5 transition-colors ${
                                       isSelected ? getCategoryColor(category.color) : 'text-slate-600 group-hover:text-slate-400'
                                     }`} />
                                   </div>
@@ -2553,10 +2548,10 @@ export default function Home() {
                                   </div>
 
                                   {/* Check indicator */}
-                                  <div className={`mt-0.5 shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                                  <div className={`mt-0.5 shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                                     isSelected
-                                      ? 'bg-blue-500 border-blue-500'
-                                      : 'border-slate-600 bg-transparent'
+                                      ? 'bg-sev-low-bar border-sev-low-bar'
+                                      : 'border-app-text-muted bg-transparent'
                                   }`}>
                                     {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                                   </div>
@@ -2573,10 +2568,10 @@ export default function Home() {
             </div>
 
             {/* ── TELEGRAM AVANZADO — en sección de Escaneo ── */}
-            <Card className="bg-app-surface border-app-border">
+            <Card className="bg-app-surface border border-app-border shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-app-text text-base">
-                  <Send className="w-5 h-5 text-cyan-400" />
+                  <Send className="w-5 h-5 text-app-text-dim" />
                   Telegram Avanzado
                 </CardTitle>
                 <CardDescription className="text-slate-400 text-xs">
@@ -2587,16 +2582,16 @@ export default function Home() {
                 {/* Status indicator */}
                 <div className={`flex items-center gap-3 p-3 rounded-lg border ${
                   telegramConfigured
-                    ? 'bg-emerald-950/20 border-emerald-800/30'
-                    : 'bg-red-950/20 border-red-800/30'
+                    ? 'bg-app-surface-hover border-app-border'
+                    : 'bg-sev-critical-bg/50 border-sev-critical-text/20'
                 }`}>
                   {telegramConfigured ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="w-5 h-5 text-accent-success shrink-0" />
                   ) : (
-                    <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+                    <XCircle className="w-5 h-5 text-sev-critical-text shrink-0" />
                   )}
                   <div className="flex-1">
-                    <p className={`text-sm font-medium ${telegramConfigured ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <p className={`text-sm font-medium ${telegramConfigured ? 'text-accent-success' : 'text-sev-critical-text'}`}>
                       {telegramConfigured ? 'Telegram Bot Operativo' : 'Telegram Bot No Configurado'}
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
@@ -2606,7 +2601,7 @@ export default function Home() {
                     </p>
                   </div>
                   {telegramBotInfo && (
-                    <Badge className="bg-cyan-900/30 text-cyan-400 border border-cyan-800/30 text-[10px]">
+                    <Badge className="bg-app-surface-hover text-app-text-dim border border-app-border text-[10px]">
                       @{telegramBotInfo.username}
                     </Badge>
                   )}
@@ -2616,13 +2611,13 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 p-2.5 rounded-lg bg-app-bg border border-app-border">
                     {telegramHasBotToken ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
                     ) : (
-                      <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                      <XCircle className="w-4 h-4 text-sev-critical-text shrink-0" />
                     )}
                     <div>
                       <p className="text-[10px] text-slate-500 leading-none">BOT_TOKEN</p>
-                      <p className={`text-[11px] font-medium ${telegramHasBotToken ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <p className={`text-[11px] font-medium ${telegramHasBotToken ? 'text-accent-success' : 'text-sev-critical-text'}`}>
                         {telegramHasBotToken ? 'Activo' : 'Falta'}
                       </p>
                       {telegramHasBotToken && (
@@ -2634,13 +2629,13 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-2 p-2.5 rounded-lg bg-app-bg border border-app-border">
                     {telegramHasChatId ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
                     ) : (
-                      <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                      <XCircle className="w-4 h-4 text-sev-critical-text shrink-0" />
                     )}
                     <div>
                       <p className="text-[10px] text-slate-500 leading-none">CHAT_ID</p>
-                      <p className={`text-[11px] font-medium ${telegramHasChatId ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <p className={`text-[11px] font-medium ${telegramHasChatId ? 'text-accent-success' : 'text-sev-critical-text'}`}>
                         {telegramHasChatId ? 'Detectado' : 'Pendiente'}
                       </p>
                       {telegramHasChatId && (
@@ -2656,11 +2651,11 @@ export default function Home() {
                 {!telegramHasBotToken && (
                   <div className="p-3 rounded-lg bg-app-bg border border-cyan-900/30 space-y-3">
                     <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-cyan-900/30 text-cyan-400 text-[10px] font-bold">1</span>
-                      <span className="text-xs font-medium text-cyan-300">Paso 1: Ingresar Bot Token</span>
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-app-surface-hover text-app-text-dim text-[10px] font-bold">1</span>
+                      <span className="text-xs font-medium text-app-text-dim">Paso 1: Ingresar Bot Token</span>
                     </div>
                     <p className="text-[10px] text-slate-500">
-                      Obten tu token desde <code className="text-cyan-400">@BotFather</code> en Telegram. Envía <code className="text-cyan-400">/newbot</code> o <code className="text-cyan-400">/mybots</code> para obtenerlo.
+                      Obten tu token desde <code className="text-app-text-dim">@BotFather</code> en Telegram. Envía <code className="text-app-text-dim">/newbot</code> o <code className="text-app-text-dim">/mybots</code> para obtenerlo.
                     </p>
                     <div className="flex gap-2">
                       <Input
@@ -2668,14 +2663,14 @@ export default function Home() {
                         value={telegramBotTokenInput}
                         onChange={e => setTelegramBotTokenInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleSaveBotToken(); }}
-                        className="bg-app-surface border-app-border text-app-text placeholder:text-slate-600 text-xs font-mono focus:border-cyan-600"
+                        className="bg-app-surface border border-app-border shadow-sm text-app-text placeholder:text-slate-600 text-xs font-mono focus:border-cyan-600"
                         disabled={telegramSavingToken}
                       />
                       <Button
                         size="sm"
                         onClick={handleSaveBotToken}
                         disabled={!telegramBotTokenInput.trim() || telegramSavingToken}
-                        className="bg-cyan-700 hover:bg-cyan-800 text-white text-[11px] h-9 disabled:opacity-50 shrink-0"
+                        className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-[11px] h-9 disabled:opacity-50 shrink-0"
                       >
                         {telegramSavingToken ? (
                           <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Verificando...</>
@@ -2685,9 +2680,9 @@ export default function Home() {
                       </Button>
                     </div>
                     {telegramSaveTokenError && (
-                      <div className="flex items-start gap-2 p-2 rounded bg-red-950/15 border border-red-800/20">
-                        <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-red-400">{telegramSaveTokenError}</p>
+                      <div className="flex items-start gap-2 p-2 rounded bg-sev-critical-bg/30 border border-sev-critical-text/20">
+                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-sev-critical-text">{telegramSaveTokenError}</p>
                       </div>
                     )}
                   </div>
@@ -2698,8 +2693,8 @@ export default function Home() {
                   <div className="p-3 rounded-lg bg-app-bg border border-app-border space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${telegramHasBotToken ? 'bg-cyan-900/30 text-cyan-400' : 'bg-slate-800 text-slate-500'}`}>2</span>
-                        <span className={`text-xs font-medium ${telegramHasBotToken ? 'text-cyan-300' : 'text-slate-500'}`}>
+                        <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${telegramHasBotToken ? 'bg-app-surface-hover text-app-text-dim' : 'bg-slate-800 text-slate-500'}`}>2</span>
+                        <span className={`text-xs font-medium ${telegramHasBotToken ? 'text-app-text-dim' : 'text-slate-500'}`}>
                           Paso 2: Detectar Chat ID
                         </span>
                       </div>
@@ -2707,7 +2702,7 @@ export default function Home() {
                         size="sm"
                         onClick={handleTelegramDetectChatId}
                         disabled={telegramDetecting || !telegramHasBotToken}
-                        className="bg-cyan-700 hover:bg-cyan-800 text-white text-[11px] h-7 disabled:opacity-50"
+                        className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-[11px] h-7 disabled:opacity-50"
                       >
                         {telegramDetecting ? (
                           <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Detectando...</>
@@ -2724,8 +2719,8 @@ export default function Home() {
                     )}
 
                     {telegramHasBotToken && !telegramHasChatId && (
-                      <p className="text-[10px] text-amber-400 bg-amber-950/15 border border-amber-800/20 rounded p-2">
-                        Envía <code className="text-amber-300">/start</code> a tu bot en Telegram antes de detectar. Busca <code className="text-amber-300">@{telegramBotInfo?.username || 'tu_bot'}</code> y envíale un mensaje.
+                      <p className="text-[10px] text-sev-medium-text bg-sev-medium-bg/30 border border-amber-800/20 rounded p-2">
+                        Envía <code className="text-sev-medium-text">/start</code> a tu bot en Telegram antes de detectar. Busca <code className="text-sev-medium-text">@{telegramBotInfo?.username || 'tu_bot'}</code> y envíale un mensaje.
                       </p>
                     )}
 
@@ -2737,25 +2732,25 @@ export default function Home() {
                           <button
                             key={idx}
                             onClick={() => handleSelectChat(chat.chatId)}
-                            className="w-full flex items-center gap-2 p-2 rounded bg-app-surface border border-app-border hover:border-cyan-700/50 hover:bg-cyan-950/10 transition-colors text-left cursor-pointer group"
+                            className="w-full flex items-center gap-2 p-2 rounded bg-app-surface border border-app-border hover:border-app-border hover:bg-app-surface-hover transition-colors text-left cursor-pointer group"
                           >
-                            <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-emerald-400' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-400' : 'bg-cyan-400'}`} />
+                            <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-accent-success' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-app-text-dim' : 'bg-app-text-dim'}`} />
                             <div className="flex-1 min-w-0">
-                              <p className="text-[11px] text-app-text font-medium truncate group-hover:text-cyan-300 transition-colors">
+                              <p className="text-[11px] text-app-text font-medium truncate group-hover:text-app-text-dim transition-colors">
                                 {chat.firstName || chat.title || chat.username || 'Sin nombre'}
                               </p>
                               <p className="text-[9px] text-slate-500">
-                                Tipo: {chat.type} · ID: <code className="text-amber-400">{chat.chatId}</code>
+                                Tipo: {chat.type} · ID: <code className="text-sev-medium-text">{chat.chatId}</code>
                               </p>
                             </div>
                             <Badge className={`text-[8px] px-1 py-0 h-4 ${
-                              chat.type === 'private' ? 'bg-emerald-900/40 text-emerald-400' :
-                              chat.type === 'group' || chat.type === 'supergroup' ? 'bg-violet-900/40 text-violet-400' :
-                              'bg-cyan-900/40 text-cyan-400'
+                              chat.type === 'private' ? 'bg-app-surface-hover text-accent-success' :
+                              chat.type === 'group' || chat.type === 'supergroup' ? 'bg-app-surface-hover text-app-text-dim' :
+                              'bg-app-surface-hover text-app-text-dim'
                             }`}>
                               {chat.type}
                             </Badge>
-                            <Check className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 transition-colors shrink-0" />
+                            <Check className="w-3.5 h-3.5 text-slate-600 group-hover:text-app-text-dim transition-colors shrink-0" />
                           </button>
                         ))}
                       </div>
@@ -2763,19 +2758,19 @@ export default function Home() {
 
                     {/* Detection error */}
                     {telegramDetectError && (
-                      <div className="flex items-start gap-2 p-2 rounded bg-red-950/15 border border-red-800/20">
-                        <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
-                        <div className="text-[10px] text-red-400 whitespace-pre-line leading-relaxed">{telegramDetectError}</div>
+                      <div className="flex items-start gap-2 p-2 rounded bg-sev-critical-bg/30 border border-sev-critical-text/20">
+                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0 mt-0.5" />
+                        <div className="text-[10px] text-sev-critical-text whitespace-pre-line leading-relaxed">{telegramDetectError}</div>
                       </div>
                     )}
                   </div>
                 ) : (
                   /* Chat ID already configured — show confirmation */
-                  <div className="p-3 rounded-lg bg-emerald-950/10 border border-emerald-800/20 space-y-2">
+                  <div className="p-3 rounded-lg bg-app-surface-hover border border-app-border space-y-2">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span className="text-xs font-medium text-emerald-300">Chat ID Configurado</span>
-                      <Badge className="bg-emerald-900/30 text-emerald-400 border border-emerald-800/30 text-[9px] ml-auto">
+                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
+                      <span className="text-xs font-medium text-accent-success">Chat ID Configurado</span>
+                      <Badge className="bg-app-surface-hover text-accent-success border border-app-border text-[9px] ml-auto">
                         {telegramChatIdSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
                       </Badge>
                     </div>
@@ -2798,7 +2793,7 @@ export default function Home() {
                   <Button
                     onClick={handleTestAlert}
                     disabled={!telegramConfigured || telegramTestSending}
-                    className="flex-1 bg-cyan-700 hover:bg-cyan-800 text-white text-xs disabled:opacity-50"
+                    className="flex-1 bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-xs disabled:opacity-50"
                     size="sm"
                   >
                     {telegramTestSending ? (
@@ -2813,9 +2808,9 @@ export default function Home() {
                 {telegramConfigured && (
                   <div className="p-3 rounded-lg bg-app-bg border border-cyan-900/30 space-y-3">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-400" />
-                      <span className="text-xs font-medium text-amber-300">Palabras Clave para Alertas</span>
-                      <Badge variant="outline" className="text-[9px] text-slate-500 border-slate-700 ml-auto">
+                      <AlertTriangle className="w-4 h-4 text-sev-medium-text" />
+                      <span className="text-xs font-medium text-sev-medium-text">Palabras Clave para Alertas</span>
+                      <Badge variant="outline" className="text-[9px] text-slate-500 border-app-border ml-auto">
                         {alertKeywords.length} activa{alertKeywords.length !== 1 ? 's' : ''}
                       </Badge>
                     </div>
@@ -2834,7 +2829,7 @@ export default function Home() {
                       <Button
                         onClick={handleBulkAddKeywords}
                         disabled={!bulkKeywordInput.trim() || bulkKeywordLoading}
-                        className="bg-amber-700 hover:bg-amber-800 text-white text-[11px] h-7 disabled:opacity-50"
+                        className="bg-app-surface-active hover:bg-accent-primary/80 text-app-text text-[11px] h-7 disabled:opacity-50"
                         size="sm"
                       >
                         {bulkKeywordLoading ? (
@@ -2848,7 +2843,7 @@ export default function Home() {
                     {alertKeywords.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-2 border-t border-app-border">
                         {alertKeywords.map((kw, idx) => (
-                          <Badge key={idx} className="bg-amber-900/30 text-amber-400 border border-amber-800/30 text-[10px] font-mono cursor-pointer hover:bg-red-900/30 hover:text-red-400 hover:border-red-800/30 transition-colors group" onClick={() => handleRemoveKeyword(kw)}>
+                          <Badge key={idx} className="bg-sev-medium-bg text-sev-medium-text border border-sev-medium-text/20 text-[10px] font-mono cursor-pointer hover:bg-sev-critical-bg hover:text-sev-critical-text hover:border-sev-critical-text/20 transition-colors group" onClick={() => handleRemoveKeyword(kw)}>
                             {kw}
                             <X className="w-2.5 h-2.5 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </Badge>
@@ -2862,9 +2857,9 @@ export default function Home() {
                 {telegramConfigured && (
                   <div className="p-3 rounded-lg bg-app-bg border border-emerald-900/30 space-y-3">
                     <div className="flex items-center gap-2">
-                      <Send className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs font-medium text-emerald-300">Consulta contra Telegram</span>
-                      <Badge variant="outline" className="text-[9px] text-slate-500 border-slate-700 ml-auto">
+                      <Send className="w-4 h-4 text-accent-success" />
+                      <span className="text-xs font-medium text-accent-success">Consulta contra Telegram</span>
+                      <Badge variant="outline" className="text-[9px] text-slate-500 border-app-border ml-auto">
                         {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave
                       </Badge>
                     </div>
@@ -2874,7 +2869,7 @@ export default function Home() {
                     <Button
                       onClick={handleScanGroups}
                       disabled={groupScanLoading || alertKeywords.length === 0}
-                      className="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-sm h-10"
+                      className="w-full bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-sm h-10"
                     >
                       {groupScanLoading ? (
                         <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Escaneando Grupos...</>
@@ -2885,24 +2880,24 @@ export default function Home() {
 
                     {/* Scan error */}
                     {groupScanError && !groupScanResults?.technicalIssues && (
-                      <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/30 rounded-lg p-2">
-                        <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />
-                        <p className="text-[10px] text-red-400">{groupScanError}</p>
+                      <div className="flex items-center gap-2 bg-sev-critical-bg/50 border border-sev-critical-text/20 rounded-lg p-2">
+                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0" />
+                        <p className="text-[10px] text-sev-critical-text">{groupScanError}</p>
                       </div>
                     )}
                     {/* Technical issues warning with diagnostics link */}
                     {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
-                      <div className={`space-y-1.5 rounded-lg p-2 ${groupScanResults.partialSuccess ? 'bg-amber-900/20 border border-amber-800/30' : 'bg-red-900/20 border border-red-800/30'}`}>
+                      <div className={`space-y-1.5 rounded-lg p-2 ${groupScanResults.partialSuccess ? 'bg-sev-medium-bg/50 border border-sev-medium-text/20' : 'bg-sev-critical-bg/50 border border-sev-critical-text/20'}`}>
                         <div className="flex items-center gap-2">
-                          <AlertTriangle className={`w-3 h-3 shrink-0 ${groupScanResults.partialSuccess ? 'text-amber-400' : 'text-red-400'}`} />
-                          <p className={`text-[10px] font-medium ${groupScanResults.partialSuccess ? 'text-amber-400' : 'text-red-400'}`}>
+                          <AlertTriangle className={`w-3 h-3 shrink-0 ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`} />
+                          <p className={`text-[10px] font-medium ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`}>
                             {groupScanResults.partialSuccess
                               ? 'Escaneo parcial — algunos métodos no estuvieron disponibles'
                               : 'Problemas técnicos detectados'}
                           </p>
                         </div>
                         {groupScanResults.diagnostics?.map((diag, di) => (
-                          <div key={di} className={`text-[9px] px-2 py-1 rounded ${diag.status === 'ok' ? 'bg-emerald-900/10 text-emerald-400/80' : diag.status === 'error' ? 'bg-red-900/15 text-red-400' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-amber-900/10 text-amber-400/80'}`}>
+                          <div key={di} className={`text-[9px] px-2 py-1 rounded ${diag.status === 'ok' ? 'bg-app-surface-hover text-accent-success/80' : diag.status === 'error' ? 'bg-sev-critical-bg/30 text-sev-critical-text' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-app-surface-hover text-sev-medium-text/80'}`}>
                             <span className="font-mono font-bold">{diag.phase}</span>: {diag.details}
                           </div>
                         ))}
@@ -2914,16 +2909,16 @@ export default function Home() {
                       <div className="space-y-2">
                         <div className={`flex items-center gap-2 p-2.5 rounded-lg border ${
                           groupScanResults.detectedAlerts.length > 0
-                            ? 'bg-amber-900/15 border-amber-800/30'
-                            : 'bg-emerald-900/10 border-emerald-800/30'
+                            ? 'bg-sev-medium-bg/30 border-sev-medium-text/20'
+                            : 'bg-app-surface-hover border-app-border'
                         }`}>
                           {groupScanResults.detectedAlerts.length > 0 ? (
-                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                            <AlertTriangle className="w-4 h-4 text-sev-medium-text shrink-0" />
                           ) : (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
                           )}
                           <div className="flex-1">
-                            <p className={`text-xs font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+                            <p className={`text-xs font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-sev-medium-text' : 'text-accent-success'}`}>
                               {groupScanResults.detectedAlerts.length > 0
                                 ? `${groupScanResults.detectedAlerts.length} alerta${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''} encontrada${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''}`
                                 : 'Sin alertas — ningún grupo mencionó las palabras clave'}
@@ -2944,21 +2939,21 @@ export default function Home() {
                                 : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
                                 : alert.sourceType === 'bot' ? 'BOT'
                                 : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
-                              const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
-                                : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
-                                : alert.sourceType === 'bot' ? 'bg-orange-900/30 text-orange-400 border-orange-800/30'
-                                : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
-                                : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                              const badgeColor = alert.sourceType === 'channel' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
+                                : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
+                                : alert.sourceType === 'bot' ? 'bg-sev-high-bg text-sev-high-text border-sev-high-text/20'
+                                : alert.sourceType === 'web' ? 'bg-sev-medium-bg text-sev-medium-text border-sev-medium-text/20'
+                                : 'bg-sev-info-bg text-sev-info-text border-app-border';
                               const kw = alert.matchedKeyword || alert.keyword;
                               return (
-                                <div key={idx} className="p-2 rounded-lg bg-app-surface border border-app-border hover:border-amber-800/40 transition-colors">
+                                <div key={idx} className="p-2 rounded-lg bg-app-surface border border-app-border hover:border-app-border transition-colors">
                                   <div className="flex items-center gap-1.5 mb-1">
                                     {alert.telegramSent ? (
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                                      <CheckCircle2 className="w-3 h-3 text-accent-success shrink-0" />
                                     ) : (
-                                      <XCircle className="w-3 h-3 text-red-400 shrink-0" />
+                                      <XCircle className="w-3 h-3 text-sev-critical-text shrink-0" />
                                     )}
-                                    <span className="bg-amber-500/20 text-amber-400 font-mono font-bold text-[10px] px-1 py-0.5 rounded">{kw}</span>
+                                    <span className="bg-accent-primary/10 text-accent-primary font-mono font-semibold text-[10px] px-1 py-0.5 rounded">{kw}</span>
                                     <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${badgeColor}`}>
                                       {sourceBadge}
                                     </Badge>
@@ -2971,7 +2966,7 @@ export default function Home() {
                                     <p className="text-[10px] text-slate-500 line-clamp-2">{highlightKeywordInText(alert.messageText.substring(0, 200), kw)}</p>
                                   )}
                                   {alert.sourceUrl && (
-                                    <a href={alert.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-cyan-400 hover:text-cyan-300 truncate block mt-0.5">
+                                    <a href={alert.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-app-text-dim hover:text-app-text-dim truncate block mt-0.5">
                                       <ExternalLink className="w-2 h-2 inline mr-0.5" />{alert.sourceUrl}
                                     </a>
                                   )}
@@ -2988,10 +2983,10 @@ export default function Home() {
                 {/* Info about how it works */}
                 <div className="p-3 rounded-lg bg-slate-900/30 border border-app-border">
                   <p className="text-[10px] text-slate-500 leading-relaxed">
-                    <strong className="text-slate-400">¿Cómo funciona?</strong> El escaneo usa 3 fases: (1) <strong className="text-cyan-400/80">Búsqueda web Z.ai</strong> — busca cada palabra clave en la web para descubrir canales de Telegram relevantes; (2) <strong className="text-cyan-400/80">Scraping de canales</strong> — accede a las páginas de vista previa públicas (t.me/s/) de los canales descubiertos y conocidos para extraer mensajes reales; (3) <strong className="text-cyan-400/80">Bot polling</strong> — lee mensajes de grupos donde el bot es miembro. La palabra clave encontrada se resalta en los resultados.
+                    <strong className="text-slate-400">¿Cómo funciona?</strong> El escaneo usa 3 fases: (1) <strong className="text-app-text-dim/80">Búsqueda web Z.ai</strong> — busca cada palabra clave en la web para descubrir canales de Telegram relevantes; (2) <strong className="text-app-text-dim/80">Scraping de canales</strong> — accede a las páginas de vista previa públicas (t.me/s/) de los canales descubiertos y conocidos para extraer mensajes reales; (3) <strong className="text-app-text-dim/80">Bot polling</strong> — lee mensajes de grupos donde el bot es miembro. La palabra clave encontrada se resalta en los resultados.
                   </p>
                   <p className="text-[10px] text-slate-600 mt-1.5">
-                    <strong>Configuración persistente:</strong> Para que la configuración sobreviva reinicios del servidor, agrega <code className="text-cyan-600">TELEGRAM_BOT_TOKEN</code> y <code className="text-cyan-600">TELEGRAM_CHAT_ID</code> como Environment Variables en Vercel Dashboard → Settings.
+                    <strong>Configuración persistente:</strong> Para que la configuración sobreviva reinicios del servidor, agrega <code className="text-app-text-dim">TELEGRAM_BOT_TOKEN</code> y <code className="text-app-text-dim">TELEGRAM_CHAT_ID</code> como Environment Variables en Vercel Dashboard → Settings.
                   </p>
                 </div>
               </CardContent>
@@ -3005,7 +3000,7 @@ export default function Home() {
             {scanData && (
               <>
                 {/* Risk Score + Download Buttons */}
-                <Card className="bg-app-surface border-app-border">
+                <Card className="bg-app-surface border border-app-border shadow-sm">
                   <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
                       {/* Risk Gauge */}
@@ -3017,23 +3012,23 @@ export default function Home() {
                           <p className="text-2xl font-bold text-app-text">{scanData.totalResults}</p>
                           <p className="text-xs text-slate-500">Total</p>
                         </div>
-                        <div className="p-3 bg-red-900/20 rounded-lg border border-red-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Críticos', items: scanData.results.filter(r => r.severity === 'critical').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
-                          <p className="text-2xl font-bold text-red-400">{scanData.summary.critical}</p>
+                        <div className="p-3 bg-sev-critical-bg/50 rounded-lg border border-sev-critical-text/20 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Críticos', items: scanData.results.filter(r => r.severity === 'critical').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
+                          <p className="text-2xl font-bold text-sev-critical-text">{scanData.summary.critical}</p>
                           <p className="text-xs text-slate-500">Criticos</p>
                         </div>
-                        <div className="p-3 bg-orange-900/20 rounded-lg border border-orange-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Altos', items: scanData.results.filter(r => r.severity === 'high').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
-                          <p className="text-2xl font-bold text-orange-400">{scanData.summary.high}</p>
+                        <div className="p-3 bg-sev-high-bg/50 rounded-lg border border-sev-high-text/20 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Altos', items: scanData.results.filter(r => r.severity === 'high').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
+                          <p className="text-2xl font-bold text-sev-high-text">{scanData.summary.high}</p>
                           <p className="text-xs text-slate-500">Altos</p>
                         </div>
-                        <div className="p-3 bg-amber-900/20 rounded-lg border border-amber-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Medios', items: scanData.results.filter(r => r.severity === 'medium').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
-                          <p className="text-2xl font-bold text-amber-400">{scanData.summary.medium}</p>
+                        <div className="p-3 bg-sev-medium-bg/50 rounded-lg border border-sev-medium-text/20 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Medios', items: scanData.results.filter(r => r.severity === 'medium').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
+                          <p className="text-2xl font-bold text-sev-medium-text">{scanData.summary.medium}</p>
                           <p className="text-xs text-slate-500">Medios</p>
                         </div>
-                        <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Bajos', items: scanData.results.filter(r => r.severity === 'low').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
-                          <p className="text-2xl font-bold text-blue-400">{scanData.summary.low}</p>
+                        <div className="p-3 bg-sev-low-bg/50 rounded-lg border border-sev-low-text/20 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Bajos', items: scanData.results.filter(r => r.severity === 'low').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
+                          <p className="text-2xl font-bold text-sev-low-text">{scanData.summary.low}</p>
                           <p className="text-xs text-slate-500">Bajos</p>
                         </div>
-                        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Informativos', items: scanData.results.filter(r => r.severity === 'info').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
+                        <div className="p-3 bg-slate-800/30 rounded-lg border border-app-border text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Informativos', items: scanData.results.filter(r => r.severity === 'info').map(r => ({ title: r.title, description: r.description || r.dataFound || 'Sin descripción', source: r.source })) })}>
                           <p className="text-2xl font-bold text-slate-400">{scanData.summary.info}</p>
                           <p className="text-xs text-slate-500">Info</p>
                         </div>
@@ -3049,7 +3044,7 @@ export default function Home() {
                       <Button onClick={() => handleDownloadReport(scanData.scanId, 'docx')} className="bg-app-surface-hover hover:bg-app-surface-active text-app-text border border-app-border">
                         <Download className="w-4 h-4 mr-2" />DOCX
                       </Button>
-                      <Button onClick={() => handleDownloadBothReports(scanData.scanId)} className="bg-emerald-700 hover:bg-emerald-800 text-white">
+                      <Button onClick={() => handleDownloadBothReports(scanData.scanId)} className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text">
                         <FileDown className="w-4 h-4 mr-2" />PDF + DOCX
                       </Button>
                     </div>
@@ -3059,7 +3054,7 @@ export default function Home() {
                 {/* Severity Filter Buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-slate-500">Filtrar:</span>
-                  <Button size="sm" variant={filterSeverity === 'all' ? 'default' : 'outline'} onClick={() => setFilterSeverity('all')} className={filterSeverity === 'all' ? 'bg-blue-600 text-white' : 'border-app-border text-slate-400'}>
+                  <Button size="sm" variant={filterSeverity === 'all' ? 'default' : 'outline'} onClick={() => setFilterSeverity('all')} className={filterSeverity === 'all' ? 'bg-sev-low-bar text-white' : 'border-app-border text-slate-400'}>
                     Todos ({scanData.totalResults})
                   </Button>
                   {Object.entries(severityBadgeConfig).map(([key, config]) => {
@@ -3086,7 +3081,7 @@ export default function Home() {
 
                       return (
                         <Collapsible key={source} open={isOpen} onOpenChange={() => toggleGroup(source)}>
-                          <Card className="bg-app-surface border-app-border overflow-hidden">
+                          <Card className="bg-app-surface border border-app-border shadow-sm overflow-hidden">
                             <CollapsibleTrigger asChild>
                               <div className="p-4 flex items-center gap-3 cursor-pointer hover:bg-app-surface-hover transition-colors">
                                 <div className={`p-1.5 rounded-md ${maxConfig.color} shrink-0`}>
@@ -3129,7 +3124,7 @@ export default function Home() {
                                               {categoryLabels[result.category] || result.category}
                                             </Badge>
                                             {isExpanded && result.url && (
-                                              <a href={result.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300" onClick={e => e.stopPropagation()}>
+                                              <a href={result.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-sev-low-text hover:text-accent-primary" onClick={e => e.stopPropagation()}>
                                                 <ExternalLink className="w-3 h-3" />Ver fuente
                                               </a>
                                             )}
@@ -3148,7 +3143,7 @@ export default function Home() {
                     })}
                     {Object.keys(groupedResults).length === 0 && (
                       <div className="text-center py-12 text-slate-600">
-                        <ShieldCheck className="w-12 h-12 mx-auto mb-3 text-green-600" />
+                        <ShieldCheck className="w-12 h-12 mx-auto mb-3 text-accent-success" />
                         <p className="text-lg font-medium">No se encontraron hallazgos</p>
                       </div>
                     )}
@@ -3164,13 +3159,13 @@ export default function Home() {
           <TabsContent value="social" className="space-y-6">
             {/* Summary Header */}
             {socialScanData && (
-              <Card className="bg-app-surface border-app-border">
+              <Card className="bg-app-surface border border-app-border shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row items-center gap-6">
                     <div className="flex-1 w-full">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 bg-app-bg rounded-lg border border-app-border">
-                          <Globe className="w-5 h-5 text-blue-400" />
+                          <Globe className="w-5 h-5 text-sev-low-text" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -3178,10 +3173,10 @@ export default function Home() {
                             {socialScanData.searchMode && (
                               <Badge className={`text-[9px] ${
                                 socialScanData.searchMode === 'nickname'
-                                  ? 'bg-rose-900/30 text-rose-400 border border-rose-800/30'
+                                  ? 'bg-app-surface-hover text-app-text-dim border border-app-border'
                                   : socialScanData.searchMode === 'email'
-                                  ? 'bg-sky-900/30 text-sky-400 border border-sky-800/30'
-                                  : 'bg-blue-900/30 text-blue-400 border border-blue-800/30'
+                                  ? 'bg-app-surface-hover text-app-text-dim border border-app-border'
+                                  : 'bg-sev-low-bg text-sev-low-text border border-sev-low-text/20'
                               }`}>
                                 {socialScanData.searchMode === 'nickname' && <AtSign className="w-3 h-3" />}
                                 {socialScanData.searchMode === 'email' && <Mail className="w-3 h-3" />}
@@ -3198,19 +3193,19 @@ export default function Home() {
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                         <div className="p-3 bg-app-bg rounded-lg border border-app-border text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Perfiles Encontrados', items: socialScanData.results.filter(r => r.profileFound).map(r => ({ title: r.platform, description: r.profileFound ? `Perfil detectado${r.username ? ': @' + r.username : ''}${r.profileVerified ? ' (Verificado)' : ''}` : 'Sin perfil', platform: r.platform })) })}>
-                          <p className="text-2xl font-bold text-blue-400">{socialScanData.summary.profilesFound}</p>
+                          <p className="text-2xl font-bold text-sev-low-text">{socialScanData.summary.profilesFound}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Perfiles Encontrados</p>
                         </div>
                         <div className="p-3 bg-app-bg rounded-lg border border-app-border text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Totales', items: socialScanData.results.flatMap(r => r.findings.map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
                           <p className="text-2xl font-bold text-app-text">{socialScanData.summary.totalFindings}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Hallazgos Totales</p>
                         </div>
-                        <div className="p-3 bg-red-900/15 rounded-lg border border-red-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Críticos y Altos', items: socialScanData.results.flatMap(r => r.findings.filter(f => f.severity === 'critical' || f.severity === 'high').map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
-                          <p className="text-2xl font-bold text-red-400">{socialScanData.summary.critical + socialScanData.summary.high}</p>
+                        <div className="p-3 bg-sev-critical-bg/30 rounded-lg border border-sev-critical-text/20 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Críticos y Altos', items: socialScanData.results.flatMap(r => r.findings.filter(f => f.severity === 'critical' || f.severity === 'high').map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
+                          <p className="text-2xl font-bold text-sev-critical-text">{socialScanData.summary.critical + socialScanData.summary.high}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Críticos</p>
                         </div>
-                        <div className="p-3 bg-amber-900/15 rounded-lg border border-amber-800/30 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Medios', items: socialScanData.results.flatMap(r => r.findings.filter(f => f.severity === 'medium').map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
-                          <p className="text-2xl font-bold text-amber-400">{socialScanData.summary.medium}</p>
+                        <div className="p-3 bg-sev-medium-bg/30 rounded-lg border border-sev-medium-text/20 text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setDetailModal({ open: true, title: 'Hallazgos Medios', items: socialScanData.results.flatMap(r => r.findings.filter(f => f.severity === 'medium').map(f => ({ title: f.title, description: f.description || 'Sin descripción', platform: r.platform }))) })}>
+                          <p className="text-2xl font-bold text-sev-medium-text">{socialScanData.summary.medium}</p>
                           <p className="text-[10px] text-slate-500 font-medium">Medios</p>
                         </div>
                       </div>
@@ -3242,7 +3237,7 @@ export default function Home() {
                         <Button
                           onClick={handleDownloadBothSocialReports}
                           disabled={socialReportLoading}
-                          className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8"
+                          className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-xs h-8"
                         >
                           {socialReportLoading ? (
                             <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generando...</>
@@ -3264,7 +3259,7 @@ export default function Home() {
                           socialScanData.summary.low * 2
                         );
                         const socialRiskLabel = socialRiskScore >= 70 ? 'CRÍTICO' : socialRiskScore >= 40 ? 'ALTO' : socialRiskScore >= 15 ? 'MODERADO' : 'BAJO';
-                        const socialRiskColor = socialRiskScore >= 70 ? 'text-red-400' : socialRiskScore >= 40 ? 'text-orange-400' : socialRiskScore >= 15 ? 'text-amber-400' : 'text-green-400';
+                        const socialRiskColor = socialRiskScore >= 70 ? 'text-sev-critical-text' : socialRiskScore >= 40 ? 'text-sev-high-text' : socialRiskScore >= 15 ? 'text-sev-medium-text' : 'text-accent-success';
                         return <RiskGauge score={socialRiskScore} label={`Riesgo Social: ${socialRiskLabel}`} color={socialRiskColor} />;
                       })()}
                     </div>
@@ -3276,10 +3271,10 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left Column: Search Form + Platform Selector */}
               <div className="lg:col-span-5 space-y-4">
-                <Card className="bg-app-surface border-app-border">
+                <Card className="bg-app-surface border border-app-border shadow-sm">
                   <CardHeader>
                     <CardTitle className="text-app-text flex items-center gap-2">
-                      <Globe className="w-5 h-5 text-blue-400" />
+                      <Globe className="w-5 h-5 text-sev-low-text" />
                       Búsqueda en Redes Sociales
                     </CardTitle>
                     <CardDescription className="text-slate-500">
@@ -3294,38 +3289,38 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => { setSocialSearchMode('nickname'); setSocialName(''); setSocialEmail(''); }}
-                          className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
+                          className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-colors ${
                             socialSearchMode === 'nickname'
-                              ? 'bg-rose-900/20 border-rose-800/40'
-                              : 'bg-app-bg border-app-border hover:border-rose-800/30'
+                              ? 'bg-app-surface-hover border-app-border'
+                              : 'bg-app-bg border-app-border hover:border-app-border'
                           }`}
                         >
-                          <AtSign className={`w-4 h-4 ${socialSearchMode === 'nickname' ? 'text-rose-400' : 'text-slate-500'}`} />
-                          <span className={`text-[10px] font-bold ${socialSearchMode === 'nickname' ? 'text-rose-400' : 'text-slate-500'}`}>NickName</span>
+                          <AtSign className={`w-4 h-4 ${socialSearchMode === 'nickname' ? 'text-app-text-dim' : 'text-slate-500'}`} />
+                          <span className={`text-[10px] font-bold ${socialSearchMode === 'nickname' ? 'text-app-text-dim' : 'text-slate-500'}`}>NickName</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => { setSocialSearchMode('email'); setSocialNickname(''); setSocialName(''); }}
-                          className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
+                          className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-colors ${
                             socialSearchMode === 'email'
-                              ? 'bg-sky-900/20 border-sky-800/40'
-                              : 'bg-app-bg border-app-border hover:border-sky-800/30'
+                              ? 'bg-app-surface-hover border-app-border'
+                              : 'bg-app-bg border-app-border hover:border-app-border'
                           }`}
                         >
-                          <Mail className={`w-4 h-4 ${socialSearchMode === 'email' ? 'text-sky-400' : 'text-slate-500'}`} />
-                          <span className={`text-[10px] font-bold ${socialSearchMode === 'email' ? 'text-sky-400' : 'text-slate-500'}`}>Correo</span>
+                          <Mail className={`w-4 h-4 ${socialSearchMode === 'email' ? 'text-app-text-dim' : 'text-slate-500'}`} />
+                          <span className={`text-[10px] font-bold ${socialSearchMode === 'email' ? 'text-app-text-dim' : 'text-slate-500'}`}>Correo</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => { setSocialSearchMode('name'); setSocialNickname(''); setSocialEmail(''); }}
-                          className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
+                          className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-colors ${
                             socialSearchMode === 'name'
-                              ? 'bg-blue-900/20 border-blue-800/40'
-                              : 'bg-app-bg border-app-border hover:border-blue-800/30'
+                              ? 'bg-sev-low-bg/50 border-blue-800/40'
+                              : 'bg-app-bg border-app-border hover:border-sev-low-text/20'
                           }`}
                         >
-                          <User className={`w-4 h-4 ${socialSearchMode === 'name' ? 'text-blue-400' : 'text-slate-500'}`} />
-                          <span className={`text-[10px] font-bold ${socialSearchMode === 'name' ? 'text-blue-400' : 'text-slate-500'}`}>Nombre</span>
+                          <User className={`w-4 h-4 ${socialSearchMode === 'name' ? 'text-sev-low-text' : 'text-slate-500'}`} />
+                          <span className={`text-[10px] font-bold ${socialSearchMode === 'name' ? 'text-sev-low-text' : 'text-slate-500'}`}>Nombre</span>
                         </button>
                       </div>
                     </div>
@@ -3333,20 +3328,20 @@ export default function Home() {
                     {/* Conditional Input based on Search Mode */}
                     {socialSearchMode === 'nickname' && (
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-rose-400 font-medium flex items-center gap-1.5">
+                        <Label className="text-xs text-app-text-dim font-medium flex items-center gap-1.5">
                           <AtSign className="w-3.5 h-3.5" /> NickName / Usuario
                         </Label>
                         <Input
                           placeholder="ej: johndoe, @username"
                           value={socialNickname}
                           onChange={(e) => setSocialNickname(e.target.value)}
-                          className="bg-app-bg border-rose-800/30 focus:border-rose-500 text-app-text placeholder:text-slate-600"
+                          className="bg-app-bg border-app-border focus:border-rose-500 text-app-text placeholder:text-slate-600"
                         />
                       </div>
                     )}
                     {socialSearchMode === 'email' && (
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-sky-400 font-medium flex items-center gap-1.5">
+                        <Label className="text-xs text-app-text-dim font-medium flex items-center gap-1.5">
                           <Mail className="w-3.5 h-3.5" /> Correo Electrónico
                         </Label>
                         <Input
@@ -3354,13 +3349,13 @@ export default function Home() {
                           placeholder="ej: usuario@correo.com"
                           value={socialEmail}
                           onChange={(e) => setSocialEmail(e.target.value)}
-                          className="bg-app-bg border-sky-800/30 focus:border-sky-500 text-app-text placeholder:text-slate-600"
+                          className="bg-app-bg border-app-border focus:border-sky-500 text-app-text placeholder:text-slate-600"
                         />
                         {!socialEmail.trim() && email.trim() && (
                           <button
                             type="button"
                             onClick={() => setSocialEmail(email)}
-                            className="text-[9px] text-sky-400 hover:text-sky-300 flex items-center gap-1"
+                            className="text-[9px] text-app-text-dim hover:text-accent-primary flex items-center gap-1"
                           >
                             <Sparkles className="w-2.5 h-2.5" /> Usar correo del formulario: {email}
                           </button>
@@ -3369,20 +3364,20 @@ export default function Home() {
                     )}
                     {socialSearchMode === 'name' && (
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-blue-400 font-medium flex items-center gap-1.5">
+                        <Label className="text-xs text-sev-low-text font-medium flex items-center gap-1.5">
                           <User className="w-3.5 h-3.5" /> Nombre Completo
                         </Label>
                         <Input
                           placeholder="ej: Juan Pérez García"
                           value={socialName}
                           onChange={(e) => setSocialName(e.target.value)}
-                          className="bg-app-bg border-blue-800/30 focus:border-blue-500 text-app-text placeholder:text-slate-600"
+                          className="bg-app-bg border-sev-low-text/20 focus:border-app-border text-app-text placeholder:text-slate-600"
                         />
                         {!socialName.trim() && fullName.trim() && (
                           <button
                             type="button"
                             onClick={() => setSocialName(fullName)}
-                            className="text-[9px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                            className="text-[9px] text-sev-low-text hover:text-accent-primary flex items-center gap-1"
                           >
                             <Sparkles className="w-2.5 h-2.5" /> Usar nombre del formulario: {fullName}
                           </button>
@@ -3407,7 +3402,7 @@ export default function Home() {
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-[10px] font-medium transition-all ${engine.bgColor} ${engine.borderColor} ${engine.color} hover:bg-app-surface-hover`}
+                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-[10px] font-medium transition-colors ${engine.bgColor} ${engine.borderColor} ${engine.color} hover:bg-app-surface-hover`}
                                 onClick={e => e.stopPropagation()}
                               >
                                 <ExternalLink className="w-3 h-3 shrink-0" />
@@ -3420,7 +3415,7 @@ export default function Home() {
                     )}
 
                     {socialScanError && (
-                      <div className="p-2.5 bg-red-900/20 border border-red-800/30 rounded-lg text-red-400 text-sm flex items-start gap-2">
+                      <div className="p-2.5 bg-sev-critical-bg/50 border border-sev-critical-text/20 rounded-lg text-sev-critical-text text-sm flex items-start gap-2">
                         <AlertOctagon className="w-4 h-4 shrink-0 mt-0.5" />
                         {socialScanError}
                       </div>
@@ -3449,11 +3444,11 @@ export default function Home() {
                 </Card>
 
                 {/* Platform Selector Card */}
-                <Card className="bg-app-surface border-app-border">
+                <Card className="bg-app-surface border border-app-border shadow-sm">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-app-text flex items-center gap-2 text-sm">
-                        <Database className="w-4 h-4 text-blue-400" />
+                        <Database className="w-4 h-4 text-sev-low-text" />
                         Plataformas
                       </CardTitle>
                       <div className="flex items-center gap-2">
@@ -3478,10 +3473,10 @@ export default function Home() {
                         return (
                           <div
                             key={platform.id}
-                            className={`group flex items-center gap-1.5 p-2 rounded-lg border cursor-pointer transition-all min-h-[36px] ${
+                            className={`group flex items-center gap-1.5 p-2 rounded-lg border cursor-pointer transition-colors min-h-[36px] ${
                               isSelected
                                 ? `${platform.bgColor} ${platform.borderColor}`
-                                : 'bg-app-bg border-app-border opacity-50 hover:opacity-80 hover:border-slate-600'
+                                : 'bg-app-bg border-app-border opacity-50 hover:opacity-80 hover:border-app-text-muted'
                             }`}
                             onClick={() => toggleSocialPlatform(platform.id)}
                           >
@@ -3499,8 +3494,8 @@ export default function Home() {
                             </p>
                             <div className={`w-3 h-3 rounded-full border-2 flex items-center justify-center shrink-0 ${
                               isSelected
-                                ? 'bg-blue-500 border-blue-500'
-                                : 'border-slate-600 bg-transparent'
+                                ? 'bg-sev-low-bar border-sev-low-bar'
+                                : 'border-app-text-muted bg-transparent'
                             }`}>
                               {isSelected && <Check className="w-1.5 h-1.5 text-white" />}
                             </div>
@@ -3516,18 +3511,18 @@ export default function Home() {
               <div className="lg:col-span-7 space-y-4">
 
                 {/* Digital Footprint Map */}
-                <Card className="bg-app-surface border-app-border">
+                <Card className="bg-app-surface border border-app-border shadow-sm">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-app-text flex items-center gap-2 text-sm">
-                        <Network className="w-4 h-4 text-blue-400" />
+                        <Network className="w-4 h-4 text-sev-low-text" />
                         Mapa de Huella Digital
                       </CardTitle>
                       {socialScanData && (
                         <div className="flex items-center gap-3 text-[10px]">
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Perfil</span>
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> Menciones</span>
-                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Sin datos</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-accent-success inline-block" /> Perfil</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-sev-medium-bar inline-block" /> Menciones</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-sev-critical-bar inline-block" /> Sin datos</span>
                           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-700 inline-block" /> No escaneado</span>
                         </div>
                       )}
@@ -3547,28 +3542,28 @@ export default function Home() {
                         if (wasScanned) {
                           if (result.profileFound) {
                             statusColor = `${platform.bgColor} border-green-800/40`;
-                            statusDot = 'bg-green-500';
+                            statusDot = 'bg-accent-success';
                             statusLabel = 'Perfil';
-                            statusTextColor = 'text-green-400';
+                            statusTextColor = 'text-accent-success';
                           } else if (result.searchResultsCount > 0 || result.findings.length > 0) {
-                            statusColor = `${platform.bgColor} border-amber-800/40`;
-                            statusDot = 'bg-amber-500';
+                            statusColor = `${platform.bgColor} border-app-border`;
+                            statusDot = 'bg-sev-medium-bar';
                             statusLabel = `${result.findings.length} men.`;
-                            statusTextColor = 'text-amber-400';
+                            statusTextColor = 'text-sev-medium-text';
                           } else {
-                            statusColor = 'bg-app-bg border-red-800/30';
-                            statusDot = 'bg-red-500';
+                            statusColor = 'bg-app-bg border-sev-critical-text/20';
+                            statusDot = 'bg-sev-critical-bar';
                             statusLabel = 'Sin datos';
-                            statusTextColor = 'text-red-400';
+                            statusTextColor = 'text-sev-critical-text';
                           }
                         }
 
                         return (
                           <div
                             key={platform.id}
-                            className={`relative flex flex-col items-center gap-1 p-2 rounded-lg border transition-all min-h-[68px] ${statusColor}`}
+                            className={`relative flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors min-h-[68px] ${statusColor}`}
                           >
-                            <div className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${statusDot} ${wasScanned && result?.profileFound ? 'animate-pulse' : ''}`} />
+                            <div className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${statusDot}`} />
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                               wasScanned && result?.profileFound ? 'bg-app-bg' : 'bg-slate-800/30'
                             }`}>
@@ -3590,7 +3585,7 @@ export default function Home() {
                               </p>
                             )}
                             {socialScanLoading && selectedSocialPlatforms.has(platform.id) && !wasScanned && (
-                              <div className="absolute inset-0 rounded-lg border-2 border-blue-500/20 animate-pulse" />
+                              <div className="absolute inset-0 rounded-lg border-2 border-app-border/20" />
                             )}
                           </div>
                         );
@@ -3603,7 +3598,7 @@ export default function Home() {
                 {socialScanData && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-blue-400" />
+                      <BarChart3 className="w-4 h-4 text-sev-low-text" />
                       <h3 className="text-sm font-semibold text-app-text">Resultados por Plataforma</h3>
                       <Badge variant="outline" className="border-app-border text-slate-400 text-[10px]">
                         {socialScanData.results.length} plataformas
@@ -3621,7 +3616,7 @@ export default function Home() {
                           return (
                             <Card
                               key={result.platformId}
-                              className={`bg-app-surface border-app-border overflow-hidden transition-all hover:border-slate-600 ${
+                              className={`bg-app-surface border border-app-border shadow-sm overflow-hidden transition-all hover:border-app-text-muted ${
                                 result.profileFound ? `border-l-2 border-l-green-500` : hasCriticalFindings ? 'border-l-2 border-l-orange-500' : ''
                               }`}
                             >
@@ -3641,11 +3636,11 @@ export default function Home() {
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <p className="text-xs font-semibold text-app-text">{result.platform}</p>
                                     {result.profileFound ? (
-                                      <Badge className="bg-green-900/30 text-green-400 text-[8px] gap-0.5 border border-green-800/30 py-0">
+                                      <Badge className="bg-app-surface-hover text-accent-success text-[8px] gap-0.5 border border-app-border py-0">
                                         <CheckCircle2 className="w-2.5 h-2.5" /> Detectado
                                       </Badge>
                                     ) : result.findings.length > 0 ? (
-                                      <Badge className="bg-amber-900/30 text-amber-400 text-[8px] gap-0.5 border border-amber-800/30 py-0">
+                                      <Badge className="bg-sev-medium-bg text-sev-medium-text text-[8px] gap-0.5 border border-sev-medium-text/20 py-0">
                                         <Eye className="w-2.5 h-2.5" /> Menciones
                                       </Badge>
                                     ) : (
@@ -3654,7 +3649,7 @@ export default function Home() {
                                       </Badge>
                                     )}
                                     {result.profileVerified && (
-                                      <Badge className="bg-green-900/20 text-green-300 text-[8px] gap-0.5 border border-green-800/30 py-0">
+                                      <Badge className="bg-app-surface-hover text-accent-success text-[8px] gap-0.5 border border-app-border py-0">
                                         <ShieldCheck className="w-2.5 h-2.5" /> Verificado
                                       </Badge>
                                     )}
@@ -3680,7 +3675,7 @@ export default function Home() {
                                         href={url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`text-[8px] px-1 py-0.5 rounded border flex items-center gap-0.5 transition-all hover:bg-app-surface-hover ${engine.bgColor} ${engine.borderColor} ${engine.color}`}
+                                        className={`text-[8px] px-1 py-0.5 rounded border flex items-center gap-0.5 transition-colors hover:bg-app-surface-hover ${engine.bgColor} ${engine.borderColor} ${engine.color}`}
                                         onClick={e => e.stopPropagation()}
                                         title={`Buscar en ${engine.name}`}
                                       >
@@ -3698,13 +3693,13 @@ export default function Home() {
                               {isExpanded && (
                                 <div className="border-t border-app-border">
                                   {result.profileUrl && (
-                                    <div className="px-3 py-2 bg-green-900/5 flex items-center gap-2 border-b border-app-border/50">
-                                      <div className="w-4 h-4 rounded-md bg-green-900/30 flex items-center justify-center shrink-0">
-                                        <Link2 className="w-2.5 h-2.5 text-green-400" />
+                                    <div className="px-3 py-2 bg-app-surface-hover flex items-center gap-2 border-b border-app-border/50">
+                                      <div className="w-4 h-4 rounded-md bg-app-surface-hover flex items-center justify-center shrink-0">
+                                        <Link2 className="w-2.5 h-2.5 text-accent-success" />
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-[9px] text-green-400 font-medium">Perfil Encontrado</p>
-                                        <a href={result.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-300 hover:text-green-200 truncate block" onClick={e => e.stopPropagation()}>
+                                        <p className="text-[9px] text-accent-success font-medium">Perfil Encontrado</p>
+                                        <a href={result.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent-success hover:text-accent-success truncate block" onClick={e => e.stopPropagation()}>
                                           {result.profileUrl}
                                         </a>
                                       </div>
@@ -3712,7 +3707,7 @@ export default function Home() {
                                         href={result.profileUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-[9px] px-1.5 py-0.5 rounded-md bg-green-900/20 text-green-400 hover:bg-green-900/40 transition-colors shrink-0"
+                                        className="text-[9px] px-1.5 py-0.5 rounded-md bg-app-surface-hover text-accent-success hover:bg-app-surface-hover transition-colors shrink-0"
                                         onClick={e => e.stopPropagation()}
                                       >
                                         Abrir <ExternalLink className="w-2.5 h-2.5 inline ml-0.5" />
@@ -3741,7 +3736,7 @@ export default function Home() {
                                               <p className="text-[11px] text-slate-400 mt-0.5 break-words line-clamp-2">{finding.description}</p>
                                             )}
                                             {finding.url && (
-                                              <a href={finding.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[10px] text-blue-400 hover:text-blue-300 mt-1" onClick={e => e.stopPropagation()}>
+                                              <a href={finding.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[10px] text-sev-low-text hover:text-accent-primary mt-1" onClick={e => e.stopPropagation()}>
                                                 <ExternalLink className="w-2.5 h-2.5" />Ver fuente
                                               </a>
                                             )}
@@ -3768,7 +3763,7 @@ export default function Home() {
 
                 {/* Empty state */}
                 {!socialScanData && !socialScanLoading && (
-                  <Card className="bg-app-surface border-app-border">
+                  <Card className="bg-app-surface border border-app-border shadow-sm">
                     <CardContent className="py-16 text-center">
                       <div className="w-16 h-16 rounded-full bg-app-bg flex items-center justify-center mx-auto mb-4 border border-app-border">
                         <Globe className="w-8 h-8 text-slate-600" />
@@ -3781,16 +3776,16 @@ export default function Home() {
 
                 {/* Loading state */}
                 {socialScanLoading && (
-                  <Card className="bg-app-surface border-app-border">
+                  <Card className="bg-app-surface border border-app-border shadow-sm">
                     <CardContent className="py-16 text-center">
                       <div className="relative w-16 h-16 mx-auto mb-4">
-                        <div className="absolute inset-0 rounded-full border-2 border-slate-700" />
-                        <div className="absolute inset-0 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                        <div className="absolute inset-0 rounded-full border-2 border-app-border" />
+                        <div className="absolute inset-0 rounded-full border-2 border-app-border border-t-transparent animate-spin" />
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <Globe className="w-6 h-6 text-blue-400" />
+                          <Globe className="w-6 h-6 text-sev-low-text" />
                         </div>
                       </div>
-                      <p className="text-blue-300 font-semibold">Escaneando redes sociales...</p>
+                      <p className="text-accent-primary font-semibold">Escaneando redes sociales...</p>
                       <p className="text-xs text-slate-500 mt-1">Buscando en {selectedSocialPlatforms.size} plataforma(s)</p>
                     </CardContent>
                   </Card>
@@ -3804,7 +3799,7 @@ export default function Home() {
           ──────────────────────────────────────────── */}
           <TabsContent value="history" className="space-y-4">
             {pastScans.length === 0 ? (
-              <Card className="bg-app-surface border-app-border">
+              <Card className="bg-app-surface border border-app-border shadow-sm">
                 <CardContent className="py-12 text-center">
                   <Clock className="w-12 h-12 mx-auto mb-3 text-slate-700" />
                   <p className="text-slate-400">No hay escaneos previos</p>
@@ -3816,7 +3811,7 @@ export default function Home() {
                 {/* ── Delete All Button ── */}
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-slate-400">{pastScans.length} escaneo(s) en el historial</p>
-                  <Button size="sm" variant="outline" className="border-red-900/50 text-red-400 hover:text-red-300 hover:bg-red-950/30" onClick={confirmDeleteAll}>
+                  <Button size="sm" variant="outline" className="border-sev-critical-text/30 text-sev-critical-text hover:text-sev-critical-text hover:bg-sev-critical-bg" onClick={confirmDeleteAll}>
                     <Trash2 className="w-3.5 h-3.5 mr-1.5" />Eliminar todo
                   </Button>
                 </div>
@@ -3825,11 +3820,11 @@ export default function Home() {
                   const isSocial = scan.scanType === 'social_media';
                   const TypeIcon = isSocial ? Users : Shield;
                   return (
-                    <Card key={scan.id} className="bg-app-surface border-app-border hover:border-slate-600 transition-colors">
+                    <Card key={scan.id} className="bg-app-surface border border-app-border shadow-sm hover:border-app-text-muted transition-colors">
                       <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <TypeIcon className={`w-4 h-4 shrink-0 ${isSocial ? 'text-violet-400' : 'text-blue-400'}`} />
+                            <TypeIcon className={`w-4 h-4 shrink-0 ${isSocial ? 'text-app-text-dim' : 'text-sev-low-text'}`} />
                             <p className="text-sm font-medium text-app-text">{scan.fullName}</p>
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
@@ -3840,8 +3835,8 @@ export default function Home() {
                           <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <Badge className={
                               isSocial
-                                ? 'bg-violet-900/40 text-violet-400 border border-violet-800/30 text-xs'
-                                : 'bg-blue-900/40 text-blue-400 border border-blue-800/30 text-xs'
+                                ? 'bg-app-surface-hover text-app-text-dim border border-app-border text-xs'
+                                : 'bg-blue-900/40 text-sev-low-text border border-sev-low-text/20 text-xs'
                             }>
                               {isSocial ? 'Social Media' : 'Data Intelligence'}
                             </Badge>
@@ -3851,7 +3846,7 @@ export default function Home() {
                             <Badge variant="outline" className="border-app-border text-slate-400 text-xs">
                               {scan.results.length} resultados
                             </Badge>
-                            {criticals > 0 && <Badge className="bg-red-900/40 text-red-400 text-xs border border-red-800/30">{criticals} criticos</Badge>}
+                            {criticals > 0 && <Badge className="bg-sev-critical-bg text-sev-critical-text text-xs border border-sev-critical-text/20">{criticals} criticos</Badge>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
@@ -3868,7 +3863,7 @@ export default function Home() {
                               <Button size="sm" variant="outline" className="border-app-border text-slate-400 hover:text-white hover:bg-app-surface-hover" onClick={() => handleDownloadSocialHistoryReport(scan.id, 'docx')}>
                                 <FileSpreadsheet className="w-3.5 h-3.5 mr-1" />DOCX
                               </Button>
-                              <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={async () => { await handleDownloadSocialHistoryReport(scan.id, 'pdf'); setTimeout(() => handleDownloadSocialHistoryReport(scan.id, 'docx'), 500); }}>
+                              <Button size="sm" className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text" onClick={async () => { await handleDownloadSocialHistoryReport(scan.id, 'pdf'); setTimeout(() => handleDownloadSocialHistoryReport(scan.id, 'docx'), 500); }}>
                                 <FileDown className="w-3.5 h-3.5 mr-1" />Ambos
                               </Button>
                             </>
@@ -3880,12 +3875,12 @@ export default function Home() {
                               <Button size="sm" variant="outline" className="border-app-border text-slate-400 hover:text-white hover:bg-app-surface-hover" onClick={() => handleDownloadReport(scan.id, 'docx')}>
                                 <Download className="w-3.5 h-3.5 mr-1" />DOCX
                               </Button>
-                              <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={() => handleDownloadBothReports(scan.id)}>
+                              <Button size="sm" className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text" onClick={() => handleDownloadBothReports(scan.id)}>
                                 <FileDown className="w-3.5 h-3.5 mr-1" />Ambos
                               </Button>
                             </>
                           )}
-                          <Button size="sm" variant="outline" className="border-app-border text-red-400 hover:text-red-300 hover:bg-app-surface-hover" onClick={() => confirmDeleteScan(scan.id, scan.fullName)}>
+                          <Button size="sm" variant="outline" className="border-app-border text-sev-critical-text hover:text-sev-critical-text hover:bg-app-surface-hover" onClick={() => confirmDeleteScan(scan.id, scan.fullName)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -3905,12 +3900,12 @@ export default function Home() {
             {/* ══════════════════════════════════════════
                 ESCÁNER DE GRUPOS — Telegram Group Scanner
             ══════════════════════════════════════════ */}
-            <Card className="bg-app-surface border-app-border">
+            <Card className="bg-app-surface border border-app-border shadow-sm">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-900/30 rounded-lg">
-                      <Send className="w-5 h-5 text-emerald-400" />
+                    <div className="p-2 bg-app-surface-hover rounded-lg">
+                      <Send className="w-5 h-5 text-accent-success" />
                     </div>
                     <div>
                       <CardTitle className="text-app-text text-base">Escáner de Grupos</CardTitle>
@@ -3919,7 +3914,7 @@ export default function Home() {
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge className="bg-emerald-900/40 text-emerald-400 text-xs">
+                  <Badge className="bg-app-surface-hover text-accent-success text-xs">
                     {groupScanResults?.totalGroups ?? 0} grupo{(groupScanResults?.totalGroups ?? 0) !== 1 ? 's' : ''}
                   </Badge>
                 </div>
@@ -3929,7 +3924,7 @@ export default function Home() {
                 <Button
                   onClick={handleScanGroups}
                   disabled={groupScanLoading || alertKeywords.length === 0}
-                  className="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-sm h-10"
+                  className="w-full bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-sm h-10"
                 >
                   {groupScanLoading ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Escaneando Grupos...</>
@@ -3940,24 +3935,24 @@ export default function Home() {
 
                 {/* Error message */}
                 {groupScanError && !groupScanResults?.technicalIssues && (
-                  <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/30 rounded-lg p-3">
-                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-                    <p className="text-xs text-red-400">{groupScanError}</p>
+                  <div className="flex items-center gap-2 bg-sev-critical-bg/50 border border-sev-critical-text/20 rounded-lg p-3">
+                    <AlertTriangle className="w-4 h-4 text-sev-critical-text shrink-0" />
+                    <p className="text-xs text-sev-critical-text">{groupScanError}</p>
                   </div>
                 )}
                 {/* Technical issues warning with diagnostics */}
                 {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
-                  <div className={`space-y-2 rounded-lg p-3 ${groupScanResults.partialSuccess ? 'bg-amber-900/20 border border-amber-800/30' : 'bg-red-900/20 border border-red-800/30'}`}>
+                  <div className={`space-y-2 rounded-lg p-3 ${groupScanResults.partialSuccess ? 'bg-sev-medium-bg/50 border border-sev-medium-text/20' : 'bg-sev-critical-bg/50 border border-sev-critical-text/20'}`}>
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className={`w-4 h-4 shrink-0 ${groupScanResults.partialSuccess ? 'text-amber-400' : 'text-red-400'}`} />
-                      <p className={`text-xs font-medium ${groupScanResults.partialSuccess ? 'text-amber-400' : 'text-red-400'}`}>
+                      <AlertTriangle className={`w-4 h-4 shrink-0 ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`} />
+                      <p className={`text-xs font-medium ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`}>
                         {groupScanResults.partialSuccess
                           ? 'Escaneo parcial — algunos métodos no estuvieron disponibles'
                           : 'Problemas técnicos detectados — revisa los diagnósticos'}
                       </p>
                     </div>
                     {groupScanResults.diagnostics?.map((diag, di) => (
-                      <div key={di} className={`text-[10px] px-2.5 py-1.5 rounded ${diag.status === 'ok' ? 'bg-emerald-900/10 text-emerald-400/80' : diag.status === 'error' ? 'bg-red-900/15 text-red-400' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-amber-900/10 text-amber-400/80'}`}>
+                      <div key={di} className={`text-[10px] px-2.5 py-1.5 rounded ${diag.status === 'ok' ? 'bg-app-surface-hover text-accent-success/80' : diag.status === 'error' ? 'bg-sev-critical-bg/30 text-sev-critical-text' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-app-surface-hover text-sev-medium-text/80'}`}>
                         <span className="font-mono font-bold">{diag.phase}</span>: {diag.details}
                       </div>
                     ))}
@@ -3970,16 +3965,16 @@ export default function Home() {
                     {/* Status summary */}
                     <div className={`flex items-center gap-2 p-3 rounded-lg border ${
                       groupScanResults.detectedAlerts.length > 0
-                        ? 'bg-amber-900/15 border-amber-800/30'
-                        : 'bg-emerald-900/10 border-emerald-800/30'
+                        ? 'bg-sev-medium-bg/30 border-sev-medium-text/20'
+                        : 'bg-app-surface-hover border-app-border'
                     }`}>
                       {groupScanResults.detectedAlerts.length > 0 ? (
-                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <AlertTriangle className="w-4 h-4 text-sev-medium-text shrink-0" />
                       ) : (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
                       )}
                       <div className="flex-1">
-                        <p className={`text-sm font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+                        <p className={`text-sm font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-sev-medium-text' : 'text-accent-success'}`}>
                           {groupScanResults.detectedAlerts.length > 0
                             ? `${groupScanResults.detectedAlerts.length} alerta${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''} encontrada${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''}`
                             : 'Sin alertas — ningún grupo mencionó las palabras clave'}
@@ -3994,7 +3989,7 @@ export default function Home() {
 
                     {/* Keywords processed info */}
                     {groupScanResults.keywordsProcessed < groupScanResults.totalKeywords && (
-                      <p className="text-xs text-orange-400/80">
+                      <p className="text-xs text-sev-high-text/80">
                         Se procesaron {groupScanResults.keywordsProcessed} de {groupScanResults.totalKeywords} palabras clave (límite por escaneo). Vuelve a escanear para procesar más.
                       </p>
                     )}
@@ -4011,14 +4006,14 @@ export default function Home() {
             {/* ══════════════════════════════════════════
                 PALABRAS CLAVE — Keyword Management
             ══════════════════════════════════════════ */}
-            <Card className="bg-app-surface border-app-border">
+            <Card className="bg-app-surface border border-app-border shadow-sm">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-app-text text-base">
-                    <AlertTriangle className="w-5 h-5 text-amber-400" />
+                    <AlertTriangle className="w-5 h-5 text-sev-medium-text" />
                     Palabras Clave
                   </CardTitle>
-                  <Badge className="bg-amber-900/40 text-amber-400 text-xs">
+                  <Badge className="bg-sev-medium-bg text-sev-medium-text text-xs">
                     {alertKeywords.length} activa{alertKeywords.length !== 1 ? 's' : ''}
                   </Badge>
                 </div>
@@ -4043,7 +4038,7 @@ export default function Home() {
                     <Button
                       onClick={handleBulkAddKeywords}
                       disabled={!bulkKeywordInput.trim() || bulkKeywordLoading}
-                      className="bg-amber-700 hover:bg-amber-800 text-white text-xs h-7"
+                      className="bg-app-surface-active hover:bg-accent-primary/80 text-app-text text-xs h-7"
                       size="sm"
                     >
                       {bulkKeywordLoading ? (
@@ -4063,12 +4058,12 @@ export default function Home() {
                     alertKeywords.map((keyword, idx) => (
                       <span
                         key={idx}
-                        className="group inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-900/20 border border-amber-800/30 text-xs font-mono text-amber-300 hover:border-amber-600/50 transition-colors cursor-default"
+                        className="group inline-flex items-center gap-1 px-2 py-1 rounded-md bg-sev-medium-bg/50 border border-sev-medium-text/20 text-xs font-mono text-sev-medium-text hover:border-sev-medium-text/30 transition-colors cursor-default"
                       >
-                        <AlertTriangle className="w-2.5 h-2.5 text-amber-500" />
+                        <AlertTriangle className="w-2.5 h-2.5 text-sev-medium-text" />
                         {keyword}
                         <button
-                          className="ml-0.5 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity"
+                          className="ml-0.5 opacity-0 group-hover:opacity-100 text-sev-critical-text hover:text-sev-critical-text transition-opacity"
                           onClick={() => handleRemoveKeyword(keyword)}
                           title="Eliminar"
                         >
@@ -4084,7 +4079,7 @@ export default function Home() {
                   <span className="text-[10px] text-slate-600">
                     {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave activa{alertKeywords.length !== 1 ? 's' : ''}
                   </span>
-                  <Badge variant="outline" className="text-amber-400 border-amber-800/50 text-[10px]">
+                  <Badge variant="outline" className="text-sev-medium-text border-amber-800/50 text-[10px]">
                     Coincidencia sin mayúsculas/minúsculas
                   </Badge>
                 </div>
@@ -4094,21 +4089,21 @@ export default function Home() {
             {/* ══════════════════════════════════════════
                 ALERTAS ENCONTRADAS — Detected Alerts from Group Scan
             ══════════════════════════════════════════ */}
-            <Card className="bg-app-surface border-app-border">
+            <Card className="bg-app-surface border border-app-border shadow-sm">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-app-text text-base">
-                    <Bell className="w-5 h-5 text-red-400" />
+                    <Bell className="w-5 h-5 text-sev-critical-text" />
                     Alertas Encontradas
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     {groupScanResults?.channelsDiscovered !== undefined && (
-                      <Badge className="bg-cyan-900/40 text-cyan-400 text-[10px]">
+                      <Badge className="bg-app-surface-hover text-app-text-dim text-[10px]">
                         {groupScanResults.channelsDiscovered} canales descubiertos
                       </Badge>
                     )}
                     {groupScanResults && groupScanResults.detectedAlerts.length > 0 && (
-                      <Badge className="bg-red-900/40 text-red-400 text-[10px]">
+                      <Badge className="bg-sev-critical-bg text-sev-critical-text text-[10px]">
                         {groupScanResults.detectedAlerts.length}
                       </Badge>
                     )}
@@ -4127,7 +4122,7 @@ export default function Home() {
                             setSelectedAlertIndices(new Set());
                           }
                         }}
-                        className="border-slate-600 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                        className="border-app-text-muted data-[state=checked]:bg-accent-primary data-[state=checked]:border-accent-primary"
                       />
                       <span className="text-[10px] text-slate-500">
                         {selectedAlertIndices.size > 0 ? `${selectedAlertIndices.size} seleccionada${selectedAlertIndices.size !== 1 ? 's' : ''}` : 'Seleccionar todas'}
@@ -4178,8 +4173,8 @@ export default function Home() {
                         {groupScanResults.diagnostics && groupScanResults.diagnostics.length > 0 && (
                           <div className="space-y-1">
                             {groupScanResults.diagnostics.map((diag, di) => (
-                              <div key={di} className={`text-[10px] p-1.5 rounded ${diag.status === 'ok' ? 'bg-emerald-900/10 text-emerald-400/70' : diag.status === 'error' ? 'bg-red-900/15 text-red-400/80' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-amber-900/10 text-amber-400/70'}`}>
-                                <span className="font-mono font-bold">{diag.phase}</span>: <span className={diag.status === 'error' ? 'text-red-300' : 'text-slate-400'}>{diag.details}</span>
+                              <div key={di} className={`text-[10px] p-1.5 rounded ${diag.status === 'ok' ? 'bg-app-surface-hover text-accent-success/70' : diag.status === 'error' ? 'bg-sev-critical-bg/30 text-sev-critical-text/80' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-app-surface-hover text-sev-medium-text/70'}`}>
+                                <span className="font-mono font-bold">{diag.phase}</span>: <span className={diag.status === 'error' ? 'text-sev-critical-text' : 'text-slate-400'}>{diag.details}</span>
                               </div>
                             ))}
                           </div>
@@ -4202,15 +4197,15 @@ export default function Home() {
                           : alert.sourceType === 'bot' ? 'BOT'
                           : alert.sourceType === 'user' ? 'USUARIO'
                           : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
-                        const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
-                          : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
-                          : alert.sourceType === 'bot' ? 'bg-orange-900/30 text-orange-400 border-orange-800/30'
-                          : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
-                          : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                        const badgeColor = alert.sourceType === 'channel' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
+                          : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
+                          : alert.sourceType === 'bot' ? 'bg-sev-high-bg text-sev-high-text border-sev-high-text/20'
+                          : alert.sourceType === 'web' ? 'bg-sev-medium-bg text-sev-medium-text border-sev-medium-text/20'
+                          : 'bg-sev-info-bg text-sev-info-text border-app-border';
                         const kw = alert.matchedKeyword || alert.keyword;
                         const isSelected = selectedAlertIndices.has(originalIdx);
                         return (
-                          <div key={originalIdx} className={`flex gap-2 p-3 rounded-lg bg-app-bg border transition-colors ${isSelected ? 'border-red-800/50 bg-red-950/10' : 'border-app-border hover:border-amber-800/40'}`}>
+                          <div key={originalIdx} className={`flex gap-2 p-3 rounded-lg bg-app-bg border transition-colors ${isSelected ? 'border-sev-critical-text/30 bg-sev-critical-bg/50' : 'border-app-border hover:border-app-border'}`}>
                             <div className="shrink-0 pt-0.5">
                               <Checkbox
                                 checked={isSelected}
@@ -4222,7 +4217,7 @@ export default function Home() {
                                     return next;
                                   });
                                 }}
-                                className="border-slate-600 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                                className="border-app-text-muted data-[state=checked]:bg-accent-primary data-[state=checked]:border-accent-primary"
                               />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -4230,19 +4225,19 @@ export default function Home() {
                               <div className="flex items-center gap-2 mb-2">
                                 <div className="shrink-0">
                                   {alert.telegramSent ? (
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                    <CheckCircle2 className="w-4 h-4 text-accent-success" />
                                   ) : (
-                                    <XCircle className="w-4 h-4 text-red-400" />
+                                    <XCircle className="w-4 h-4 text-sev-critical-text" />
                                   )}
                                 </div>
-                                <span className="bg-amber-500/20 text-amber-400 font-mono font-bold text-xs px-1.5 py-0.5 rounded">
+                                <span className="bg-accent-primary/10 text-accent-primary font-mono font-semibold text-xs px-1.5 py-0.5 rounded">
                                   {kw}
                                 </span>
                                 <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
                                   {sourceBadge}
                                 </Badge>
                                 {alert.messageId && (
-                                  <Badge variant="outline" className="text-[9px] bg-slate-800/50 text-slate-400 border-slate-700/30">
+                                  <Badge variant="outline" className="text-[9px] bg-sev-info-bg text-sev-info-text border-app-border">
                                     #{alert.messageId}
                                   </Badge>
                                 )}
@@ -4256,7 +4251,7 @@ export default function Home() {
                               </p>
                               {/* Message text with keyword highlighted */}
                               {alert.messageText && (
-                                <div className="p-2 bg-app-deep rounded border border-slate-800/50 mb-1.5">
+                                <div className="p-2 bg-app-deep rounded border border-app-border mb-1.5">
                                   <p className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-wrap break-words" style={{ maxHeight: '120px', overflow: 'auto' }}>
                                     {highlightKeywordInText(alert.messageText, kw)}
                                   </p>
@@ -4276,7 +4271,7 @@ export default function Home() {
                                   href={alert.sourceUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-[10px] text-cyan-400 hover:text-cyan-300 truncate block"
+                                  className="text-[10px] text-app-text-dim hover:text-app-text-dim truncate block"
                                 >
                                   <ExternalLink className="w-2.5 h-2.5 inline mr-1" />{alert.sourceUrl}
                                 </a>
@@ -4293,12 +4288,12 @@ export default function Home() {
             {/* ══════════════════════════════════════════
                 HISTORIAL DE ALERTAS — OSINT Alert History
             ══════════════════════════════════════════ */}
-            <Card className="bg-app-surface border-app-border">
+            <Card className="bg-app-surface border border-app-border shadow-sm">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2 text-app-text text-base">
-                      <Clock className="w-5 h-5 text-blue-400" />
+                      <Clock className="w-5 h-5 text-sev-low-text" />
                       Historial de Alertas
                     </CardTitle>
                     <CardDescription className="text-slate-400 text-xs">
@@ -4330,7 +4325,7 @@ export default function Home() {
                             setSelectedHistoryIndices(new Set());
                           }
                         }}
-                        className="border-slate-600 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                        className="border-app-text-muted data-[state=checked]:bg-accent-primary data-[state=checked]:border-accent-primary"
                       />
                       <span className="text-[10px] text-slate-500">
                         {selectedHistoryIndices.size > 0 ? `${selectedHistoryIndices.size} seleccionada${selectedHistoryIndices.size !== 1 ? 's' : ''}` : 'Seleccionar todas'}
@@ -4383,13 +4378,13 @@ export default function Home() {
                           : alert.sourceType === 'bot' ? 'BOT'
                           : alert.sourceType === 'user' ? 'USUARIO'
                           : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
-                        const badgeColor = alert.sourceType === 'channel' ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800/30'
-                          : alert.sourceType === 'group' || alert.sourceType === 'chat' ? 'bg-violet-900/30 text-violet-400 border-violet-800/30'
-                          : alert.sourceType === 'web' ? 'bg-amber-900/30 text-amber-400 border-amber-800/30'
-                          : 'bg-slate-800/50 text-slate-400 border-slate-700/30';
+                        const badgeColor = alert.sourceType === 'channel' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
+                          : alert.sourceType === 'group' || alert.sourceType === 'chat' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
+                          : alert.sourceType === 'web' ? 'bg-sev-medium-bg text-sev-medium-text border-sev-medium-text/20'
+                          : 'bg-sev-info-bg text-sev-info-text border-app-border';
                         const isSelected = selectedHistoryIndices.has(originalIdx);
                         return (
-                          <div key={originalIdx} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${isSelected ? 'bg-red-950/10 border-red-800/50' : 'bg-app-bg border-app-border hover:border-slate-700'}`}>
+                          <div key={originalIdx} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${isSelected ? 'bg-sev-critical-bg/50 border-sev-critical-text/30' : 'bg-app-bg border-app-border hover:border-app-border'}`}>
                             <div className="shrink-0">
                               <Checkbox
                                 checked={isSelected}
@@ -4401,19 +4396,19 @@ export default function Home() {
                                     return next;
                                   });
                                 }}
-                                className="border-slate-600 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                                className="border-app-text-muted data-[state=checked]:bg-accent-primary data-[state=checked]:border-accent-primary"
                               />
                             </div>
                             <div className="shrink-0">
                               {alert.telegramSent ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                <CheckCircle2 className="w-4 h-4 text-accent-success" />
                               ) : (
-                                <XCircle className="w-4 h-4 text-red-400" />
+                                <XCircle className="w-4 h-4 text-sev-critical-text" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-mono text-amber-400 font-medium">{alert.keyword}</span>
+                                <span className="text-sm font-mono text-sev-medium-text font-medium">{alert.keyword}</span>
                                 <Badge variant="outline" className={`text-[10px] ${badgeColor}`}>
                                   {sourceBadge}
                                 </Badge>
@@ -4435,9 +4430,9 @@ export default function Home() {
 
             {/* ── Delete History Confirmation Modal ── */}
             <Dialog open={showDeleteHistoryModal} onOpenChange={setShowDeleteHistoryModal}>
-              <DialogContent className="bg-app-surface border-app-border text-app-text">
+              <DialogContent className="bg-app-surface border border-app-border shadow-sm text-app-text">
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-red-400">
+                  <DialogTitle className="flex items-center gap-2 text-sev-critical-text">
                     <AlertTriangle className="w-5 h-5" />
                     Confirmar Eliminación
                   </DialogTitle>
@@ -4478,7 +4473,7 @@ export default function Home() {
             </Dialog>
 
             {/* ── How It Works Card ── */}
-            <Card className="bg-app-surface border-app-border">
+            <Card className="bg-app-surface border border-app-border shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-app-text text-base">
                   <Info className="w-5 h-5 text-slate-400" />
@@ -4489,21 +4484,21 @@ export default function Home() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-3 rounded-lg bg-app-bg border border-app-border">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-900/30 text-amber-400 text-xs font-bold">1</span>
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sev-medium-bg text-sev-medium-text text-xs font-bold">1</span>
                       <span className="text-sm font-medium text-slate-200">Detección</span>
                     </div>
                     <p className="text-xs text-slate-500">El escáner analiza mensajes de grupos Telegram y resultados web buscando coincidencias con las palabras clave</p>
                   </div>
                   <div className="p-3 rounded-lg bg-app-bg border border-app-border">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-cyan-900/30 text-cyan-400 text-xs font-bold">2</span>
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-app-surface-hover text-app-text-dim text-xs font-bold">2</span>
                       <span className="text-sm font-medium text-slate-200">Clasificación</span>
                     </div>
                     <p className="text-xs text-slate-500">Se extrae metadata de la fuente (canal, grupo, bot, web) y se determina la severidad del hallazgo</p>
                   </div>
                   <div className="p-3 rounded-lg bg-app-bg border border-app-border">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-900/30 text-emerald-400 text-xs font-bold">3</span>
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-app-surface-hover text-accent-success text-xs font-bold">3</span>
                       <span className="text-sm font-medium text-slate-200">Alerta</span>
                     </div>
                     <p className="text-xs text-slate-500">Se envía una alerta formateada a Telegram con toda la información del hallazgo y la fuente</p>
@@ -4517,10 +4512,10 @@ export default function Home() {
 
       {/* ── Delete Confirmation Dialog ── */}
       <Dialog open={deleteConfirm.open} onOpenChange={(open) => { if (!open) setDeleteConfirm({ open: false, scanId: null, scanName: '', deleteAll: false }); }}>
-        <DialogContent className="bg-app-surface border-app-border text-app-text">
+        <DialogContent className="bg-app-surface border border-app-border shadow-sm text-app-text">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertOctagon className="w-5 h-5 text-red-400" />
+              <AlertOctagon className="w-5 h-5 text-sev-critical-text" />
               {deleteConfirm.deleteAll ? 'Eliminar todo el historial' : 'Eliminar escaneo'}
             </DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -4533,7 +4528,7 @@ export default function Home() {
             <Button variant="outline" className="border-app-border text-slate-400 hover:text-white hover:bg-app-surface-hover" onClick={() => setDeleteConfirm({ open: false, scanId: null, scanName: '', deleteAll: false })}>
               Cancelar
             </Button>
-            <Button className="bg-red-700 hover:bg-red-800 text-white" onClick={executeDelete}>
+            <Button className="bg-accent-danger hover:bg-accent-danger/90 text-white" onClick={executeDelete}>
               <Trash2 className="w-3.5 h-3.5 mr-1.5" />
               {deleteConfirm.deleteAll ? 'Eliminar todo' : 'Eliminar'}
             </Button>
@@ -4547,8 +4542,8 @@ export default function Home() {
           {/* Chat Header */}
           <div className="flex items-center justify-between p-3 bg-app-bg border-b border-app-border">
             <div className="flex items-center gap-2">
-              <div className="p-1 bg-blue-900/30 rounded-md">
-                <Bot className="w-4 h-4 text-blue-400" />
+              <div className="p-1 bg-app-surface-hover rounded-md">
+                <Bot className="w-4 h-4 text-sev-low-text" />
               </div>
               <div>
                 <p className="text-sm font-medium text-app-text">Asistente OSINT</p>
@@ -4565,13 +4560,13 @@ export default function Home() {
             {chatMessages.map((msg, idx) => (
               <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 bg-blue-900/30 rounded-full flex items-center justify-center shrink-0 mt-1">
-                    <Sparkles className="w-3 h-3 text-blue-400" />
+                  <div className="w-6 h-6 bg-app-surface-hover rounded-full flex items-center justify-center shrink-0 mt-1">
+                    <Sparkles className="w-3 h-3 text-sev-low-text" />
                   </div>
                 )}
                 <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-sm'
+                    ? 'bg-sev-low-bar text-white rounded-br-sm'
                     : 'bg-app-bg text-slate-200 rounded-bl-sm border border-app-border'
                 }`}>
                   {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
@@ -4580,8 +4575,8 @@ export default function Home() {
             ))}
             {chatLoading && (
               <div className="flex gap-2 justify-start">
-                <div className="w-6 h-6 bg-blue-900/30 rounded-full flex items-center justify-center shrink-0 mt-1">
-                  <Sparkles className="w-3 h-3 text-blue-400 animate-pulse" />
+                <div className="w-6 h-6 bg-app-surface-hover rounded-full flex items-center justify-center shrink-0 mt-1">
+                  <Sparkles className="w-3 h-3 text-sev-low-text" />
                 </div>
                 <div className="bg-app-bg text-slate-400 px-3 py-2 rounded-lg rounded-bl-sm border border-app-border text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -4598,7 +4593,7 @@ export default function Home() {
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && chatInput.trim()) handleChatSend(); }}
-                className="bg-app-bg border-app-border text-app-text placeholder:text-slate-600 text-sm focus:border-blue-600"
+                className="bg-app-bg border-app-border text-app-text placeholder:text-slate-600 text-sm focus:border-sev-low-bar"
                 disabled={chatLoading}
               />
               <Button
@@ -4626,7 +4621,7 @@ export default function Home() {
 
       {/* ── DETAIL MODAL ── */}
       <Dialog open={detailModal.open} onOpenChange={(open) => setDetailModal(prev => ({ ...prev, open }))}>
-        <DialogContent className="bg-app-surface border-app-border text-app-text max-w-lg max-h-[80vh]">
+        <DialogContent className="bg-app-surface border border-app-border shadow-sm text-app-text max-w-lg max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="text-app-text">{detailModal.title}</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -4641,7 +4636,7 @@ export default function Home() {
                 detailModal.items.map((item, i) => (
                   <div key={i} className="p-2.5 bg-app-bg rounded-lg border border-app-border">
                     <div className="flex items-start gap-2">
-                      {item.platform && <Badge className="bg-violet-900/40 text-violet-400 text-[9px] shrink-0">{item.platform}</Badge>}
+                      {item.platform && <Badge className="bg-app-surface-hover text-app-text-dim text-[9px] shrink-0">{item.platform}</Badge>}
                       <p className="text-sm font-medium text-app-text">{item.title}</p>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">{item.description}</p>
