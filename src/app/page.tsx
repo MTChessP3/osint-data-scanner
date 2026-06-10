@@ -597,7 +597,9 @@ export default function Home() {
         setSelectedHistoryIndices(new Set());
         setShowDeleteHistoryModal(false);
       }
-    } catch { /* ignore */ }
+    } catch {
+      alert('Error al eliminar los registros del historial');
+    }
     setDeleteHistoryLoading(false);
   }
 
@@ -620,6 +622,7 @@ export default function Home() {
         setTelegramHasBotToken(data.telegram?.hasBotToken || false);
         setTelegramHasChatId(data.telegram?.hasChatId || false);
         setAlertHistory(data.alertHistory || []);
+        setSelectedHistoryIndices(new Set());
       }
     } catch { /* ignore */ }
 
@@ -752,9 +755,11 @@ export default function Home() {
       // Always set results if diagnostics data is present (even on partial failures)
       if (data.diagnostics || data.detectedAlerts || data.totalGroups !== undefined) {
         setGroupScanResults(data);
+        setSelectedAlertIndices(new Set());
         // Also update alert history from the scan
         if (data.alertHistory) {
           setAlertHistory(data.alertHistory);
+          setSelectedHistoryIndices(new Set());
         }
         // If there's also an error message, show it alongside the diagnostics
         if (!data.success && data.error) {
@@ -4111,7 +4116,7 @@ export default function Home() {
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#1e293b]">
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        checked={selectedAlertIndices.size === groupScanResults.detectedAlerts.length && groupScanResults.detectedAlerts.length > 0}
+                        checked={selectedAlertIndices.size === 0 ? false : selectedAlertIndices.size === groupScanResults.detectedAlerts.length ? true : 'indeterminate'}
                         onCheckedChange={(checked) => {
                           if (checked) {
                             setSelectedAlertIndices(new Set(groupScanResults.detectedAlerts.map((_, i) => i)));
@@ -4314,7 +4319,7 @@ export default function Home() {
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#1e293b]">
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        checked={selectedHistoryIndices.size === alertHistory.length && alertHistory.length > 0}
+                        checked={selectedHistoryIndices.size === 0 ? false : selectedHistoryIndices.size === alertHistory.length ? true : 'indeterminate'}
                         onCheckedChange={(checked) => {
                           if (checked) {
                             setSelectedHistoryIndices(new Set(alertHistory.map((_, i) => i)));
