@@ -643,31 +643,68 @@ export async function POST(request: NextRequest) {
           let botApiOk = false;
           let botApiError = '';
 
-          // Load Z.ai config
-          try {
-            const fs = await import('fs');
-            const configPaths = ['/etc/.z-ai-config'];
-            for (const configPath of configPaths) {
-              try {
-                const content = fs.readFileSync(configPath, 'utf-8');
-                const config = JSON.parse(content);
-                if (config.token && !process.env.ZAI_TOKEN) process.env.ZAI_TOKEN = config.token;
-                if (config.userId && !process.env.ZAI_USER_ID) process.env.ZAI_USER_ID = config.userId;
-                if (config.chatId && !process.env.ZAI_CHAT_ID) process.env.ZAI_CHAT_ID = config.chatId;
-                if (config.token) {
-                  console.log('[ScanGroups] Loaded Z.ai config from', configPath);
-                  break;
-                }
-              } catch { /* file not found */ }
-            }
-          } catch { /* fs not available */ }
+          // ═══ Load Z.ai config from multiple sources ═══
+          let zaiConfig: { baseUrl: string; apiKey: string; token?: string; userId?: string; chatId?: string } | null = null;
 
-          // Initialize Z.ai SDK — no test search, just try to create instance
+          // Source 1: Environment variables (works on Vercel)
+          if (process.env.ZAI_BASE_URL && process.env.ZAI_API_KEY) {
+            zaiConfig = {
+              baseUrl: process.env.ZAI_BASE_URL,
+              apiKey: process.env.ZAI_API_KEY,
+              token: process.env.ZAI_TOKEN,
+              userId: process.env.ZAI_USER_ID,
+              chatId: process.env.ZAI_CHAT_ID,
+            };
+            console.log('[ScanGroups] Z.ai config loaded from environment variables');
+          }
+
+          // Source 2: Config file at /etc/ or project root
+          if (!zaiConfig) {
+            try {
+              const fs = await import('fs');
+              const path = await import('path');
+              const configPaths = [
+                '/etc/.z-ai-config',
+                path.join(process.cwd(), '.z-ai-config'),
+              ];
+              for (const configPath of configPaths) {
+                try {
+                  const content = fs.readFileSync(configPath, 'utf-8');
+                  const parsed = JSON.parse(content);
+                  if (parsed.baseUrl && parsed.apiKey) {
+                    zaiConfig = {
+                      baseUrl: parsed.baseUrl,
+                      apiKey: parsed.apiKey,
+                      token: parsed.token,
+                      userId: parsed.userId,
+                      chatId: parsed.chatId,
+                    };
+                    console.log('[ScanGroups] Z.ai config loaded from file:', configPath);
+                    break;
+                  }
+                } catch { /* file not found or invalid */ }
+              }
+            } catch { /* fs not available */ }
+          }
+
+          // Initialize Z.ai SDK — bypass file-based config loading
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let zaiInstance: any = null;
           try {
-            const ZAI = (await import('z-ai-web-dev-sdk')).default;
-            await ZAI.create();
-            zaiAvailable = true;
-            console.log('[ScanGroups] Z.ai SDK initialized successfully');
+            const ZAIModule = await import('z-ai-web-dev-sdk');
+            const ZAI = ZAIModule.default;
+
+            if (zaiConfig) {
+              // Use config directly — bypasses ZAI.create() file-based loading
+              zaiInstance = new ZAI(zaiConfig);
+              zaiAvailable = true;
+              console.log('[ScanGroups] Z.ai SDK initialized with direct config (bypassed file loading)');
+            } else {
+              // Fallback: try ZAI.create() which looks for config files
+              zaiInstance = await ZAI.create();
+              zaiAvailable = true;
+              console.log('[ScanGroups] Z.ai SDK initialized via ZAI.create()');
+            }
           } catch (err) {
             zaiError = err instanceof Error ? err.message : 'SDK init failed';
             console.warn('[ScanGroups] Z.ai SDK init failed:', zaiError);
@@ -700,11 +737,10 @@ export async function POST(request: NextRequest) {
           let phase1Errors = 0;
           const SKIP_PATHS = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv', 'confirmphone', 'setlanguage'];
 
-          if (zaiAvailable) {
+          if (zaiAvailable && zaiInstance) {
             console.log('[ScanGroups] Phase 1: Z.ai web search to discover Telegram channels...');
             try {
-              const ZAI = (await import('z-ai-web-dev-sdk')).default;
-              const zai = await ZAI.create();
+              const zai = zaiInstance;
 
               for (let ki = 0; ki < keywords.length; ki++) {
                 const keyword = keywords[ki];
