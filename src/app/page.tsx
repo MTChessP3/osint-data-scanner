@@ -1709,7 +1709,7 @@ export default function Home() {
   // Show loading state while checking authentication
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-app-bg text-slate-200 gap-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-app-bg text-app-text-dim gap-4">
         <div className="p-4 bg-app-surface rounded-xl border border-app-border">
           <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
         </div>
@@ -1719,7 +1719,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-app-bg text-slate-200">
+    <div className="min-h-screen flex flex-col bg-app-bg text-app-text">
 
       {/* ── HEADER ── */}
       <header className="border-b border-app-border bg-app-header sticky top-0 z-50">
@@ -1791,7 +1791,7 @@ export default function Home() {
 
       {/* ── SETTINGS DIALOG ── */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="bg-app-surface border-app-border text-slate-200 sm:max-w-md">
+        <DialogContent className="bg-app-surface border-app-border text-app-text sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-app-text flex items-center gap-2">
               <Settings className="w-5 h-5 text-blue-400" />
