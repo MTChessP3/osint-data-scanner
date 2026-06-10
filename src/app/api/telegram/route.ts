@@ -749,11 +749,12 @@ export async function POST(request: NextRequest) {
 
                 try {
                   // Search queries designed to find ACTUAL Telegram channel content
+                  // site:t.me is the most effective — directly finds Telegram channels
                   const searchQueries = [
                     `site:t.me ${keyword}`,
+                    `site:t.me ${keyword} estafa fraude scam`,
                     `"${keyword}" telegram canal grupo`,
                     `"${keyword}" telegram estafa fraude scam phishing`,
-                    `"${keyword}" telegram venta datos filtro robo cuenta`,
                   ];
 
                   for (let qi = 0; qi < searchQueries.length; qi++) {
