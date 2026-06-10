@@ -29,3 +29,30 @@ Stage Summary:
 - Impersonator detection for fake support/official channels
 - Better alert detail display with channel info and direct Telegram links
 - Build: success, Deploy: success
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix Telegram Advanced scan - no results / same stale results
+
+Work Log:
+- Analyzed new screenshot: 10 alerts, all from @bancolombia (official), same content repeated
+- Root cause identified: The message extraction regex was COMPLETELY BROKEN
+  - Old pattern: `class="tgme_widget_message_text"[^>]*>([\s\S]*?)<\/div>\s*<\/div>` → 0 matches on real pages
+  - Real HTML uses: `tgme_widget_message_text js-message_text` class format
+  - Fixed pattern: `tgme_widget_message_text\s+js-message_text[^>]*>([\s\S]*?)<\/div>` → 15-20 matches
+- Verified with live testing:
+  - @bancolombia: OLD=0 msgs → NEW=2 msgs (found username sale alert!)
+  - @Losqueinvierten: OLD=0 msgs → NEW=15 msgs (8 keyword matches!)
+  - @DescuentosTech: OLD=0 msgs → NEW=20 msgs
+- Added Losqueinvierten and DescuentosTech to MONITORING_CHANNELS (they have real keyword hits)
+- Fixed &#036; entity decoding for $ sign
+- Removed duplicate OFFICIAL_CHANNELS definition
+- Deployed to Vercel
+
+Stage Summary:
+- CRITICAL BUG FIXED: Message extraction regex was matching zero messages
+- Now correctly extracts 15-20 messages per channel
+- Real keyword matches found in @Losqueinvierten (8 bancolombia mentions)
+- Found real security finding: @bancolombia username for sale on Telegram
+- Build: success, Deploy: success
