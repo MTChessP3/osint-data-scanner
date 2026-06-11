@@ -1929,6 +1929,10 @@ export default function Home() {
               <Globe className="w-4 h-4 mr-2" />
               Redes Sociales
             </TabsTrigger>
+            <TabsTrigger value="telegram" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400">
+              <Send className="w-4 h-4 mr-2" />
+              Telegram Avanzado
+            </TabsTrigger>
             <TabsTrigger value="history" className="data-[state=active]:bg-blue-700 data-[state=active]:text-white text-slate-400">
               <Clock className="w-4 h-4 mr-2" />
               Historial ({pastScans.length})
@@ -2582,430 +2586,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* ── TELEGRAM AVANZADO — en sección de Escaneo ── */}
-            <Card className="bg-app-surface border border-app-border shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-app-text text-base">
-                  <Send className="w-5 h-5 text-app-text-dim" />
-                  Telegram Avanzado
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
-                  Motor de alertas en tiempo real vía Telegram Bot — configuración y verificación automática
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Status indicator */}
-                <div className={`flex items-center gap-3 p-3 rounded-lg border ${
-                  telegramConfigured
-                    ? 'bg-app-surface-hover border-app-border'
-                    : 'bg-sev-critical-bg/50 border-sev-critical-text/20'
-                }`}>
-                  {telegramConfigured ? (
-                    <CheckCircle2 className="w-5 h-5 text-accent-success shrink-0" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-sev-critical-text shrink-0" />
-                  )}
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${telegramConfigured ? 'text-accent-success' : 'text-sev-critical-text'}`}>
-                      {telegramConfigured ? 'Telegram Bot Operativo' : 'Telegram Bot No Configurado'}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {telegramConfigured
-                        ? 'Las alertas OSINT se envían automáticamente cuando se detectan palabras clave'
-                        : 'Ingresa el Bot Token para comenzar la configuración'}
-                    </p>
-                  </div>
-                  {telegramBotInfo && (
-                    <Badge className="bg-app-surface-hover text-app-text-dim border border-app-border text-[10px]">
-                      @{telegramBotInfo.username}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Config details — status indicators with source */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-app-bg border border-app-border">
-                    {telegramHasBotToken ? (
-                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-sev-critical-text shrink-0" />
-                    )}
-                    <div>
-                      <p className="text-[10px] text-slate-500 leading-none">BOT_TOKEN</p>
-                      <p className={`text-[11px] font-medium ${telegramHasBotToken ? 'text-accent-success' : 'text-sev-critical-text'}`}>
-                        {telegramHasBotToken ? 'Activo' : 'Falta'}
-                      </p>
-                      {telegramHasBotToken && (
-                        <p className="text-[9px] text-slate-600">
-                          {telegramBotTokenSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-app-bg border border-app-border">
-                    {telegramHasChatId ? (
-                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-sev-critical-text shrink-0" />
-                    )}
-                    <div>
-                      <p className="text-[10px] text-slate-500 leading-none">CHAT_ID</p>
-                      <p className={`text-[11px] font-medium ${telegramHasChatId ? 'text-accent-success' : 'text-sev-critical-text'}`}>
-                        {telegramHasChatId ? 'Detectado' : 'Pendiente'}
-                      </p>
-                      {telegramHasChatId && (
-                        <p className="text-[9px] text-slate-600">
-                          {telegramChatIdSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 1: Enter Bot Token (shown only if not configured) */}
-                {!telegramHasBotToken && (
-                  <div className="p-3 rounded-lg bg-app-bg border border-cyan-900/30 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-app-surface-hover text-app-text-dim text-[10px] font-bold">1</span>
-                      <span className="text-xs font-medium text-app-text-dim">Paso 1: Ingresar Bot Token</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500">
-                      Obten tu token desde <code className="text-app-text-dim">@BotFather</code> en Telegram. Envía <code className="text-app-text-dim">/newbot</code> o <code className="text-app-text-dim">/mybots</code> para obtenerlo.
-                    </p>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
-                        value={telegramBotTokenInput}
-                        onChange={e => setTelegramBotTokenInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSaveBotToken(); }}
-                        className="bg-app-surface border border-app-border shadow-sm text-app-text placeholder:text-slate-600 text-xs font-mono focus:border-cyan-600"
-                        disabled={telegramSavingToken}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={handleSaveBotToken}
-                        disabled={!telegramBotTokenInput.trim() || telegramSavingToken}
-                        className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-[11px] h-9 disabled:opacity-50 shrink-0"
-                      >
-                        {telegramSavingToken ? (
-                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Verificando...</>
-                        ) : (
-                          <><Check className="w-3 h-3 mr-1.5" />Guardar</>
-                        )}
-                      </Button>
-                    </div>
-                    {telegramSaveTokenError && (
-                      <div className="flex items-start gap-2 p-2 rounded bg-sev-critical-bg/30 border border-sev-critical-text/20">
-                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-sev-critical-text">{telegramSaveTokenError}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 2: Detect Chat ID — Only shown when CHAT_ID is NOT yet configured */}
-                {!telegramHasChatId ? (
-                  <div className="p-3 rounded-lg bg-app-bg border border-app-border space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${telegramHasBotToken ? 'bg-app-surface-hover text-app-text-dim' : 'bg-slate-800 text-slate-500'}`}>2</span>
-                        <span className={`text-xs font-medium ${telegramHasBotToken ? 'text-app-text-dim' : 'text-slate-500'}`}>
-                          Paso 2: Detectar Chat ID
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={handleTelegramDetectChatId}
-                        disabled={telegramDetecting || !telegramHasBotToken}
-                        className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-[11px] h-7 disabled:opacity-50"
-                      >
-                        {telegramDetecting ? (
-                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Detectando...</>
-                        ) : (
-                          <><ScanLine className="w-3 h-3 mr-1.5" />Detectar Chat ID</>
-                        )}
-                      </Button>
-                    </div>
-
-                    {!telegramHasBotToken && (
-                      <p className="text-[10px] text-slate-600">
-                        Completa el Paso 1 primero para habilitar la detección
-                      </p>
-                    )}
-
-                    {telegramHasBotToken && !telegramHasChatId && (
-                      <p className="text-[10px] text-sev-medium-text bg-sev-medium-bg/30 border border-amber-800/20 rounded p-2">
-                        Envía <code className="text-sev-medium-text">/start</code> a tu bot en Telegram antes de detectar. Busca <code className="text-sev-medium-text">@{telegramBotInfo?.username || 'tu_bot'}</code> y envíale un mensaje.
-                      </p>
-                    )}
-
-                    {/* Detected chats — selectable! */}
-                    {telegramDetectedChats.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] text-slate-400">Chats detectados — haz clic para seleccionar como destino de alertas:</p>
-                        {telegramDetectedChats.map((chat, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleSelectChat(chat.chatId)}
-                            className="w-full flex items-center gap-2 p-2 rounded bg-app-surface border border-app-border hover:border-app-border hover:bg-app-surface-hover transition-colors text-left cursor-pointer group"
-                          >
-                            <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-accent-success' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-app-text-dim' : 'bg-app-text-dim'}`} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[11px] text-app-text font-medium truncate group-hover:text-app-text-dim transition-colors">
-                                {chat.firstName || chat.title || chat.username || 'Sin nombre'}
-                              </p>
-                              <p className="text-[9px] text-slate-500">
-                                Tipo: {chat.type} · ID: <code className="text-sev-medium-text">{chat.chatId}</code>
-                              </p>
-                            </div>
-                            <Badge className={`text-[8px] px-1 py-0 h-4 ${
-                              chat.type === 'private' ? 'bg-app-surface-hover text-accent-success' :
-                              chat.type === 'group' || chat.type === 'supergroup' ? 'bg-app-surface-hover text-app-text-dim' :
-                              'bg-app-surface-hover text-app-text-dim'
-                            }`}>
-                              {chat.type}
-                            </Badge>
-                            <Check className="w-3.5 h-3.5 text-slate-600 group-hover:text-app-text-dim transition-colors shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Detection error */}
-                    {telegramDetectError && (
-                      <div className="flex items-start gap-2 p-2 rounded bg-sev-critical-bg/30 border border-sev-critical-text/20">
-                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0 mt-0.5" />
-                        <div className="text-[10px] text-sev-critical-text whitespace-pre-line leading-relaxed">{telegramDetectError}</div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* Chat ID already configured — show confirmation */
-                  <div className="p-3 rounded-lg bg-app-surface-hover border border-app-border space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
-                      <span className="text-xs font-medium text-accent-success">Chat ID Configurado</span>
-                      <Badge className="bg-app-surface-hover text-accent-success border border-app-border text-[9px] ml-auto">
-                        {telegramChatIdSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
-                      </Badge>
-                    </div>
-                    <p className="text-[10px] text-slate-500">
-                      Las alertas se enviarán automáticamente al chat configurado cuando se detecten coincidencias de palabras clave.
-                    </p>
-                  </div>
-                )}
-
-                {/* Action buttons */}
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleTelegramVerifyToken}
-                    disabled={!telegramHasBotToken}
-                    className="flex-1 bg-app-surface-hover hover:bg-app-surface-active text-app-text border border-app-border text-xs disabled:opacity-50"
-                    size="sm"
-                  >
-                    <Wifi className="w-3.5 h-3.5 mr-1.5" />Verificar Token
-                  </Button>
-                  <Button
-                    onClick={handleTestAlert}
-                    disabled={!telegramConfigured || telegramTestSending}
-                    className="flex-1 bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-xs disabled:opacity-50"
-                    size="sm"
-                  >
-                    {telegramTestSending ? (
-                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Enviando...</>
-                    ) : (
-                      <><Zap className="w-3.5 h-3.5 mr-1.5" />Enviar Alerta de Prueba</>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Keywords quick-add in Telegram Avanzado */}
-                {telegramConfigured && (
-                  <div className="p-3 rounded-lg bg-app-bg border border-cyan-900/30 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-sev-medium-text" />
-                      <span className="text-xs font-medium text-sev-medium-text">Palabras Clave para Alertas</span>
-                      <Badge variant="outline" className="text-[9px] text-slate-500 border-app-border ml-auto">
-                        {alertKeywords.length} activa{alertKeywords.length !== 1 ? 's' : ''}
-                      </Badge>
-                    </div>
-                    <textarea
-                      placeholder="Introduce tus palabras clave (una por línea o separadas por comas)&#10;&#10;Ejemplo:&#10;bancolombia&#10;contraseña filtrada&#10;datos personales, credenciales"
-                      value={bulkKeywordInput}
-                      onChange={e => setBulkKeywordInput(e.target.value)}
-                      className="w-full min-h-[80px] bg-app-surface border border-app-border text-app-text placeholder:text-slate-600 text-xs focus:border-cyan-600 rounded-lg p-2.5 resize-y font-mono leading-relaxed"
-                      disabled={bulkKeywordLoading}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && e.ctrlKey) handleBulkAddKeywords();
-                      }}
-                    />
-                    <div className="flex items-center justify-between">
-                      <p className="text-[9px] text-slate-600">Ctrl+Enter para agregar</p>
-                      <Button
-                        onClick={handleBulkAddKeywords}
-                        disabled={!bulkKeywordInput.trim() || bulkKeywordLoading}
-                        className="bg-app-surface-active hover:bg-accent-primary/80 text-app-text text-[11px] h-7 disabled:opacity-50"
-                        size="sm"
-                      >
-                        {bulkKeywordLoading ? (
-                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Agregando...</>
-                        ) : (
-                          <><AlertTriangle className="w-3 h-3 mr-1.5" />Agregar</>
-                        )}
-                      </Button>
-                    </div>
-                    {/* Quick view of current keywords */}
-                    {alertKeywords.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-app-border">
-                        {alertKeywords.map((kw, idx) => (
-                          <Badge key={idx} className="bg-sev-medium-bg text-sev-medium-text border border-sev-medium-text/20 text-[10px] font-mono cursor-pointer hover:bg-sev-critical-bg hover:text-sev-critical-text hover:border-sev-critical-text/20 transition-colors group" onClick={() => handleRemoveKeyword(kw)}>
-                            {kw}
-                            <X className="w-2.5 h-2.5 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── ESCANEAR GRUPOS AHORA — Trigger scan directly from Telegram Avanzado ── */}
-                {telegramConfigured && (
-                  <div className="p-3 rounded-lg bg-app-bg border border-emerald-900/30 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Send className="w-4 h-4 text-accent-success" />
-                      <span className="text-xs font-medium text-accent-success">Consulta contra Telegram</span>
-                      <Badge variant="outline" className="text-[9px] text-slate-500 border-app-border ml-auto">
-                        {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave
-                      </Badge>
-                    </div>
-                    <p className="text-[10px] text-slate-500">
-                      Escanea grupos y canales de Telegram buscando menciones de las palabras clave configuradas. 3 fases: (1) Búsqueda web Z.ai para descubrir canales, (2) Scraping de vistas previas públicas para leer mensajes, (3) Bot polling. La palabra clave se resalta en los hallazgos.
-                    </p>
-                    <Button
-                      onClick={handleScanGroups}
-                      disabled={groupScanLoading || alertKeywords.length === 0}
-                      className="w-full bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-sm h-10"
-                    >
-                      {groupScanLoading ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Escaneando Grupos...</>
-                      ) : (
-                        <><Search className="w-4 h-4 mr-2" />Escanear Grupos Ahora</>
-                      )}
-                    </Button>
-
-                    {/* Scan error */}
-                    {groupScanError && !groupScanResults?.technicalIssues && (
-                      <div className="flex items-center gap-2 bg-sev-critical-bg/50 border border-sev-critical-text/20 rounded-lg p-2">
-                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0" />
-                        <p className="text-[10px] text-sev-critical-text">{groupScanError}</p>
-                      </div>
-                    )}
-                    {/* Technical issues warning with diagnostics link */}
-                    {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
-                      <div className={`space-y-1.5 rounded-lg p-2 ${groupScanResults.partialSuccess ? 'bg-sev-medium-bg/50 border border-sev-medium-text/20' : 'bg-sev-critical-bg/50 border border-sev-critical-text/20'}`}>
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className={`w-3 h-3 shrink-0 ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`} />
-                          <p className={`text-[10px] font-medium ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`}>
-                            {groupScanResults.partialSuccess
-                              ? 'Escaneo parcial — algunos métodos no estuvieron disponibles'
-                              : 'Problemas técnicos detectados'}
-                          </p>
-                        </div>
-                        {groupScanResults.diagnostics?.map((diag, di) => (
-                          <div key={di} className={`text-[9px] px-2 py-1 rounded ${diag.status === 'ok' ? 'bg-app-surface-hover text-accent-success/80' : diag.status === 'error' ? 'bg-sev-critical-bg/30 text-sev-critical-text' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-app-surface-hover text-sev-medium-text/80'}`}>
-                            <span className="font-mono font-bold">{diag.phase}</span>: {diag.details}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Scan Results Summary */}
-                    {groupScanResults && (
-                      <div className="space-y-2">
-                        <div className={`flex items-center gap-2 p-2.5 rounded-lg border ${
-                          groupScanResults.detectedAlerts.length > 0
-                            ? 'bg-sev-medium-bg/30 border-sev-medium-text/20'
-                            : 'bg-app-surface-hover border-app-border'
-                        }`}>
-                          {groupScanResults.detectedAlerts.length > 0 ? (
-                            <AlertTriangle className="w-4 h-4 text-sev-medium-text shrink-0" />
-                          ) : (
-                            <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
-                          )}
-                          <div className="flex-1">
-                            <p className={`text-xs font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-sev-medium-text' : 'text-accent-success'}`}>
-                              {groupScanResults.detectedAlerts.length > 0
-                                ? `${groupScanResults.detectedAlerts.length} alerta${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''} encontrada${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''}`
-                                : 'Sin alertas — ningún grupo mencionó las palabras clave'}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="text-[10px] text-slate-500">{groupScanResults.totalGroups} grupo{groupScanResults.totalGroups !== 1 ? 's' : ''}</span>
-                              <span className="text-[10px] text-slate-600">•</span>
-                              <span className="text-[10px] text-slate-500">{groupScanResults.keywordsProcessed}/{groupScanResults.totalKeywords} palabras procesadas</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Detected alerts list */}
-                        {groupScanResults.detectedAlerts.length > 0 && (
-                          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--app-border)) transparent' }}>
-                            {groupScanResults.detectedAlerts.map((alert, idx) => {
-                              const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
-                                : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
-                                : alert.sourceType === 'bot' ? 'BOT'
-                                : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
-                              const badgeColor = alert.sourceType === 'channel' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
-                                : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
-                                : alert.sourceType === 'bot' ? 'bg-sev-high-bg text-sev-high-text border-sev-high-text/20'
-                                : alert.sourceType === 'web' ? 'bg-sev-medium-bg text-sev-medium-text border-sev-medium-text/20'
-                                : 'bg-sev-info-bg text-sev-info-text border-app-border';
-                              const kw = alert.matchedKeyword || alert.keyword;
-                              return (
-                                <div key={idx} className="p-2 rounded-lg bg-app-surface border border-app-border hover:border-app-border transition-colors">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    {alert.telegramSent ? (
-                                      <CheckCircle2 className="w-3 h-3 text-accent-success shrink-0" />
-                                    ) : (
-                                      <XCircle className="w-3 h-3 text-sev-critical-text shrink-0" />
-                                    )}
-                                    <span className="bg-accent-primary/10 text-accent-primary font-mono font-semibold text-[10px] px-1 py-0.5 rounded">{kw}</span>
-                                    <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${badgeColor}`}>
-                                      {sourceBadge}
-                                    </Badge>
-                                    <span className="text-[9px] text-slate-600 ml-auto">
-                                      {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                  <p className="text-[10px] text-slate-400 truncate">{alert.sourceName}</p>
-                                  {alert.messageText && (
-                                    <p className="text-[10px] text-slate-500 line-clamp-2">{highlightKeywordInText(alert.messageText.substring(0, 200), kw)}</p>
-                                  )}
-                                  {alert.sourceUrl && (
-                                    <a href={alert.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-app-text-dim hover:text-app-text-dim truncate block mt-0.5">
-                                      <ExternalLink className="w-2 h-2 inline mr-0.5" />{alert.sourceUrl}
-                                    </a>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Info about how it works */}
-                <div className="p-3 rounded-lg bg-slate-900/30 border border-app-border">
-                  <p className="text-[10px] text-slate-500 leading-relaxed">
-                    <strong className="text-slate-400">¿Cómo funciona?</strong> El escaneo usa 3 fases: (1) <strong className="text-app-text-dim/80">Búsqueda web Z.ai</strong> — busca cada palabra clave en la web para descubrir canales de Telegram relevantes; (2) <strong className="text-app-text-dim/80">Scraping de canales</strong> — accede a las páginas de vista previa públicas (t.me/s/) de los canales descubiertos y conocidos para extraer mensajes reales; (3) <strong className="text-app-text-dim/80">Bot polling</strong> — lee mensajes de grupos donde el bot es miembro. La palabra clave encontrada se resalta en los resultados.
-                  </p>
-                  <p className="text-[10px] text-slate-600 mt-1.5">
-                    <strong>Configuración persistente:</strong> Para que la configuración sobreviva reinicios del servidor, agrega <code className="text-app-text-dim">TELEGRAM_BOT_TOKEN</code> y <code className="text-app-text-dim">TELEGRAM_CHAT_ID</code> como Environment Variables en Vercel Dashboard → Settings.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* ────────────────────────────────────────────
@@ -3810,6 +3390,435 @@ export default function Home() {
           </TabsContent>
 
           {/* ────────────────────────────────────────────
+              TELEGRAM AVANZADO TAB — moved to after Social
+          ──────────────────────────────────────────── */}
+          <TabsContent value="telegram" className="space-y-6">
+            <Card className="bg-app-surface border border-app-border shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-app-text text-base">
+                  <Send className="w-5 h-5 text-app-text-dim" />
+                  Telegram Avanzado
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">
+                  Motor de alertas en tiempo real vía Telegram Bot — configuración y verificación automática
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Status indicator */}
+                <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+                  telegramConfigured
+                    ? 'bg-app-surface-hover border-app-border'
+                    : 'bg-sev-critical-bg/50 border-sev-critical-text/20'
+                }`}>
+                  {telegramConfigured ? (
+                    <CheckCircle2 className="w-5 h-5 text-accent-success shrink-0" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-sev-critical-text shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${telegramConfigured ? 'text-accent-success' : 'text-sev-critical-text'}`}>
+                      {telegramConfigured ? 'Telegram Bot Operativo' : 'Telegram Bot No Configurado'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {telegramConfigured
+                        ? 'Las alertas OSINT se envían automáticamente cuando se detectan palabras clave'
+                        : 'Ingresa el Bot Token para comenzar la configuración'}
+                    </p>
+                  </div>
+                  {telegramBotInfo && (
+                    <Badge className="bg-app-surface-hover text-app-text-dim border border-app-border text-[10px]">
+                      @{telegramBotInfo.username}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Config details — status indicators with source */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-app-bg border border-app-border">
+                    {telegramHasBotToken ? (
+                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-sev-critical-text shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-[10px] text-slate-500 leading-none">BOT_TOKEN</p>
+                      <p className={`text-[11px] font-medium ${telegramHasBotToken ? 'text-accent-success' : 'text-sev-critical-text'}`}>
+                        {telegramHasBotToken ? 'Activo' : 'Falta'}
+                      </p>
+                      {telegramHasBotToken && (
+                        <p className="text-[9px] text-slate-600">
+                          {telegramBotTokenSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-app-bg border border-app-border">
+                    {telegramHasChatId ? (
+                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-sev-critical-text shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-[10px] text-slate-500 leading-none">CHAT_ID</p>
+                      <p className={`text-[11px] font-medium ${telegramHasChatId ? 'text-accent-success' : 'text-sev-critical-text'}`}>
+                        {telegramHasChatId ? 'Detectado' : 'Pendiente'}
+                      </p>
+                      {telegramHasChatId && (
+                        <p className="text-[9px] text-slate-600">
+                          {telegramChatIdSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 1: Enter Bot Token (shown only if not configured) */}
+                {!telegramHasBotToken && (
+                  <div className="p-3 rounded-lg bg-app-bg border border-cyan-900/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-app-surface-hover text-app-text-dim text-[10px] font-bold">1</span>
+                      <span className="text-xs font-medium text-app-text-dim">Paso 1: Ingresar Bot Token</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Obten tu token desde <code className="text-app-text-dim">@BotFather</code> en Telegram. Envía <code className="text-app-text-dim">/newbot</code> o <code className="text-app-text-dim">/mybots</code> para obtenerlo.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
+                        value={telegramBotTokenInput}
+                        onChange={e => setTelegramBotTokenInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveBotToken(); }}
+                        className="bg-app-surface border border-app-border shadow-sm text-app-text placeholder:text-slate-600 text-xs font-mono focus:border-cyan-600"
+                        disabled={telegramSavingToken}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleSaveBotToken}
+                        disabled={!telegramBotTokenInput.trim() || telegramSavingToken}
+                        className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-[11px] h-9 disabled:opacity-50 shrink-0"
+                      >
+                        {telegramSavingToken ? (
+                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Verificando...</>
+                        ) : (
+                          <><Check className="w-3 h-3 mr-1.5" />Guardar</>
+                        )}
+                      </Button>
+                    </div>
+                    {telegramSaveTokenError && (
+                      <div className="flex items-start gap-2 p-2 rounded bg-sev-critical-bg/30 border border-sev-critical-text/20">
+                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-sev-critical-text">{telegramSaveTokenError}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 2: Detect Chat ID — Only shown when CHAT_ID is NOT yet configured */}
+                {!telegramHasChatId ? (
+                  <div className="p-3 rounded-lg bg-app-bg border border-app-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${telegramHasBotToken ? 'bg-app-surface-hover text-app-text-dim' : 'bg-slate-800 text-slate-500'}`}>2</span>
+                        <span className={`text-xs font-medium ${telegramHasBotToken ? 'text-app-text-dim' : 'text-slate-500'}`}>
+                          Paso 2: Detectar Chat ID
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleTelegramDetectChatId}
+                        disabled={telegramDetecting || !telegramHasBotToken}
+                        className="bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-[11px] h-7 disabled:opacity-50"
+                      >
+                        {telegramDetecting ? (
+                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Detectando...</>
+                        ) : (
+                          <><ScanLine className="w-3 h-3 mr-1.5" />Detectar Chat ID</>
+                        )}
+                      </Button>
+                    </div>
+
+                    {!telegramHasBotToken && (
+                      <p className="text-[10px] text-slate-600">
+                        Completa el Paso 1 primero para habilitar la detección
+                      </p>
+                    )}
+
+                    {telegramHasBotToken && !telegramHasChatId && (
+                      <p className="text-[10px] text-sev-medium-text bg-sev-medium-bg/30 border border-amber-800/20 rounded p-2">
+                        Envía <code className="text-sev-medium-text">/start</code> a tu bot en Telegram antes de detectar. Busca <code className="text-sev-medium-text">@{telegramBotInfo?.username || 'tu_bot'}</code> y envíale un mensaje.
+                      </p>
+                    )}
+
+                    {/* Detected chats — selectable! */}
+                    {telegramDetectedChats.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] text-slate-400">Chats detectados — haz clic para seleccionar como destino de alertas:</p>
+                        {telegramDetectedChats.map((chat, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectChat(chat.chatId)}
+                            className="w-full flex items-center gap-2 p-2 rounded bg-app-surface border border-app-border hover:border-app-border hover:bg-app-surface-hover transition-colors text-left cursor-pointer group"
+                          >
+                            <div className={`w-2 h-2 rounded-full ${chat.type === 'private' ? 'bg-accent-success' : chat.type === 'group' || chat.type === 'supergroup' ? 'bg-app-text-dim' : 'bg-app-text-dim'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] text-app-text font-medium truncate group-hover:text-app-text-dim transition-colors">
+                                {chat.firstName || chat.title || chat.username || 'Sin nombre'}
+                              </p>
+                              <p className="text-[9px] text-slate-500">
+                                Tipo: {chat.type} · ID: <code className="text-sev-medium-text">{chat.chatId}</code>
+                              </p>
+                            </div>
+                            <Badge className={`text-[8px] px-1 py-0 h-4 ${
+                              chat.type === 'private' ? 'bg-app-surface-hover text-accent-success' :
+                              chat.type === 'group' || chat.type === 'supergroup' ? 'bg-app-surface-hover text-app-text-dim' :
+                              'bg-app-surface-hover text-app-text-dim'
+                            }`}>
+                              {chat.type}
+                            </Badge>
+                            <Check className="w-3.5 h-3.5 text-slate-600 group-hover:text-app-text-dim transition-colors shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Detection error */}
+                    {telegramDetectError && (
+                      <div className="flex items-start gap-2 p-2 rounded bg-sev-critical-bg/30 border border-sev-critical-text/20">
+                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0 mt-0.5" />
+                        <div className="text-[10px] text-sev-critical-text whitespace-pre-line leading-relaxed">{telegramDetectError}</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Chat ID already configured — show confirmation */
+                  <div className="p-3 rounded-lg bg-app-surface-hover border border-app-border space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
+                      <span className="text-xs font-medium text-accent-success">Chat ID Configurado</span>
+                      <Badge className="bg-app-surface-hover text-accent-success border border-app-border text-[9px] ml-auto">
+                        {telegramChatIdSource === 'env' ? 'Vía Vercel Env' : 'Vía Sesión'}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Las alertas se enviarán automáticamente al chat configurado cuando se detecten coincidencias de palabras clave.
+                    </p>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleTelegramVerifyToken}
+                    disabled={!telegramHasBotToken}
+                    className="flex-1 bg-app-surface-hover hover:bg-app-surface-active text-app-text border border-app-border text-xs disabled:opacity-50"
+                    size="sm"
+                  >
+                    <Wifi className="w-3.5 h-3.5 mr-1.5" />Verificar Token
+                  </Button>
+                  <Button
+                    onClick={handleTestAlert}
+                    disabled={!telegramConfigured || telegramTestSending}
+                    className="flex-1 bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-xs disabled:opacity-50"
+                    size="sm"
+                  >
+                    {telegramTestSending ? (
+                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Enviando...</>
+                    ) : (
+                      <><Zap className="w-3.5 h-3.5 mr-1.5" />Enviar Alerta de Prueba</>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Keywords quick-add in Telegram Avanzado */}
+                {telegramConfigured && (
+                  <div className="p-3 rounded-lg bg-app-bg border border-cyan-900/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-sev-medium-text" />
+                      <span className="text-xs font-medium text-sev-medium-text">Palabras Clave para Alertas</span>
+                      <Badge variant="outline" className="text-[9px] text-slate-500 border-app-border ml-auto">
+                        {alertKeywords.length} activa{alertKeywords.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    <textarea
+                      placeholder="Introduce tus palabras clave (una por línea o separadas por comas)&#10;&#10;Ejemplo:&#10;bancolombia&#10;contraseña filtrada&#10;datos personales, credenciales"
+                      value={bulkKeywordInput}
+                      onChange={e => setBulkKeywordInput(e.target.value)}
+                      className="w-full min-h-[80px] bg-app-surface border border-app-border text-app-text placeholder:text-slate-600 text-xs focus:border-cyan-600 rounded-lg p-2.5 resize-y font-mono leading-relaxed"
+                      disabled={bulkKeywordLoading}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && e.ctrlKey) handleBulkAddKeywords();
+                      }}
+                    />
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] text-slate-600">Ctrl+Enter para agregar</p>
+                      <Button
+                        onClick={handleBulkAddKeywords}
+                        disabled={!bulkKeywordInput.trim() || bulkKeywordLoading}
+                        className="bg-app-surface-active hover:bg-accent-primary/80 text-app-text text-[11px] h-7 disabled:opacity-50"
+                        size="sm"
+                      >
+                        {bulkKeywordLoading ? (
+                          <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Agregando...</>
+                        ) : (
+                          <><AlertTriangle className="w-3 h-3 mr-1.5" />Agregar</>
+                        )}
+                      </Button>
+                    </div>
+                    {/* Quick view of current keywords */}
+                    {alertKeywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-app-border">
+                        {alertKeywords.map((kw, idx) => (
+                          <Badge key={idx} className="bg-sev-medium-bg text-sev-medium-text border border-sev-medium-text/20 text-[10px] font-mono cursor-pointer hover:bg-sev-critical-bg hover:text-sev-critical-text hover:border-sev-critical-text/20 transition-colors group" onClick={() => handleRemoveKeyword(kw)}>
+                            {kw}
+                            <X className="w-2.5 h-2.5 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── ESCANEAR GRUPOS AHORA — Trigger scan directly from Telegram Avanzado ── */}
+                {telegramConfigured && (
+                  <div className="p-3 rounded-lg bg-app-bg border border-emerald-900/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Send className="w-4 h-4 text-accent-success" />
+                      <span className="text-xs font-medium text-accent-success">Consulta contra Telegram</span>
+                      <Badge variant="outline" className="text-[9px] text-slate-500 border-app-border ml-auto">
+                        {alertKeywords.length} palabra{alertKeywords.length !== 1 ? 's' : ''} clave
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Escanea grupos y canales de Telegram buscando menciones de las palabras clave configuradas. 3 fases: (1) Búsqueda web Z.ai para descubrir canales, (2) Scraping de vistas previas públicas para leer mensajes, (3) Bot polling. La palabra clave se resalta en los hallazgos.
+                    </p>
+                    <Button
+                      onClick={handleScanGroups}
+                      disabled={groupScanLoading || alertKeywords.length === 0}
+                      className="w-full bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-sm h-10"
+                    >
+                      {groupScanLoading ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Escaneando Grupos...</>
+                      ) : (
+                        <><Search className="w-4 h-4 mr-2" />Escanear Grupos Ahora</>
+                      )}
+                    </Button>
+
+                    {/* Scan error */}
+                    {groupScanError && !groupScanResults?.technicalIssues && (
+                      <div className="flex items-center gap-2 bg-sev-critical-bg/50 border border-sev-critical-text/20 rounded-lg p-2">
+                        <AlertTriangle className="w-3 h-3 text-sev-critical-text shrink-0" />
+                        <p className="text-[10px] text-sev-critical-text">{groupScanError}</p>
+                      </div>
+                    )}
+                    {/* Technical issues warning with diagnostics link */}
+                    {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
+                      <div className={`space-y-1.5 rounded-lg p-2 ${groupScanResults.partialSuccess ? 'bg-sev-medium-bg/50 border border-sev-medium-text/20' : 'bg-sev-critical-bg/50 border border-sev-critical-text/20'}`}>
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className={`w-3 h-3 shrink-0 ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`} />
+                          <p className={`text-[10px] font-medium ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`}>
+                            {groupScanResults.partialSuccess
+                              ? 'Escaneo parcial — algunos métodos no estuvieron disponibles'
+                              : 'Problemas técnicos detectados'}
+                          </p>
+                        </div>
+                        {groupScanResults.diagnostics?.map((diag, di) => (
+                          <div key={di} className={`text-[9px] px-2 py-1 rounded ${diag.status === 'ok' ? 'bg-app-surface-hover text-accent-success/80' : diag.status === 'error' ? 'bg-sev-critical-bg/30 text-sev-critical-text' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-app-surface-hover text-sev-medium-text/80'}`}>
+                            <span className="font-mono font-bold">{diag.phase}</span>: {diag.details}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Scan Results Summary */}
+                    {groupScanResults && (
+                      <div className="space-y-2">
+                        <div className={`flex items-center gap-2 p-2.5 rounded-lg border ${
+                          groupScanResults.detectedAlerts.length > 0
+                            ? 'bg-sev-medium-bg/30 border-sev-medium-text/20'
+                            : 'bg-app-surface-hover border-app-border'
+                        }`}>
+                          {groupScanResults.detectedAlerts.length > 0 ? (
+                            <AlertTriangle className="w-4 h-4 text-sev-medium-text shrink-0" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
+                          )}
+                          <div className="flex-1">
+                            <p className={`text-xs font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-sev-medium-text' : 'text-accent-success'}`}>
+                              {groupScanResults.detectedAlerts.length > 0
+                                ? `${groupScanResults.detectedAlerts.length} alerta${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''} encontrada${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''}`
+                                : 'Sin alertas — ningún grupo mencionó las palabras clave'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="text-[10px] text-slate-500">{groupScanResults.totalGroups} grupo{groupScanResults.totalGroups !== 1 ? 's' : ''}</span>
+                              <span className="text-[10px] text-slate-600">•</span>
+                              <span className="text-[10px] text-slate-500">{groupScanResults.keywordsProcessed}/{groupScanResults.totalKeywords} palabras procesadas</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Detected alerts list */}
+                        {groupScanResults.detectedAlerts.length > 0 && (
+                          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--app-border)) transparent' }}>
+                            {groupScanResults.detectedAlerts.map((alert, idx) => {
+                              const sourceBadge = alert.sourceType === 'channel' ? 'CANAL'
+                                : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'CHAT/GROUP'
+                                : alert.sourceType === 'bot' ? 'BOT'
+                                : alert.sourceType === 'web' ? 'WEB' : 'OTRO';
+                              const badgeColor = alert.sourceType === 'channel' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
+                                : alert.sourceType === 'group' || alert.sourceType === 'chat' || alert.sourceType === 'supergroup' ? 'bg-app-surface-hover text-app-text-dim border-app-border'
+                                : alert.sourceType === 'bot' ? 'bg-sev-high-bg text-sev-high-text border-sev-high-text/20'
+                                : alert.sourceType === 'web' ? 'bg-sev-medium-bg text-sev-medium-text border-sev-medium-text/20'
+                                : 'bg-sev-info-bg text-sev-info-text border-app-border';
+                              const kw = alert.matchedKeyword || alert.keyword;
+                              return (
+                                <div key={idx} className="p-2 rounded-lg bg-app-surface border border-app-border hover:border-app-border transition-colors">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    {alert.telegramSent ? (
+                                      <CheckCircle2 className="w-3 h-3 text-accent-success shrink-0" />
+                                    ) : (
+                                      <XCircle className="w-3 h-3 text-sev-critical-text shrink-0" />
+                                    )}
+                                    <span className="bg-accent-primary/10 text-accent-primary font-mono font-semibold text-[10px] px-1 py-0.5 rounded">{kw}</span>
+                                    <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${badgeColor}`}>
+                                      {sourceBadge}
+                                    </Badge>
+                                    <span className="text-[9px] text-slate-600 ml-auto">
+                                      {new Date(alert.timestamp).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 truncate">{alert.sourceName}</p>
+                                  {alert.messageText && (
+                                    <p className="text-[10px] text-slate-500 line-clamp-2">{highlightKeywordInText(alert.messageText.substring(0, 200), kw)}</p>
+                                  )}
+                                  {alert.sourceUrl && (
+                                    <a href={alert.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] text-app-text-dim hover:text-app-text-dim truncate block mt-0.5">
+                                      <ExternalLink className="w-2 h-2 inline mr-0.5" />{alert.sourceUrl}
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Info about how it works */}
+                <div className="p-3 rounded-lg bg-slate-900/30 border border-app-border">
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    <strong className="text-slate-400">¿Cómo funciona?</strong> El escaneo usa 3 fases: (1) <strong className="text-app-text-dim/80">Búsqueda web Z.ai</strong> — busca cada palabra clave en la web para descubrir canales de Telegram relevantes; (2) <strong className="text-app-text-dim/80">Scraping de canales</strong> — accede a las páginas de vista previa públicas (t.me/s/) de los canales descubiertos y conocidos para extraer mensajes reales; (3) <strong className="text-app-text-dim/80">Bot polling</strong> — lee mensajes de grupos donde el bot es miembro. La palabra clave encontrada se resalta en los resultados.
+                  </p>
+                  <p className="text-[10px] text-slate-600 mt-1.5">
+                    <strong>Configuración persistente:</strong> Para que la configuración sobreviva reinicios del servidor, agrega <code className="text-app-text-dim">TELEGRAM_BOT_TOKEN</code> y <code className="text-app-text-dim">TELEGRAM_CHAT_ID</code> como Environment Variables en Vercel Dashboard → Settings.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ────────────────────────────────────────────
               HISTORY TAB
           ──────────────────────────────────────────── */}
           <TabsContent value="history" className="space-y-4">
@@ -3911,112 +3920,6 @@ export default function Home() {
               ALERTS TAB — Telegram Bot Alert Configuration + Group Scanner
           ──────────────────────────────────────────── */}
           <TabsContent value="alerts" className="space-y-6">
-
-            {/* ══════════════════════════════════════════
-                ESCÁNER DE GRUPOS — Telegram Group Scanner
-            ══════════════════════════════════════════ */}
-            <Card className="bg-app-surface border border-app-border shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-app-surface-hover rounded-lg">
-                      <Send className="w-5 h-5 text-accent-success" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-app-text text-base">Escáner de Grupos</CardTitle>
-                      <CardDescription className="text-slate-400 text-xs">
-                        Busca menciones de palabras clave en grupos y canales de Telegram
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <Badge className="bg-app-surface-hover text-accent-success text-xs">
-                    {groupScanResults?.totalGroups ?? 0} grupo{(groupScanResults?.totalGroups ?? 0) !== 1 ? 's' : ''}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Scan Button */}
-                <Button
-                  onClick={handleScanGroups}
-                  disabled={groupScanLoading || alertKeywords.length === 0}
-                  className="w-full bg-accent-primary hover:bg-accent-primary/90 text-accent-primary-text text-sm h-10"
-                >
-                  {groupScanLoading ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Escaneando Grupos...</>
-                  ) : (
-                    <><Search className="w-4 h-4 mr-2" />Escanear Grupos Ahora</>
-                  )}
-                </Button>
-
-                {/* Error message */}
-                {groupScanError && !groupScanResults?.technicalIssues && (
-                  <div className="flex items-center gap-2 bg-sev-critical-bg/50 border border-sev-critical-text/20 rounded-lg p-3">
-                    <AlertTriangle className="w-4 h-4 text-sev-critical-text shrink-0" />
-                    <p className="text-xs text-sev-critical-text">{groupScanError}</p>
-                  </div>
-                )}
-                {/* Technical issues warning with diagnostics */}
-                {groupScanResults?.technicalIssues && !groupScanResults?.detectedAlerts?.length && (
-                  <div className={`space-y-2 rounded-lg p-3 ${groupScanResults.partialSuccess ? 'bg-sev-medium-bg/50 border border-sev-medium-text/20' : 'bg-sev-critical-bg/50 border border-sev-critical-text/20'}`}>
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className={`w-4 h-4 shrink-0 ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`} />
-                      <p className={`text-xs font-medium ${groupScanResults.partialSuccess ? 'text-sev-medium-text' : 'text-sev-critical-text'}`}>
-                        {groupScanResults.partialSuccess
-                          ? 'Escaneo parcial — algunos métodos no estuvieron disponibles'
-                          : 'Problemas técnicos detectados — revisa los diagnósticos'}
-                      </p>
-                    </div>
-                    {groupScanResults.diagnostics?.map((diag, di) => (
-                      <div key={di} className={`text-[10px] px-2.5 py-1.5 rounded ${diag.status === 'ok' ? 'bg-app-surface-hover text-accent-success/80' : diag.status === 'error' ? 'bg-sev-critical-bg/30 text-sev-critical-text' : diag.status === 'skipped' ? 'bg-slate-800/30 text-slate-500' : 'bg-app-surface-hover text-sev-medium-text/80'}`}>
-                        <span className="font-mono font-bold">{diag.phase}</span>: {diag.details}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Scan Results Stats */}
-                {groupScanResults && (
-                  <div className="space-y-3">
-                    {/* Status summary */}
-                    <div className={`flex items-center gap-2 p-3 rounded-lg border ${
-                      groupScanResults.detectedAlerts.length > 0
-                        ? 'bg-sev-medium-bg/30 border-sev-medium-text/20'
-                        : 'bg-app-surface-hover border-app-border'
-                    }`}>
-                      {groupScanResults.detectedAlerts.length > 0 ? (
-                        <AlertTriangle className="w-4 h-4 text-sev-medium-text shrink-0" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-accent-success shrink-0" />
-                      )}
-                      <div className="flex-1">
-                        <p className={`text-sm font-medium ${groupScanResults.detectedAlerts.length > 0 ? 'text-sev-medium-text' : 'text-accent-success'}`}>
-                          {groupScanResults.detectedAlerts.length > 0
-                            ? `${groupScanResults.detectedAlerts.length} alerta${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''} encontrada${groupScanResults.detectedAlerts.length !== 1 ? 's' : ''}`
-                            : 'Sin alertas — ningún grupo mencionó las palabras clave'}
-                        </p>
-                        <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="text-xs text-slate-500">{groupScanResults.totalGroups} grupo{groupScanResults.totalGroups !== 1 ? 's' : ''} encontrado{groupScanResults.totalGroups !== 1 ? 's' : ''}</span>
-                          <span className="text-xs text-slate-600">•</span>
-                          <span className="text-xs text-slate-500">{groupScanResults.totalBotMessages} mensaje{groupScanResults.totalBotMessages !== 1 ? 's' : ''} bot</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Keywords processed info */}
-                    {groupScanResults.keywordsProcessed < groupScanResults.totalKeywords && (
-                      <p className="text-xs text-sev-high-text/80">
-                        Se procesaron {groupScanResults.keywordsProcessed} de {groupScanResults.totalKeywords} palabras clave (límite por escaneo). Vuelve a escanear para procesar más.
-                      </p>
-                    )}
-
-                    {/* How it works explanation */}
-                    <p className="text-xs text-slate-600">
-                      El escaneo usa 3 fases: (1) Búsqueda web Z.ai para descubrir canales, (2) Scraping de canales t.me/s/ para leer mensajes reales, (3) Bot polling para grupos donde el bot es miembro. Las palabras clave se resaltan en los resultados.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             {/* ══════════════════════════════════════════
                 PALABRAS CLAVE — Keyword Management
