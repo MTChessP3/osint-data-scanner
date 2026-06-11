@@ -568,6 +568,8 @@ export default function Home() {
       nonOfficial: number;
     };
     suspiciousChannels?: string[];
+    scanTimeMs?: number;
+    scanTimedOut?: boolean;
   } | null>(null);
   const [groupScanError, setGroupScanError] = useState<string | null>(null);
 
@@ -759,7 +761,7 @@ export default function Home() {
       const res = await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'scan_groups' }),
+        body: JSON.stringify({ action: 'scan_groups', keywords: alertKeywords }),
       });
       const data = await res.json().catch(() => ({}));
 
@@ -3752,6 +3754,18 @@ export default function Home() {
                               <span className="text-[10px] text-slate-500">{groupScanResults.totalGroups} grupo{groupScanResults.totalGroups !== 1 ? 's' : ''}</span>
                               <span className="text-[10px] text-slate-600">•</span>
                               <span className="text-[10px] text-slate-500">{groupScanResults.keywordsProcessed}/{groupScanResults.totalKeywords} palabras procesadas</span>
+                              {groupScanResults.scanTimeMs && (
+                                <>
+                                  <span className="text-[10px] text-slate-600">•</span>
+                                  <span className="text-[10px] text-slate-500">{(groupScanResults.scanTimeMs / 1000).toFixed(1)}s</span>
+                                </>
+                              )}
+                              {groupScanResults.scanTimedOut && (
+                                <>
+                                  <span className="text-[10px] text-slate-600">•</span>
+                                  <span className="text-[10px] text-sev-medium-text font-medium">Escaneo parcial — se procesaron las palabras clave más relevantes</span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>

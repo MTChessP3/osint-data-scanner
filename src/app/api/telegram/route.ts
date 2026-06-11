@@ -299,7 +299,13 @@ export async function POST(request: NextRequest) {
       //  SCAN GROUPS — Global Telegram keyword scanning
       // ═══════════════════════════════════════════════════════════════════
       case 'scan_groups': {
-        const keywords = getKeywords();
+        // Accept keywords from client if provided, otherwise use server-side list
+        const clientKeywords: string[] = body.keywords && Array.isArray(body.keywords) && body.keywords.length > 0
+          ? body.keywords.map((k: string) => k.trim().toLowerCase()).filter((k: string) => k.length > 0)
+          : [];
+        const serverKeywords = getKeywords();
+        // Merge and deduplicate: client keywords first (they're the ones user sees), then server keywords
+        const keywords = [...new Set([...clientKeywords, ...serverKeywords])];
         if (keywords.length === 0) {
           return NextResponse.json({
             success: false,
@@ -636,6 +642,18 @@ export async function POST(request: NextRequest) {
           const botToken = getBotToken();
 
           // ═══════════════════════════════════════════════════════════════
+          //  VERCEL TIMEOUT PROTECTION — 50s budget, return partial results
+          // ═══════════════════════════════════════════════════════════════
+          const SCAN_START = Date.now();
+          const SCAN_BUDGET_MS = 50_000; // 50s max (Vercel allows 60s)
+          function scanTimeLeft(): boolean {
+            return (Date.now() - SCAN_START) < SCAN_BUDGET_MS;
+          }
+          function scanElapsed(): number {
+            return Date.now() - SCAN_START;
+          }
+
+          // ═══════════════════════════════════════════════════════════════
           //  PHASE 0: Validate connections
           // ═══════════════════════════════════════════════════════════════
           let zaiAvailable = false;
@@ -737,33 +755,35 @@ export async function POST(request: NextRequest) {
           let phase1Errors = 0;
           const SKIP_PATHS = ['s', 'login', 'joinchat', 'addstickers', 'proxy', 'iv', 'confirmphone', 'setlanguage'];
 
+          // Select top keywords — prioritize most likely to yield results
+          // On Vercel (50s budget), limit to max 10 keywords to avoid timeout
+          const MAX_KEYWORDS_FOR_SEARCH = scanTimeLeft() ? Math.min(keywords.length, 10) : 0;
+          const searchKeywords = keywords.slice(0, MAX_KEYWORDS_FOR_SEARCH);
+
           if (zaiAvailable && zaiInstance) {
-            console.log('[ScanGroups] Phase 1: Z.ai web search to discover Telegram channels...');
+            console.log(`[ScanGroups] Phase 1: Web search with ${searchKeywords.length}/${keywords.length} keywords (budget: ${SCAN_BUDGET_MS}ms)...`);
             try {
               const zai = zaiInstance;
 
-              for (let ki = 0; ki < keywords.length; ki++) {
-                const keyword = keywords[ki];
+              for (let ki = 0; ki < searchKeywords.length && scanTimeLeft(); ki++) {
+                const keyword = searchKeywords[ki];
                 keywordsProcessed++;
-                if (ki > 0) await new Promise(r => setTimeout(r, 500));
+                if (ki > 0) await new Promise(r => setTimeout(r, 300));
 
                 try {
-                  // Search queries designed to find ACTUAL Telegram channel content
-                  // site:t.me is the most effective — directly finds Telegram channels
+                  // Optimized: 2 queries instead of 4 (most effective ones only)
                   const searchQueries = [
                     `site:t.me ${keyword}`,
-                    `site:t.me ${keyword} estafa fraude scam`,
-                    `"${keyword}" telegram canal grupo`,
-                    `"${keyword}" telegram estafa fraude scam phishing`,
+                    `"${keyword}" telegram estafa fraude scam`,
                   ];
 
-                  for (let qi = 0; qi < searchQueries.length; qi++) {
+                  for (let qi = 0; qi < searchQueries.length && scanTimeLeft(); qi++) {
                     try {
-                      if (qi > 0) await new Promise(r => setTimeout(r, 400));
+                      if (qi > 0) await new Promise(r => setTimeout(r, 200));
 
                       const searchResults = await zai.functions.invoke('web_search', {
                         query: searchQueries[qi],
-                        num: 10,
+                        num: 8,
                       });
 
                       if (!Array.isArray(searchResults) || searchResults.length === 0) continue;
@@ -864,15 +884,17 @@ export async function POST(request: NextRequest) {
           let phase15Alerts = 0;
 
           console.log('[ScanGroups] Phase 1.5: Direct channel probing...');
-          for (const keyword of keywords) {
+          // Limit probes to top keywords + reduced probe names to stay within budget
+          const PROBE_KEYWORDS = keywords.slice(0, 8);
+          for (const keyword of PROBE_KEYWORDS) {
+            if (!scanTimeLeft()) break;
             const kwNorm = normalizeText(keyword).replace(/\s+/g, '');
 
             const probeNames = [
               kwNorm,
-              `${kwNorm}_soporte`, `${kwNorm}soporte`,
-              `${kwNorm}_oficial`, `${kwNorm}oficial`,
+              `${kwNorm}_soporte`,
+              `${kwNorm}_oficial`,
               `fake${kwNorm}`,
-              `${kwNorm}_ayuda`, `${kwNorm}_support`,
             ];
 
             const probeResults = await Promise.allSettled(
@@ -946,15 +968,15 @@ export async function POST(request: NextRequest) {
             ...discoveredOfficial,
           ];
 
-          console.log(`[ScanGroups] Phase 2: Scraping ${allChannels.length} channels...`);
+          console.log(`[ScanGroups] Phase 2: Scraping ${allChannels.length} channels (budget: ${scanElapsed()}ms used)...`);
 
-          const BATCH_SIZE = 8;
-          const MAX_CHANNELS = 60;
+          const BATCH_SIZE = 10;
+          const MAX_CHANNELS = scanTimeLeft() ? 40 : 10;
           let channelsScraped = 0;
           let channelsWithMessages = 0;
           let phase2Alerts = 0;
 
-          for (let batchStart = 0; batchStart < allChannels.length && batchStart < MAX_CHANNELS; batchStart += BATCH_SIZE) {
+          for (let batchStart = 0; batchStart < allChannels.length && batchStart < MAX_CHANNELS && scanTimeLeft(); batchStart += BATCH_SIZE) {
             const batch = allChannels.slice(batchStart, batchStart + BATCH_SIZE);
 
             const batchResults = await Promise.allSettled(
@@ -1004,8 +1026,8 @@ export async function POST(request: NextRequest) {
                 }
               }
 
-              // Pagination: scrape older messages if channel has matches
-              if (channelHasMatch && oldestMsgId) {
+              // Pagination: scrape older messages if channel has matches AND time permits
+              if (channelHasMatch && oldestMsgId && scanTimeLeft()) {
                 try {
                   const olderResult = await scrapeChannelPreview(channelName, oldestMsgId);
                   if (olderResult.exists && olderResult.messages.length > 0) {
@@ -1041,8 +1063,8 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            if (batchStart + BATCH_SIZE < allChannels.length) {
-              await new Promise(resolve => setTimeout(resolve, 200));
+            if (batchStart + BATCH_SIZE < allChannels.length && scanTimeLeft()) {
+              await new Promise(resolve => setTimeout(resolve, 100));
             }
           }
 
@@ -1144,11 +1166,14 @@ export async function POST(request: NextRequest) {
           const updatedAlertHistory = getAlertHistory();
           const allMethodsFailed = !zaiAvailable && channelsScraped === 0 && (!botToken || !botApiOk);
           const hasPartialIssues = (!zaiAvailable || channelsScraped === 0) && detectedAlerts.length === 0;
+          const timedOut = !scanTimeLeft();
 
-          console.log(`[ScanGroups] Complete: ${detectedAlerts.length} alerts, ${totalGroups} groups, ${keywordsProcessed}/${keywords.length} keywords`);
+          console.log(`[ScanGroups] Complete: ${detectedAlerts.length} alerts, ${totalGroups} groups, ${keywordsProcessed}/${keywords.length} keywords in ${scanElapsed()}ms${timedOut ? ' (BUDGET EXCEEDED)' : ''}`);
 
           const responseBody: Record<string, unknown> = {
             success: detectedAlerts.length > 0 || !allMethodsFailed,
+            scanTimeMs: scanElapsed(),
+            scanTimedOut: timedOut,
             totalGroups,
             totalBotMessages,
             keywordsProcessed,
@@ -1178,6 +1203,11 @@ export async function POST(request: NextRequest) {
           } else if (hasPartialIssues) {
             responseBody.technicalIssues = true;
             responseBody.partialSuccess = true;
+          }
+
+          if (timedOut && detectedAlerts.length > 0) {
+            responseBody.partialSuccess = true;
+            responseBody.technicalIssues = false;
           }
 
           return NextResponse.json(responseBody, { status: 200 });
