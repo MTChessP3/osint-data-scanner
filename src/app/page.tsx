@@ -3689,7 +3689,7 @@ export default function Home() {
                       </Badge>
                     </div>
                     <p className="text-[10px] text-slate-500">
-                      Escanea grupos y canales de Telegram buscando menciones de las palabras clave configuradas. 3 fases: (1) Búsqueda web Z.ai para descubrir canales, (2) Scraping de vistas previas públicas para leer mensajes, (3) Bot polling. La palabra clave se resalta en los hallazgos.
+                      Escanea grupos y canales de Telegram buscando menciones de las palabras clave configuradas. 3 fases: (1) Búsqueda web inteligente para descubrir canales, (2) Scraping de vistas previas públicas para leer mensajes, (3) Bot polling. La palabra clave se resalta en los hallazgos.
                     </p>
                     <Button
                       onClick={handleScanGroups}
@@ -3808,7 +3808,7 @@ export default function Home() {
                 {/* Info about how it works */}
                 <div className="p-3 rounded-lg bg-slate-900/30 border border-app-border">
                   <p className="text-[10px] text-slate-500 leading-relaxed">
-                    <strong className="text-slate-400">¿Cómo funciona?</strong> El escaneo usa 3 fases: (1) <strong className="text-app-text-dim/80">Búsqueda web Z.ai</strong> — busca cada palabra clave en la web para descubrir canales de Telegram relevantes; (2) <strong className="text-app-text-dim/80">Scraping de canales</strong> — accede a las páginas de vista previa públicas (t.me/s/) de los canales descubiertos y conocidos para extraer mensajes reales; (3) <strong className="text-app-text-dim/80">Bot polling</strong> — lee mensajes de grupos donde el bot es miembro. La palabra clave encontrada se resalta en los resultados.
+                    <strong className="text-slate-400">¿Cómo funciona?</strong> El escaneo usa 3 fases: (1) <strong className="text-app-text-dim/80">Búsqueda web inteligente</strong> — busca cada palabra clave en la web para descubrir canales de Telegram relevantes; (2) <strong className="text-app-text-dim/80">Scraping de canales</strong> — accede a las páginas de vista previa públicas (t.me/s/) de los canales descubiertos y conocidos para extraer mensajes reales; (3) <strong className="text-app-text-dim/80">Bot polling</strong> — lee mensajes de grupos donde el bot es miembro. La palabra clave encontrada se resalta en los resultados.
                   </p>
                   <p className="text-[10px] text-slate-600 mt-1.5">
                     <strong>Configuración persistente:</strong> Para que la configuración sobreviva reinicios del servidor, agrega <code className="text-app-text-dim">TELEGRAM_BOT_TOKEN</code> y <code className="text-app-text-dim">TELEGRAM_CHAT_ID</code> como Environment Variables en Vercel Dashboard → Settings.

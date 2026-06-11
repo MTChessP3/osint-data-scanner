@@ -727,7 +727,7 @@ export async function POST(request: NextRequest) {
           scanDiagnostics.push({
             phase: 'validation',
             status: zaiAvailable ? 'ok' : 'error',
-            details: `Z.ai: ${zaiAvailable ? 'OK' : `ERROR: ${zaiError}`}. Bot API: ${!botToken ? 'no token' : botApiOk ? 'OK' : `ERROR: ${botApiError}`}`,
+            details: `Motor de búsqueda: ${zaiAvailable ? 'OK' : `ERROR: ${zaiError}`}. Bot API: ${!botToken ? 'no token' : botApiOk ? 'OK' : `ERROR: ${botApiError}`}`,
           });
 
           // ═══════════════════════════════════════════════════════════════
@@ -854,7 +854,7 @@ export async function POST(request: NextRequest) {
           scanDiagnostics.push({
             phase: 'phase1_web_search',
             status: zaiAvailable ? (phase1Errors === 0 ? 'ok' : 'partial') : 'skipped',
-            details: `${keywordsProcessed} keywords, ${discoveredChannels.size} channels discovered, ${phase1ResultsCount} alerts, ${phase1Errors} errors. Z.ai: ${zaiAvailable ? 'available' : `unavailable (${zaiError})`}`,
+            details: `${keywordsProcessed} keywords, ${discoveredChannels.size} channels discovered, ${phase1ResultsCount} alerts, ${phase1Errors} errors. Motor: ${zaiAvailable ? 'available' : `unavailable (${zaiError})`}`,
           });
 
           // ═══════════════════════════════════════════════════════════════
@@ -1173,7 +1173,7 @@ export async function POST(request: NextRequest) {
 
           if (allMethodsFailed) {
             responseBody.success = false;
-            responseBody.error = 'No se pudieron obtener resultados. Z.ai SDK no disponible y scraping sin resultados. Revisa los diagnósticos.';
+            responseBody.error = 'No se pudieron obtener resultados. Motor de búsqueda no disponible y scraping sin resultados. Revisa los diagnósticos.';
             responseBody.technicalIssues = true;
           } else if (hasPartialIssues) {
             responseBody.technicalIssues = true;
