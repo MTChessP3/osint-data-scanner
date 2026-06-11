@@ -22,3 +22,26 @@ Stage Summary:
 - Phase 2 scraping works: extracts messages and matches keywords
 - Total test results: 20 alerts across all phases
 - Changes pushed to GitHub (3 commits)
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Restructure UI - Telegram Avanzado as top-level tab, remove duplicate scanner
+
+Work Log:
+- Analyzed current UI: 5 tabs with Telegram Avanzado embedded in Escaneo tab AND duplicate Escáner de Grupos card in Alertas tab
+- Added "Telegram Avanzado" as new top-level tab with Send icon in TabsList
+- New tab order: Escaneo | Resultados | Redes Sociales | Telegram Avanzado | Historial | Alertas
+- Moved entire Telegram Avanzado card from Escaneo tab to new dedicated Telegram Avanzado tab
+- Removed duplicate "Escáner de Grupos" card from Alertas tab (shared same handleScanGroups handler)
+- Alertas tab now contains: Palabras Clave, Alertas Encontradas, Historial de Alertas, Cómo Funciona
+- Updated code comments to reflect new architecture
+- Build verified successful
+- Changes pushed to GitHub
+
+Stage Summary:
+- Telegram Avanzado is now a standalone top-level navigation item with Send icon
+- No more duplicate scanning functionality between modules
+- Escaneo tab is clean: only data input form + file upload + engine grid
+- Alertas tab is clean: only keyword management + alert results + history
+- No backend changes needed - same API endpoints and handlers
