@@ -505,7 +505,7 @@ export default function Home() {
   const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
   const [deleteHistoryLoading, setDeleteHistoryLoading] = useState(false);
 
-  // ── Telegram Avanzado states (in Scan tab) ──
+  // ── Telegram Avanzado states (dedicated tab) ──
   const [telegramBotInfo, setTelegramBotInfo] = useState<{ username: string; firstName: string; id: number } | null>(null);
   const [telegramDetecting, setTelegramDetecting] = useState(false);
   const [telegramDetectedChats, setTelegramDetectedChats] = useState<Array<{ chatId: number; type: string; title?: string; username?: string; firstName?: string }>>([]);
@@ -3917,7 +3917,7 @@ export default function Home() {
           </TabsContent>
 
           {/* ────────────────────────────────────────────
-              ALERTS TAB — Telegram Bot Alert Configuration + Group Scanner
+              ALERTS TAB — Keyword Management + Alert Results + History
           ──────────────────────────────────────────── */}
           <TabsContent value="alerts" className="space-y-6">
 
